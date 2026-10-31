@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Asistente CAD para el diseño preliminar de componentes metálicos auxiliares"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 dependencies = [
     "cadquery==2.7.0",
     "build123d==0.10.0",
