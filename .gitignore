@@ -1,0 +1,57 @@
+# ===== Reference material (untracked) =====
+reference/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+
+# ===== Entornos virtuales =====
+.venv/
+venv/
+env/
+ENV/
+
+# ===== uv (uv.lock sí se versiona) =====
+.uv/
+
+# ===== Cachés de herramientas =====
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+
+# ===== Pesos del modelo (9,8 GB): nunca se versionan =====
+*.gguf
+*.safetensors
+models/
+
+# ===== Artefactos CAD generados =====
+outputs/
+data/outputs/
+artifacts/
+registro*.csv
+
+# ===== Secretos y entorno =====
+.env
+.env.*
+!.env.example
+
+# ===== Logs =====
+*.log
+logs/
+
+# ===== IDE y sistema operativo =====
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

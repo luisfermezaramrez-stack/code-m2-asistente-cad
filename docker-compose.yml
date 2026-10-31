@@ -1,0 +1,18 @@
+services:
+  m2-cad:
+    build: .
+    ports:
+      - "8000:8000"   # FastAPI
+      - "7860:7860"   # Gradio
+    environment:
+      MODEL_PATH: /models/gemma-4-12b-constraintkit.gguf
+    volumes:
+      - ./data:/app/data
+      - ./models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

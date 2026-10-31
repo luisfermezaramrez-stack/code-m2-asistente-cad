@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v3
+
+      - name: Instalar dependencias
+        run: uv sync --dev
+
+      - name: Ruff (reglas E, F, I, B)
+        run: uv run ruff check src tests
+
+      - name: Pytest con cobertura
+        run: uv run pytest --cov=src/m2_cad --cov-report=term-missing
