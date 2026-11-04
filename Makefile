@@ -17,6 +17,10 @@ lock: ## Regenera uv.lock
 test: ## Corre la suite pytest
 	uv run pytest
 
+test-kernel: ## Corre las 113 pruebas del kernel de constraint-kit (HU-01 AC3)
+	@test -d .cache/constraint-kit/.git || git clone --depth 1 https://github.com/jajmangold/constraint-kit.git .cache/constraint-kit
+	uv run pytest .cache/constraint-kit/tests -q
+
 cov: ## Corre pytest con reporte de cobertura
 	uv run pytest --cov=src/m2_cad --cov-report=term-missing
 

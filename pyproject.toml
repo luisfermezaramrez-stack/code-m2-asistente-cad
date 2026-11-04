@@ -6,11 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
-    "cadquery==2.7.0",
-    "build123d==0.10.0",
-    "bd_warehouse==0.2.0",
-    "z3-solver>=4.12",
-    "python-solvespace>=3.0",
+    "constraint-kit[kernel,service,solver]",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "gradio>=4.0",
@@ -29,6 +25,9 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+constraint-kit = { git = "https://github.com/jajmangold/constraint-kit.git" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/m2_cad"]
