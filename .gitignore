@@ -55,3 +55,13 @@ logs/
 *.swo
 .DS_Store
 Thumbs.db
+
+# ===== Pi agent (Spec Kit) =====
+# Solo se versionan los prompts/comandos; el resto puede guardar
+# credenciales o estado local de la sesión.
+.pi/*
+!.pi/prompts/
+
+# ===== Claude Code =====
+# Symlinks de skills generados localmente por el CLI `skills`.
+.claude/
