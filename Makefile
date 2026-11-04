@@ -37,7 +37,13 @@ precommit: ## Corre pre-commit sobre todos los archivos
 build: ## Construye la imagen Docker
 	docker compose build
 
-up: ## Levanta el servicio (FastAPI + Gradio)
+model-fetch: ## Descarga y verifica el modelo GGUF (HU-01)
+	bash scripts/fetch-model.sh
+
+model-serve: ## Levanta solo el servidor llama.cpp (sin FastAPI)
+	docker compose up llama
+
+up: ## Levanta el servicio (llama + FastAPI + Gradio)
 	docker compose up
 
 down: ## Detiene el servicio

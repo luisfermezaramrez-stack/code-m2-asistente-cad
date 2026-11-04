@@ -65,6 +65,20 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 
 > El único entorno probado por el autor es el contenedor Docker.
 
+## Versiones
+
+| Componente | Versión |
+| --- | --- |
+| Modelo | `gemma-4-12b-constraintkit-GGUF` (Q6_K, ~9,8 GB) |
+| Python | 3.12 (contenedor Docker) |
+| cadquery | 2.7.0 |
+| build123d | 0.10.0 |
+| bd_warehouse | 0.2.0 |
+| z3-solver | ≥ 4.12 |
+| python-solvespace | ≥ 3.0 |
+| llama.cpp | servidor GGUF (Q6_K) |
+| constraint-kit | repositorio del autor (sin modificar) |
+
 ## Instalación y uso
 
 ```bash
