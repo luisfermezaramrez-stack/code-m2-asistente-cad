@@ -6,6 +6,10 @@ on:
   push:
     branches: [develop]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -14,9 +18,12 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          # Una sola fuente de verdad para la version de Python (local y CI).
+          python-version-file: ".python-version"
 
       - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
       - name: Instalar dependencias
         run: uv sync --dev
@@ -24,5 +31,5 @@ jobs:
       - name: Ruff (reglas E, F, I, B)
         run: uv run ruff check src tests
 
-      - name: Pytest con cobertura
+      - name: Pytest con cobertura (umbral en [tool.coverage.report])
         run: uv run pytest --cov=src/m2_cad --cov-report=term-missing
