@@ -11,6 +11,9 @@ help: ## Lista los objetivos disponibles
 install: ## Instala dependencias (dev incluidas) con uv
 	uv sync --dev
 
+vendor: ## Vendea y parchea constraint-kit (necesario antes de uv sync/build)
+	bash scripts/vendor-constraint-kit.sh
+
 lock: ## Regenera uv.lock
 	uv lock
 

@@ -38,7 +38,7 @@ description: "Actividades de implementación para HU-01 (Servir Gemma 4 12B Cons
 
 **⚠️ CRÍTICO**: sin modelo íntegro y contenedor operativo no hay pipeline.
 
-- [ ] T003 [US1] Descargar el GGUF Q6_K (9,8 GB) y verificar `sha256sum` contra el hash publicado (AC1) *(CPM B)*
+- [X] T003 [US1] Descargar el GGUF Q6_K (9,8 GB) y verificar `sha256sum` contra el hash publicado (AC1) *(CPM B)*
 - [ ] T004 [US2] Configurar llama.cpp para cargar con `--ctx-size 8192` y verificar VRAM ≤ 16 GB (AC2) *(CPM D)*
 - [ ] T005 [US3] Levantar el contenedor de constraint-kit usando la imagen del autor (Python 3.12 + OpenCascade/SolveSpace), sin modificarla (AC3) *(CPM C)*
 

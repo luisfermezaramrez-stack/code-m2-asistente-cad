@@ -18,6 +18,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 COPY data ./data
+COPY vendor ./vendor
 
 # python-solvespace es una extensión C++ sin wheel: se compila con build-essential
 # y luego se purga el toolchain para mantener la imagen liviana (patrón de cadkit/Dockerfile).

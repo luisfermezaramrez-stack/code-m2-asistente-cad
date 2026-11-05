@@ -27,7 +27,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.uv.sources]
-constraint-kit = { git = "https://github.com/jajmangold/constraint-kit.git" }
+constraint-kit = { path = "vendor/constraint-kit" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/m2_cad"]

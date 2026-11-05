@@ -12,10 +12,10 @@ resolution-markers = [
     "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.12.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version < '3.11.5' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "python_full_version < '3.11.5' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
@@ -703,7 +703,7 @@ wheels = [
 [[package]]
 name = "constraint-kit"
 version = "0.1.0"
-source = { git = "https://github.com/jajmangold/constraint-kit.git#2ed27db4d8fa821afef41103f0efc9befbf116e6" }
+source = { directory = "vendor/constraint-kit" }
 dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -735,16 +735,48 @@ solver = [
     { name = "z3-solver" },
 ]
 
+[package.metadata]
+requires-dist = [
+    { name = "bd-warehouse", marker = "extra == 'kernel'", specifier = "==0.2.0" },
+    { name = "beautifulsoup4", marker = "extra == 'service'" },
+    { name = "bitsandbytes", marker = "extra == 'training'" },
+    { name = "build123d", marker = "extra == 'kernel'", specifier = "==0.10.0" },
+    { name = "cadquery", marker = "extra == 'kernel'", specifier = "==2.7.0" },
+    { name = "constraint-kit", extras = ["kernel", "service", "solver", "amg", "gear", "pdf", "dev"], marker = "extra == 'all'" },
+    { name = "cq-gears", marker = "extra == 'gear'", git = "https://github.com/meadiode/cq_gears.git" },
+    { name = "ezdxf", marker = "extra == 'kernel'" },
+    { name = "fastapi", marker = "extra == 'service'" },
+    { name = "httpx", marker = "extra == 'service'" },
+    { name = "langgraph", marker = "extra == 'service'" },
+    { name = "neo4j", marker = "extra == 'service'" },
+    { name = "numpy" },
+    { name = "ocp-gordon", marker = "extra == 'kernel'", specifier = "==0.1.18" },
+    { name = "pdf-oxide", marker = "extra == 'pdf'" },
+    { name = "peft", marker = "extra == 'training'" },
+    { name = "pyamg", marker = "extra == 'amg'" },
+    { name = "pydantic", marker = "extra == 'service'" },
+    { name = "pypdf", marker = "extra == 'service'" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "python-solvespace", marker = "extra == 'solver'" },
+    { name = "scipy" },
+    { name = "trimesh", marker = "extra == 'kernel'" },
+    { name = "trl", marker = "extra == 'training'" },
+    { name = "unsloth", marker = "extra == 'training'" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'service'" },
+    { name = "z3-solver", marker = "extra == 'solver'" },
+]
+provides-extras = ["kernel", "service", "solver", "amg", "gear", "pdf", "dev", "training", "all"]
+
 [[package]]
 name = "contourpy"
 version = "1.3.3"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version < '3.11.5' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "python_full_version < '3.11.5' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
@@ -2052,7 +2084,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "constraint-kit", extras = ["kernel", "service", "solver"], git = "https://github.com/jajmangold/constraint-kit.git" },
+    { name = "constraint-kit", extras = ["kernel", "service", "solver"], directory = "vendor/constraint-kit" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "gradio", specifier = ">=4.0" },
     { name = "llama-cpp-python", specifier = ">=0.3" },
@@ -2629,10 +2661,10 @@ version = "2.4.6"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version < '3.11.5' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "python_full_version < '3.11.5' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz", hash = "sha256:f3a3570c4a2a16746ac2c31a7c7c7b0c186b95ce902e33db6f28094ed7387dda", size = 20735807, upload-time = "2026-05-18T23:37:14.07Z" }
@@ -3790,10 +3822,10 @@ version = "1.17.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version < '3.11.5' and sys_platform == 'win32'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.11.5' and sys_platform == 'win32'",
+    "python_full_version < '3.11.5' and sys_platform == 'emscripten'",
     "python_full_version < '3.11.5' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
