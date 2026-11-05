@@ -6,6 +6,10 @@ on:
   push:
     branches: [develop]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -14,15 +18,28 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          # Una sola fuente de verdad para la version de Python (local y CI).
+          python-version-file: ".python-version"
 
       - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          # El action cachea por `**/uv.lock` por defecto y aborta si el glob no
+          # encuentra ningun archivo. Este repo todavia no versiona `uv.lock`,
+          # asi que la clave de cache se calcula con las dependencias declaradas.
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Instalar dependencias
+        # python-solvespace 3.0.8 no publica wheels para Linux: se compila desde
+        # sdist y su mimalloc incluido usa ATOMIC_VAR_INIT, simbolo eliminado en
+        # C23. La imagen ubuntu-latest compila en C23 por defecto (gcc 15), asi
+        # que se fija C17 para los sdists y el build queda igual que en local.
+        env:
+          CFLAGS: "-std=gnu17"
         run: uv sync --dev
 
       - name: Ruff (reglas E, F, I, B)
         run: uv run ruff check src tests
 
-      - name: Pytest con cobertura
+      - name: Pytest con cobertura (umbral en [tool.coverage.report])
         run: uv run pytest --cov=src/m2_cad --cov-report=term-missing
