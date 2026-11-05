@@ -24,8 +24,18 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          # El action cachea por `**/uv.lock` por defecto y aborta si el glob no
+          # encuentra ningun archivo. Este repo todavia no versiona `uv.lock`,
+          # asi que la clave de cache se calcula con las dependencias declaradas.
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Instalar dependencias
+        # python-solvespace 3.0.8 no publica wheels para Linux: se compila desde
+        # sdist y su mimalloc incluido usa ATOMIC_VAR_INIT, simbolo eliminado en
+        # C23. La imagen ubuntu-latest compila en C23 por defecto (gcc 15), asi
+        # que se fija C17 para los sdists y el build queda igual que en local.
+        env:
+          CFLAGS: "-std=gnu17"
         run: uv sync --dev
 
       - name: Ruff (reglas E, F, I, B)

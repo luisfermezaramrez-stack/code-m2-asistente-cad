@@ -22,6 +22,9 @@ description: "Actividades de implementación para HU-09 (CI/CD con GitHub Action
 
 - [x] T001 [US1] Configurar `.github/workflows/ci.yml` para ejecutar pytest y Ruff en cada PR a `develop` (con `uv sync`) (AC1)
   - Evidencia: el workflow ya corría en PR/push a `develop`; se agregó `concurrency`, `enable-cache` y `python-version-file: .python-version`. Pasos validados en local: `uv sync --dev` (exit 0), `uv run ruff check src tests`, `uv run pytest --cov=src/m2_cad`.
+  - Corrección (run 41963599101, job 127035380534): `astral-sh/setup-uv@v3` cachea por `**/uv.lock` y abortaba con `No file in /home/runner/work/... matched to [**/uv.lock]` porque el repo no versiona `uv.lock`. Se fijó `cache-dependency-glob: "pyproject.toml"` para conservar la caché sin depender del lockfile. Si se versiona `uv.lock` (regla del estándar del proyecto), el glob debe volver a incluir el lockfile.
+  - Corrección (run 41955126731, job 127008092543, fallo previo a esta HU): `uv sync --dev` fallaba en `Instalar dependencias` con `error: Failed to build python-solvespace==3.0.8` → `mimalloc/include/mimalloc-atomic.h:42:33: error: implicit declaration of function ATOMIC_VAR_INIT`. Causa: `python-solvespace` 3.0.8 no publica wheels para Linux y compila mimalloc desde sdist; `ATOMIC_VAR_INIT` se eliminó en C23 y la imagen `ubuntu-latest` actual compila en C23 por defecto (gcc 15). En local no se reproduce porque gcc 13 compila en C17 por defecto. Arreglo: `CFLAGS: "-std=gnu17"` en el paso `uv sync`, que `uv` propaga al backend de build (verificado localmente: con una bandera inválida el build falla igual, y con `-std=gnu17` el sdist compila e importa).
+  - Pendiente de decisión humana (fuera de alcance de esta HU): `llama-cpp-python` 0.3.36 también es solo sdist (compila llama.cpp con CMake); si su build falla en la imagen nueva, hay que decidir entre subir la versión, usar un índice de wheels o dejar de instalar el stack CAD/LLM en la CI.
 
 ---
 
