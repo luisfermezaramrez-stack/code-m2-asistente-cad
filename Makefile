@@ -1,8 +1,9 @@
 # Makefile del asistente CAD (uv + pytest + Ruff + Docker)
 # Uso: `make <objetivo>` — `make help` lista todo.
 
-.PHONY: help install lock test cov lint format check \
-        precommit-install precommit build up down clean
+.PHONY: help install lock vendor test cov lint format check \
+        precommit-install precommit build up down clean \
+        model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup
 
 help: ## Lista los objetivos disponibles
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -20,9 +21,14 @@ lock: ## Regenera uv.lock
 test: ## Corre la suite pytest
 	uv run pytest
 
-test-kernel: ## Corre las 113 pruebas del kernel de constraint-kit (HU-01 AC3)
-	@test -d .cache/constraint-kit/.git || git clone --depth 1 https://github.com/jajmangold/constraint-kit.git .cache/constraint-kit
-	uv run pytest .cache/constraint-kit/tests -q
+kernel-image: ## Construye la imagen del contenedor del autor de constraint-kit (AC3)
+	docker build -t cadkit:0.1 vendor/constraint-kit/cadkit
+
+kernel-test: kernel-image ## Corre las 113 pruebas del kernel en el contenedor del autor (AC3)
+	docker run --rm --user "$$(id -u):$$(id -g)" \
+		-v "$$(pwd)/vendor/constraint-kit:/tmp/constraint-kit" \
+		-w /tmp/constraint-kit -e PYTHONPATH=/tmp/constraint-kit -e HOME=/tmp \
+		cadkit:0.1 python3 tests/test_kernel.py
 
 cov: ## Corre pytest con reporte de cobertura
 	uv run pytest --cov=src/m2_cad --cov-report=term-missing
@@ -49,6 +55,12 @@ model-fetch: ## Descarga y verifica el modelo GGUF (HU-01)
 
 model-serve: ## Levanta solo el servidor llama.cpp (sin FastAPI)
 	docker compose up llama
+
+verify-serve: ## AC2: contexto 8192 y VRAM <= 16 GB del servicio llama en ejecución
+	bash scripts/verify-serve.sh
+
+cloud-setup: ## Prepara una instancia de Lambda: Docker + NVIDIA Container Toolkit
+	bash scripts/cloud/lambda-bootstrap.sh
 
 up: ## Levanta el servicio (llama + FastAPI + Gradio)
 	docker compose up

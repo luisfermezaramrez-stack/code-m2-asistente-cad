@@ -93,6 +93,34 @@ O con Docker:
 docker compose up --build
 ```
 
+## Entorno en la nube (Lambda)
+
+La validación de HU-01 corre en una instancia de [Lambda](https://lambda.ai) con GPU NVIDIA
+(una **A10 de 24 GB** ya cumple el AC2 de ≤ 16 GB de VRAM). La GPU local de 4 GB no alcanza
+para el GGUF Q6_K de ~9,8 GB: el modelo no entra.
+
+1. Dashboard de Lambda → *Launch instance* → imagen **Lambda Stack (Ubuntu 22.04)** →
+   1× A10 (24 GB) → tu clave SSH → *Launch*.
+2. **Exponer el servicio**: *Firewall rules* → agregar TCP **8080** (llama.cpp) y **8000**
+   (FastAPI), restringidos a tu IP. Sin esa regla el puerto no queda accesible desde afuera.
+3. En la instancia:
+
+```bash
+git clone https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad.git
+cd code-m2-asistente-cad
+git switch feature/hu-01-gemma-constraintkit-serve
+bash scripts/cloud/lambda-bootstrap.sh   # Docker + NVIDIA Container Toolkit + smoke test
+make model-fetch                         # AC1: descarga 9,8 GB y verifica el SHA-256
+docker compose up -d llama
+make verify-serve                        # AC2: n_ctx=8192 y VRAM <= 16 GB
+```
+
+4. Comprobar desde tu máquina: `curl http://<IP-pública>:8080/health`.
+5. Terminar la instancia (se factura por hora) cuando cierres la validación.
+
+El AC3 (113 pruebas del kernel) no necesita GPU: se corre con `make kernel-test`, que
+construye el contenedor del autor y ejecuta su suite dentro.
+
 ## Metas (objetivos 1–4)
 
 | Indicador | Meta |
