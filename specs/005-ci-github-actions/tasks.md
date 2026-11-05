@@ -52,7 +52,11 @@ description: "Actividades de implementación para HU-09 (CI/CD con GitHub Action
 
 ## Phase 5: User Story 5 - develop protegido (P2)
 
-- [ ] T005 [US5] Configurar la protección de rama `develop` en GitHub: CI en verde + una aprobación obligatoria (AC5)
+- [x] T005 [US5] Configurar la protección de rama `develop` en GitHub: CI en verde + una aprobación obligatoria (AC5)
+  - Evidencia: `PUT /branches/develop/protection` aplicado con `required_status_checks` estricto sobre el check `test` (app_id 15368), `required_approving_review_count = 1` con `dismiss_stale_reviews`, `required_conversation_resolution`, `enforce_admins = true`, sin force-push ni borrado de la rama.
+  - Requisito previo resuelto: el repo era privado con plan gratuito y la API devolvía `403 Upgrade to GitHub Pro or make this repository public`; se hizo público y la protección quedó disponible.
+  - Revisión cruzada viable: `JuanC0319` tiene permiso `write` (su aprobación cuenta para la regla). `cetrujillo` está invitado con `write` y falta que acepte la invitación.
+  - Nota de operación: con `enforce_admins = true` y una sola persona con escritura, ningún PR se puede fusionar sin la aprobación de otro integrante; es intencional (DoD: otro integrante revisa el pull request).
 
 ---
 
