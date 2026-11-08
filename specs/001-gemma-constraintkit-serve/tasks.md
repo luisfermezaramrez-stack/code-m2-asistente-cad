@@ -27,8 +27,8 @@ description: "Actividades de implementación para HU-01 (Servir Gemma 4 12B Cons
 
 **Propósito**: reservar y preparar el entorno de la GPU alquilada.
 
-- [ ] T001 [US1] Reservar la GPU alquilada (≥ 16 GB de VRAM) y registrar horas de uso *(CPM B)*
-- [ ] T002 [P] [US2] Instalar/verificar llama.cpp en la GPU y preparar el directorio de pesos *(CPM A/B)*
+- [x] T001 [US1] Reservar la GPU alquilada (≥ 16 GB de VRAM) y registrar horas de uso *(CPM B)* — Vast.ai 1x RTX 3090 (24 GB GDDR6X), host 47294, On-Demand $0.239/hr.
+- [x] T002 [P] [US2] Instalar/verificar llama.cpp en la GPU y preparar el directorio de pesos *(CPM A/B)* — `llama-server 0.9.0-dev (commit f4777f9)` compilado con CUDA (arch 86); modelo en `/workspace/gemma4-12b-constraintkit-grpo-Q6_K.gguf`.
 
 ---
 
@@ -39,8 +39,8 @@ description: "Actividades de implementación para HU-01 (Servir Gemma 4 12B Cons
 **⚠️ CRÍTICO**: sin modelo íntegro y contenedor operativo no hay pipeline.
 
 - [X] T003 [US1] Descargar el GGUF Q6_K (9,8 GB) y verificar `sha256sum` contra el hash publicado (AC1) *(CPM B)*
-- [ ] T004 [US2] Configurar llama.cpp para cargar con `--ctx-size 8192` y verificar VRAM ≤ 16 GB (AC2) *(CPM D)*
-- [ ] T005 [US3] Levantar el contenedor de constraint-kit usando la imagen del autor (Python 3.12 + OpenCascade/SolveSpace), sin modificarla (AC3) *(CPM C)*
+- [x] T004 [US2] Configurar llama.cpp para cargar con `--ctx-size 8192` y verificar VRAM ≤ 16 GB (AC2) *(CPM D)* — `n_ctx=8192` por `/props`; VRAM **11320 MiB** ≤ 16384 MiB (nvidia-smi en la instancia); `LLAMA_REMOTE=1 bash scripts/verify-serve.sh` por el túnel.
+- [x] T005 [US3] Levantar el contenedor de constraint-kit usando la imagen del autor (Python 3.12 + OpenCascade/SolveSpace), sin modificarla (AC3) *(CPM C)* — `cadkit:0.1` construida desde `vendor/constraint-kit/cadkit` sin cambios.
 
 **Checkpoint**: modelo íntegro + contenedor arriba → listo para verificar.
 
@@ -52,7 +52,7 @@ description: "Actividades de implementación para HU-01 (Servir Gemma 4 12B Cons
 
 **Independent Test**: ejecutar la suite dentro del contenedor → 113 de 113 verdes.
 
-- [ ] T006 [US3] Ejecutar la suite del contenedor (113 pruebas) y confirmar 113/113 en verde (AC3) *(CPM C)*
+- [x] T006 [US3] Ejecutar la suite del contenedor (113 pruebas) y confirmar 113/113 en verde (AC3) *(CPM C)* — `make kernel-image kernel-test` → **113/113 passed**.
 
 ---
 
@@ -62,7 +62,7 @@ description: "Actividades de implementación para HU-01 (Servir Gemma 4 12B Cons
 
 **Independent Test**: enviar 5 solicitudes al modelo servido → los 5 programas pasan `/dsl/check`.
 
-- [ ] T007 [US4] Enviar 5 solicitudes de prueba y validar que las 5 devuelven un programa que pasa `/dsl/check` (AC4) *(CPM D)*
+- [x] T007 [US4] Enviar 5 solicitudes de prueba y validar que las 5 devuelven un programa que pasa `/dsl/check` (AC4) *(CPM D)* — `scripts/cloud/dsl_check_smoke.py` → **AC4: 5/5** (`ok=true, n_errors=0` por caso).
 
 ---
 

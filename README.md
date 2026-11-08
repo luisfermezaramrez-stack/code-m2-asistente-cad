@@ -76,7 +76,7 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 | bd_warehouse | 0.2.0 |
 | z3-solver | ≥ 4.12 |
 | python-solvespace | ≥ 3.0 |
-| llama.cpp | servidor GGUF (Q6_K) |
+| llama.cpp | 0.9.0-dev (commit f4777f9, backend CUDA) — servidor GGUF (Q6_K) |
 | constraint-kit | repositorio del autor (sin modificar) |
 
 ## Instalación y uso
