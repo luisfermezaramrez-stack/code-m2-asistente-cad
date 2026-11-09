@@ -7,7 +7,7 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
     "cadquery==2.7.0",
-    "build123d==0.10.0",
+    "build123d==0.13.0",
     "bd_warehouse==0.2.0",
     "z3-solver>=4.12",
     "python-solvespace>=3.0",
