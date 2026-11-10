@@ -105,3 +105,41 @@ def test_medidas_parametrizadas(texto, esperados):
 
     assert list(valores.values()) == esperados
     assert _restaurar_valores(protegido, texto, valores) == texto
+
+
+def test_solicitud_demasiado_larga():
+    """Rechaza solicitudes superiores a 1000 caracteres."""
+    with pytest.raises(ValueError, match="1000"):
+        traducir_solicitud("a" * 1001)
+
+
+def test_sin_api_key(monkeypatch):
+    """Rechaza solicitudes cuando falta la clave de Gemini."""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    with pytest.raises(ErrorTraduccion, match="GEMINI_API_KEY"):
+        traducir_solicitud("Placa de 120 mm")
+
+
+def test_restauracion_rechaza_cantidades_alteradas():
+    """Detecta cantidades adicionales introducidas por la traducción."""
+    texto = "Placa de 120 mm con 4 tornillos"
+    protegido, valores = _proteger_valores(texto)
+
+    traduccion_con_exceso = "Plate of __CADVAL_0__ with __CADVAL_1__ screws and 999 bolts"
+
+    with pytest.raises(ErrorTraduccion, match="alteró"):
+        _restaurar_valores(traduccion_con_exceso, texto, valores)
+
+
+def test_gemini_error_de_red(monkeypatch):
+    """Simula un error de conexión sin consultar la API real."""
+    monkeypatch.setenv("GEMINI_API_KEY", "clave-simulada")
+
+    def urlopen_roto(solicitud, timeout):
+        raise OSError("sin red")
+
+    monkeypatch.setattr("m2_cad.traduccion.urlopen", urlopen_roto)
+
+    with pytest.raises(ErrorTraduccion, match="No fue posible consultar"):
+        traducir_solicitud("Placa de 120 mm")
