@@ -56,6 +56,9 @@ logs/
 .DS_Store
 Thumbs.db
 
+# ===== Terceros vendoreados =====
+vendor/
+
 # ===== Pi agent (Spec Kit) =====
 # Solo se versionan los prompts/comandos; el resto puede guardar
 # credenciales o estado local de la sesión.

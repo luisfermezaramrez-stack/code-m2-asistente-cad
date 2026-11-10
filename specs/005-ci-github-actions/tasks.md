@@ -20,31 +20,43 @@ description: "Actividades de implementación para HU-09 (CI/CD con GitHub Action
 
 ## Phase 1: User Story 1 - CI en cada PR (P1)
 
-- [ ] T001 [US1] Configurar `.github/workflows/ci.yml` para ejecutar pytest y Ruff en cada PR a `develop` (con `uv sync`) (AC1)
+- [x] T001 [US1] Configurar `.github/workflows/ci.yml` para ejecutar pytest y Ruff en cada PR a `develop` (con `uv sync`) (AC1)
+  - Evidencia: el workflow ya corría en PR/push a `develop`; se agregó `concurrency`, `enable-cache` y `python-version-file: .python-version`. Pasos validados en local: `uv sync --dev` (exit 0), `uv run ruff check src tests`, `uv run pytest --cov=src/m2_cad`.
+  - Corrección (run 41963599101, job 127035380534): `astral-sh/setup-uv@v3` cachea por `**/uv.lock` y abortaba con `No file in /home/runner/work/... matched to [**/uv.lock]` porque el repo no versiona `uv.lock`. Se fijó `cache-dependency-glob: "pyproject.toml"` para conservar la caché sin depender del lockfile. Si se versiona `uv.lock` (regla del estándar del proyecto), el glob debe volver a incluir el lockfile.
+  - Corrección (run 41955126731, job 127008092543, fallo previo a esta HU): `uv sync --dev` fallaba en `Instalar dependencias` con `error: Failed to build python-solvespace==3.0.8` → `mimalloc/include/mimalloc-atomic.h:42:33: error: implicit declaration of function ATOMIC_VAR_INIT`. Causa: `python-solvespace` 3.0.8 no publica wheels para Linux y compila mimalloc desde sdist; `ATOMIC_VAR_INIT` se eliminó en C23 y la imagen `ubuntu-latest` actual compila en C23 por defecto (gcc 15). En local no se reproduce porque gcc 13 compila en C17 por defecto. Arreglo: `CFLAGS: "-std=gnu17"` en el paso `uv sync`, que `uv` propaga al backend de build (verificado localmente: con una bandera inválida el build falla igual, y con `-std=gnu17` el sdist compila e importa).
+  - Pendiente de decisión humana (fuera de alcance de esta HU): `llama-cpp-python` 0.3.36 también es solo sdist (compila llama.cpp con CMake); si su build falla en la imagen nueva, hay que decidir entre subir la versión, usar un índice de wheels o dejar de instalar el stack CAD/LLM en la CI.
 
 ---
 
 ## Phase 2: User Story 2 - Cobertura (P2)
 
-- [ ] T002 [US2] Configurar pytest-cov para medir cobertura de `src/` y fijar el umbral ≥ 70 % en la CI (AC2)
+- [x] T002 [US2] Configurar pytest-cov para medir cobertura de `src/` y fijar el umbral ≥ 70 % en la CI (AC2)
+  - Evidencia: `[tool.coverage.report] fail_under = 70` en `pyproject.toml`; el reporte imprime `Required test coverage of 70.0% reached` y falla por debajo del umbral tanto en la CI como en `make cov`.
+  - Nota: hoy `src/m2_cad/*` son módulos vacíos (0 sentencias), así que el 100 % medido es vacío. El umbral empieza a exigir de verdad cuando entren el pipeline (HU-04) y el registro (HU-06).
 
 ---
 
 ## Phase 3: User Story 3 - Ruff limpio (P1)
 
-- [ ] T003 [US3] Ajustar `[tool.ruff]` (reglas E, F, I, B) y dejar el código con 0 errores de Ruff (AC3)
+- [x] T003 [US3] Ajustar `[tool.ruff]` (reglas E, F, I, B) y dejar el código con 0 errores de Ruff (AC3)
+  - Evidencia: `uv run ruff check src tests` → `All checks passed!` con las reglas E, F, I y B ya fijadas en `[tool.ruff.lint]`.
 
 ---
 
 ## Phase 4: User Story 4 - pre-commit bloqueante (P1)
 
-- [ ] T004 [US4] Configurar `.pre-commit-config.yaml` para bloquear errores de Ruff y archivos de pesos (`.gguf`, `.safetensors`) antes de cada commit (AC4)
+- [x] T004 [US4] Configurar `.pre-commit-config.yaml` para bloquear errores de Ruff y archivos de pesos (`.gguf`, `.safetensors`) antes de cada commit (AC4)
+  - Evidencia: se agregó el hook local `no-model-weights` (`scripts/check-weights.sh`), que bloquea por extensión sin importar el tamaño. Verificado con un `.gguf` de 2 KB (bloqueado, exit 1) y con un error de Ruff no auto-corregible (bloqueado, exit 1).
 
 ---
 
 ## Phase 5: User Story 5 - develop protegido (P2)
 
-- [ ] T005 [US5] Configurar la protección de rama `develop` en GitHub: CI en verde + una aprobación obligatoria (AC5)
+- [x] T005 [US5] Configurar la protección de rama `develop` en GitHub: CI en verde + una aprobación obligatoria (AC5)
+  - Evidencia: `PUT /branches/develop/protection` aplicado con `required_status_checks` estricto sobre el check `test` (app_id 15368), `required_approving_review_count = 1` con `dismiss_stale_reviews`, `required_conversation_resolution`, `enforce_admins = true`, sin force-push ni borrado de la rama.
+  - Requisito previo resuelto: el repo era privado con plan gratuito y la API devolvía `403 Upgrade to GitHub Pro or make this repository public`; se hizo público y la protección quedó disponible.
+  - Revisión cruzada viable: `JuanC0319` tiene permiso `write` (su aprobación cuenta para la regla). `cetrujillo` está invitado con `write` y falta que acepte la invitación.
+  - Nota de operación: con `enforce_admins = true` y una sola persona con escritura, ningún PR se puede fusionar sin la aprobación de otro integrante; es intencional (DoD: otro integrante revisa el pull request).
 
 ---
 

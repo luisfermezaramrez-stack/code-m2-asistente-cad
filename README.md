@@ -65,6 +65,20 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 
 > El único entorno probado por el autor es el contenedor Docker.
 
+## Versiones
+
+| Componente | Versión |
+| --- | --- |
+| Modelo | `gemma-4-12b-constraintkit-GGUF` (Q6_K, ~9,8 GB) |
+| Python | 3.12 (contenedor Docker) |
+| cadquery | 2.7.0 |
+| build123d | 0.10.0 |
+| bd_warehouse | 0.2.0 |
+| z3-solver | ≥ 4.12 |
+| python-solvespace | ≥ 3.0 |
+| llama.cpp | 0.9.0-dev (commit f4777f9, backend CUDA) — servidor GGUF (Q6_K) |
+| constraint-kit | repositorio del autor (sin modificar) |
+
 ## Instalación y uso
 
 ```bash
@@ -79,6 +93,34 @@ O con Docker:
 docker compose up --build
 ```
 
+## Entorno en la nube (Lambda)
+
+La validación de HU-01 corre en una instancia de [Lambda](https://lambda.ai) con GPU NVIDIA
+(una **A10 de 24 GB** ya cumple el AC2 de ≤ 16 GB de VRAM). La GPU local de 4 GB no alcanza
+para el GGUF Q6_K de ~9,8 GB: el modelo no entra.
+
+1. Dashboard de Lambda → *Launch instance* → imagen **Lambda Stack (Ubuntu 22.04)** →
+   1× A10 (24 GB) → tu clave SSH → *Launch*.
+2. **Exponer el servicio**: *Firewall rules* → agregar TCP **8080** (llama.cpp) y **8000**
+   (FastAPI), restringidos a tu IP. Sin esa regla el puerto no queda accesible desde afuera.
+3. En la instancia:
+
+```bash
+git clone https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad.git
+cd code-m2-asistente-cad
+git switch feature/hu-01-gemma-constraintkit-serve
+bash scripts/cloud/lambda-bootstrap.sh   # Docker + NVIDIA Container Toolkit + smoke test
+make model-fetch                         # AC1: descarga 9,8 GB y verifica el SHA-256
+docker compose up -d llama
+make verify-serve                        # AC2: n_ctx=8192 y VRAM <= 16 GB
+```
+
+4. Comprobar desde tu máquina: `curl http://<IP-pública>:8080/health`.
+5. Terminar la instancia (se factura por hora) cuando cierres la validación.
+
+El AC3 (113 pruebas del kernel) no necesita GPU: se corre con `make kernel-test`, que
+construye el contenedor del autor y ejecuta su suite dentro.
+
 ## Metas (objetivos 1–4)
 
 | Indicador | Meta |
@@ -88,6 +130,28 @@ docker compose up --build
 | Latencia p90 (solicitud → STEP) | ≤ 60 s |
 | Autonomía de usuarios (tareas sin ayuda) | ≥ 7/9 |
 | Reproducibilidad | 1 comando, CI en verde |
+
+## Flujo de ramas e integración continua
+
+`develop` es la rama de integración: **toda rama de trabajo sale de `develop`** y vuelve por pull
+request. `main` solo recibe entregas.
+
+```bash
+git switch develop && git pull          # 1. partir siempre de develop
+git switch -c feature/hu-XX-tema       # 2. una rama por historia de usuario
+make precommit-install                 # 3. una vez: hooks de Ruff y bloqueo de pesos
+make check                             # 4. antes de abrir el PR: Ruff + pytest + cobertura
+```
+
+Cada pull request a `develop` dispara `.github/workflows/ci.yml`, que corre en Python 3.12 (el
+de `.python-version`) y exige tres cosas: **Ruff** limpio con las reglas E, F, I y B, **pytest con
+cobertura ≥ 70 %** de `src/` (umbral en `[tool.coverage.report]` de `pyproject.toml`) y el
+despliegue de ese entorno con `uv sync --dev` (sin `pip install` ni `requirements.txt`).
+
+La política de `develop` es exigir la CI en verde y una aprobación antes de fusionar; se activa
+con la protección de rama del repositorio (Configuración → Branches). pre-commit es
+la primera barrera local: bloquea errores de Ruff y archivos de pesos (`.gguf`, `.safetensors`),
+que nunca se versionan.
 
 ## Licencias
 
