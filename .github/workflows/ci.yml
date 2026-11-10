@@ -25,9 +25,24 @@ jobs:
         with:
           enable-cache: true
           # El action cachea por `**/uv.lock` por defecto y aborta si el glob no
-          # encuentra ningun archivo. Este repo todavia no versiona `uv.lock`,
-          # asi que la clave de cache se calcula con las dependencias declaradas.
+          # encuentra ningun archivo. `develop` no versiona `uv.lock`, asi que la
+          # clave se calcula con las dependencias declaradas; los branches que si
+          # lo versionan (HU-01) siguen funcionando con la misma clave.
           cache-dependency-glob: "pyproject.toml"
+
+      - name: Vendorear constraint-kit
+        # `vendor/` esta en .gitignore a proposito: constraint-kit se clona en una
+        # revision fija y se parchea en setup (ver el objetivo `make vendor`). El
+        # pyproject lo declara como source local en [tool.uv.sources], asi que en un
+        # checkout limpio `uv sync` aborta con exit 2 si esa carpeta no existe.
+        # El guard mantiene verde a los branches que no declaran ese source (develop
+        # hoy no lo tiene) y evita el clonado inutil en cada corrida ajena a HU-01.
+        run: |
+          if grep -q 'path = "vendor/constraint-kit"' pyproject.toml; then
+            bash scripts/vendor-constraint-kit.sh
+          else
+            echo "sin source local en vendor/constraint-kit: nada que vendorear"
+          fi
 
       - name: Instalar dependencias
         # python-solvespace 3.0.8 no publica wheels para Linux: se compila desde
