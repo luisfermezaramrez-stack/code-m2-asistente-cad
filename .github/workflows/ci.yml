@@ -21,7 +21,7 @@ jobs:
           # Una sola fuente de verdad para la version de Python (local y CI).
           python-version-file: ".python-version"
 
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           # El action cachea por `**/uv.lock` por defecto y aborta si el glob no
