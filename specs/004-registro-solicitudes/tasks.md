@@ -20,16 +20,16 @@ description: "Actividades de implementación para HU-06 (Registro de solicitudes
 
 ## Phase 1: User Story 1 - Registro completo (P1)
 
-- [ ] T001 [US1] Implementar el módulo de registro en `src/m2_cad/registro.py` con los campos id, hora, texto, traducción, resultado, latencia, error y versión del modelo
-- [ ] T002 [US1] Integrar el registro en cada POST /generar de `src/m2_cad/api.py` (consumir la respuesta del pipeline)
-- [ ] T003 [US1] Validar que en 20 llamadas hay 0 campos vacíos en el registro (AC3)
+- [x] T001 [US1] Implementar el módulo de registro en `src/m2_cad/registro.py` con los campos id, hora, texto, traducción, resultado, latencia, error y versión del modelo
+- [x] T002 [US1] Integrar el registro en cada POST /generar de `src/m2_cad/api.py` (consumir la respuesta del pipeline)
+- [x] T003 [US1] Validar que en 20 llamadas hay 0 campos vacíos en el registro (AC3)
 
 ---
 
 ## Phase 2: User Story 2 - Sin datos personales (P1)
 
-- [ ] T004 [US2] Garantizar que el registro excluye nombres y correos (Ley 1581) (AC4)
-- [ ] T005 [P] [US2] Añadir prueba automática del registro (campos completos + exclusión de datos personales) en `tests/test_api.py` o `tests/test_registro.py`
+- [x] T004 [US2] Garantizar que el registro excluye nombres y correos (Ley 1581) (AC4)
+- [x] T005 [P] [US2] Añadir prueba automática del registro (campos completos + exclusión de datos personales) en `tests/test_api.py` o `tests/test_registro.py`
 
 ---
 
