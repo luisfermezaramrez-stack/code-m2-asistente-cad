@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           # Una sola fuente de verdad para la version de Python (local y CI).
           python-version-file: ".python-version"
