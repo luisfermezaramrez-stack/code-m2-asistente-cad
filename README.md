@@ -89,6 +89,28 @@ docker compose up --build
 | Autonomía de usuarios (tareas sin ayuda) | ≥ 7/9 |
 | Reproducibilidad | 1 comando, CI en verde |
 
+## Flujo de ramas e integración continua
+
+`develop` es la rama de integración: **toda rama de trabajo sale de `develop`** y vuelve por pull
+request. `main` solo recibe entregas.
+
+```bash
+git switch develop && git pull          # 1. partir siempre de develop
+git switch -c feature/hu-XX-tema       # 2. una rama por historia de usuario
+make precommit-install                 # 3. una vez: hooks de Ruff y bloqueo de pesos
+make check                             # 4. antes de abrir el PR: Ruff + pytest + cobertura
+```
+
+Cada pull request a `develop` dispara `.github/workflows/ci.yml`, que corre en Python 3.12 (el
+de `.python-version`) y exige tres cosas: **Ruff** limpio con las reglas E, F, I y B, **pytest con
+cobertura ≥ 70 %** de `src/` (umbral en `[tool.coverage.report]` de `pyproject.toml`) y el
+despliegue de ese entorno con `uv sync --dev` (sin `pip install` ni `requirements.txt`).
+
+La política de `develop` es exigir la CI en verde y una aprobación antes de fusionar; se activa
+con la protección de rama del repositorio (Configuración → Branches). pre-commit es
+la primera barrera local: bloquea errores de Ruff y archivos de pesos (`.gguf`, `.safetensors`),
+que nunca se versionan.
+
 ## Licencias
 
 Código propio: **MIT**. Modelo y motor (Gemma, constraint-kit, CadQuery,
