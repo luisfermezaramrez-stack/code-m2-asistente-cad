@@ -9,6 +9,13 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
+    # Kernel CAD fijado al vendor constraint-kit / cadkit:0.1 (HU-01 AC3).
+    # Su upgrade es coordinado (vendor pin + Dockerfile + re-validar 113 tests),
+    # no un bump de Dependabot.
+    ignore:
+      - dependency-name: "build123d"
+      - dependency-name: "cadquery"
+      - dependency-name: "bd-warehouse"
     labels:
       - chore
       - infra

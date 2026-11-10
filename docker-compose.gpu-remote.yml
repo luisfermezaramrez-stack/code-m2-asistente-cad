@@ -1,0 +1,25 @@
+# HU-01 — Contenedor m2-cad con el modelo servido en GPU remota (Vast.ai).
+#
+# Las instancias Docker de Vast.ai no soportan docker-in-docker, así que el
+# servicio `llama` del compose base corre FUERA (llama-server nativo en la
+# instancia). Este override elimina el servicio llama y las reservas de GPU,
+# y apunta LLM_BASE_URL al túnel SSH en el host local:
+#
+#   1. En la instancia:  bash scripts/cloud/vastai-serve.sh
+#   2. En tu máquina:    ssh -p <puerto> -N -L 8080:localhost:8080 root@<host>
+#   3. En tu máquina:    docker compose -f docker-compose.gpu-remote.yml up m2-cad
+#
+# El modelo queda en http://host.docker.internal:8080 (mismo contrato que
+# LLM_BASE_URL del compose base).
+services:
+  m2-cad:
+    build: .
+    ports:
+      - "8000:8000"   # FastAPI
+      - "7860:7860"   # Gradio
+    environment:
+      LLM_BASE_URL: http://host.docker.internal:8080
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./data:/app/data
