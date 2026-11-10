@@ -15,3 +15,13 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-json
+
+  # AC4 de HU-09: un archivo de pesos se bloquea por extension, sin importar
+  # su tamano (una descarga parcial tambien debe frenarse).
+  - repo: local
+    hooks:
+      - id: no-model-weights
+        name: Bloquear archivos de pesos (.gguf, .safetensors, ...)
+        entry: bash scripts/check-weights.sh
+        language: system
+        files: '\.(gguf|safetensors|pt|pth|onnx|h5|keras|ckpt)$'
