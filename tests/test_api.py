@@ -131,3 +131,117 @@ def test_generar_archivos_cad_simulados():
         }
     finally:
         app.dependency_overrides.pop(obtener_procesador, None)
+
+
+# --- Registro de solicitudes (HU-06, parte de Luis Meza: AC3 y AC4) ---
+
+
+def _preparar_registro(monkeypatch, tmp_path):
+    """Aísla el CSV de registro en un directorio temporal."""
+    from m2_cad import api
+
+    ruta = tmp_path / "registro.csv"
+    monkeypatch.setattr(api, "obtener_ruta_registro", lambda: ruta)
+    return ruta
+
+
+def leer_registro_csv(ruta):
+    """Lee el CSV de registro como lista de diccionarios."""
+    import csv
+
+    with open(ruta, newline="", encoding="utf-8") as archivo:
+        return list(csv.DictReader(archivo))
+
+
+def test_generar_20_llamadas_sin_campos_vacios(tmp_path, monkeypatch):
+    """En 20 llamadas a POST /generar, 0 campos vacíos en el registro (AC3)."""
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api
+
+    ruta = _preparar_registro(monkeypatch, tmp_path)
+    api.app.dependency_overrides[api.obtener_procesador] = lambda: (
+        lambda texto: {"resultado": "generada"}
+    )
+
+    try:
+        with TestClient(api.app) as client:
+            for i in range(20):
+                respuesta = client.post("/generar", json={"texto": f"Placa {i} de 120 mm"})
+                assert respuesta.status_code == 200
+    finally:
+        api.app.dependency_overrides.pop(api.obtener_procesador, None)
+
+    filas = leer_registro_csv(ruta)
+    assert len(filas) == 20
+    for fila in filas:
+        for campo in fila:
+            assert fila[campo] != "", f"campo vacío: {campo}"
+
+
+def test_generar_registra_error_del_pipeline(tmp_path, monkeypatch):
+    """Ante fallo del pipeline, error captura el fallo y la fila queda completa."""
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api
+
+    ruta = _preparar_registro(monkeypatch, tmp_path)
+
+    with TestClient(api.app) as client:
+        respuesta = client.post("/generar", json={"texto": "Placa de 120 mm"})
+
+    assert respuesta.status_code == 503
+    filas = leer_registro_csv(ruta)
+    assert len(filas) == 1
+    fila = filas[0]
+    assert "pipeline" in fila["error"]
+    for campo in fila:
+        assert fila[campo] != "", f"campo vacío: {campo}"
+
+
+def test_generar_registra_sin_datos_personales(tmp_path, monkeypatch):
+    """El registro de la API excluye correos (AC4, Ley 1581)."""
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api
+
+    ruta = _preparar_registro(monkeypatch, tmp_path)
+    app_dependency = api.obtener_procesador
+    api.app.dependency_overrides[app_dependency] = lambda: (
+        lambda texto: {"resultado": "generada"}
+    )
+
+    try:
+        with TestClient(api.app) as client:
+            respuesta = client.post(
+                "/generar",
+                json={"texto": "Placa para ana.lopez@example.com"},
+            )
+        assert respuesta.status_code == 200
+    finally:
+        api.app.dependency_overrides.pop(app_dependency, None)
+
+    contenido = ruta.read_text(encoding="utf-8")
+    assert "@" not in contenido
+
+
+def test_generar_conserva_respuesta_con_registro(tmp_path, monkeypatch):
+    """El registro no altera la respuesta de POST /generar (comportamiento previo)."""
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api
+
+    _preparar_registro(monkeypatch, tmp_path)
+    app_dependency = api.obtener_procesador
+    api.app.dependency_overrides[app_dependency] = lambda: (
+        lambda texto: {"resultado": "generada", "step": "p.step"}
+    )
+
+    try:
+        with TestClient(api.app) as client:
+            respuesta = client.post("/generar", json={"texto": "Placa de 120 mm"})
+    finally:
+        api.app.dependency_overrides.pop(app_dependency, None)
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"resultado": "generada", "step": "p.step"}
