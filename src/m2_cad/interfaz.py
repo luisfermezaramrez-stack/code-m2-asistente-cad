@@ -12,6 +12,9 @@ import gradio as gr
 RAIZ = Path(__file__).resolve().parents[2]
 SALIDAS = RAIZ / "outputs"
 API_URL = os.getenv("M2_API_URL", "http://127.0.0.1:8000").rstrip("/")
+HOST = os.getenv("M2_UI_HOST", "127.0.0.1")
+PUERTO_UI = int(os.getenv("M2_UI_PORT", "7860"))
+API_TIMEOUT = int(os.getenv("M2_API_TIMEOUT", "70"))
 
 
 def consultar_api(texto: str) -> dict:
@@ -23,7 +26,7 @@ def consultar_api(texto: str) -> dict:
         method="POST",
     )
     try:
-        with urlopen(solicitud, timeout=70) as respuesta:
+        with urlopen(solicitud, timeout=API_TIMEOUT) as respuesta:
             return json.load(respuesta)
     except HTTPError as exc:
         try:
@@ -34,7 +37,7 @@ def consultar_api(texto: str) -> dict:
             detalle = "Solicitud inválida. Revisa la descripción."
         raise RuntimeError(detalle) from exc
     except (URLError, TimeoutError, OSError) as exc:
-        raise RuntimeError("No hay conexión con FastAPI en el puerto 8000.") from exc
+        raise RuntimeError(f"No hay conexión con el servicio CAD en {API_URL}.") from exc
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise RuntimeError("FastAPI devolvió una respuesta inválida.") from exc
 
@@ -66,18 +69,27 @@ def procesar_solicitud(texto: str):
     try:
         respuesta = consultar_api(texto)
     except RuntimeError as exc:
-        return f"⚠️ {escape(str(exc))}", oculto, oculto, oculto
+        detalle = str(exc)
+
+        if detalle.startswith("Pieza declinada:"):
+            motivo = escape(detalle.removeprefix("Pieza declinada:").strip())
+            return f"**Solicitud declinada:** {motivo}", oculto, oculto, oculto
+
+        return f"⚠️ {escape(detalle)}", oculto, oculto, oculto
 
     estado = respuesta.get("resultado")
     if estado in {"declinacion", "declinada"}:
         motivo = escape(str(respuesta.get("motivo", "Solicitud fuera del alcance del catálogo.")))
         return f"**Solicitud declinada:** {motivo}", oculto, oculto, oculto
-    if estado != "generada":
+    if estado != "generada" and not respuesta.get("step"):
         return "⚠️ Respuesta del servicio no reconocida.", oculto, oculto, oculto
 
     glb = archivo_seguro(respuesta.get("glb"), ".glb")
     step = archivo_seguro(respuesta.get("step"), ".step")
-    csv = archivo_seguro(respuesta.get("csv"), ".csv")
+    csv = archivo_seguro(
+        respuesta.get("bom_csv") or respuesta.get("csv"),
+        ".csv",
+    )
     aviso = "✅ Diseño preliminar generado. Descarga los archivos disponibles."
     if not step:
         aviso += " **Aviso:** no hay archivo STEP disponible todavía."
@@ -93,6 +105,7 @@ def procesar_solicitud(texto: str):
 
 def crear_interfaz() -> gr.Blocks:
     """Construye la interfaz de HU-08 sin iniciar servicios al importarla."""
+    SALIDAS.mkdir(parents=True, exist_ok=True)
     with gr.Blocks(title="Asistente CAD — Diseño preliminar") as demo:
         gr.Markdown("# Asistente CAD — Diseño preliminar")
         gr.Markdown(
@@ -129,7 +142,7 @@ def crear_interfaz() -> gr.Blocks:
 if __name__ == "__main__":
     SALIDAS.mkdir(exist_ok=True)
     crear_interfaz().launch(
-        server_name="127.0.0.1",
-        server_port=7860,
+        server_name=HOST,
+        server_port=PUERTO_UI,
         allowed_paths=[str(SALIDAS.resolve())],
     )

@@ -19,8 +19,9 @@ git -C "$CK_DIR" checkout -q "$CK_REV"
 # Parche 1: "Computer Aided Design (CAD)" no es un classifier válido de Trove y hatchling
 # rechaza el campo classifiers completo.
 if grep -q "Topic :: Scientific/Engineering :: Computer Aided Design (CAD)" "$CK_PYPROJECT"; then
-  sed -i 's#Topic :: Scientific/Engineering :: Computer Aided Design (CAD)#Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)#' \
-    "$CK_PYPROJECT"
+  sed -i.bak 's#Topic :: Scientific/Engineering :: Computer Aided Design (CAD)#Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)#' \
+  "$CK_PYPROJECT"
+rm -f "$CK_PYPROJECT.bak"
 fi
 
 # Parche 2: el extra `gear` referencia cq_gears por git; hatchling exige habilitarlo

@@ -25,11 +25,11 @@ services:
     build: .
     ports:
       - "8000:8000"   # FastAPI
-      - "7860:7860"   # Gradio
     environment:
       LLM_BASE_URL: http://llama:8080
     volumes:
       - ./data:/app/data
+      - ./outputs:/app/outputs
     depends_on:
       - llama
     deploy:
@@ -39,3 +39,18 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
+    # HU-08: interfaz web Gradio
+  m2-cad-ui:
+    build: .
+    command: ["uv", "run", "python", "-m", "m2_cad.interfaz"]
+    ports:
+      - "7860:7860"
+    environment:
+      M2_API_URL: http://m2-cad:8000
+      M2_UI_HOST: 0.0.0.0
+      M2_UI_PORT: "7860"
+    volumes:
+      - ./outputs:/app/outputs
+    depends_on:
+      - m2-cad
