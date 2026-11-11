@@ -22,6 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+import httpx
 from constraint_kit import bom, builder, dsl, llm
 
 from m2_cad.traduccion import traducir_solicitud
@@ -111,29 +112,28 @@ class ResultadoPieza:
 
 
 def extraer_programa(salida: str) -> dict:
-    """Extrae el último objeto JSON balanceado de la salida del modelo.
+    """Extrae el último objeto JSON de nivel superior de la salida del modelo.
 
     El modelo afinado puede anteponer razonamiento y delimitadores de canal
-    (mismo criterio que vendor/constraint-kit/training/grpo_reward.py).
+    (mismo criterio que vendor/constraint-kit/training/grpo_reward.py). El
+    decodificador JSON respeta las llaves que aparecen dentro de cadenas.
     """
     texto = salida.split("<channel|>")[-1].split("<turn|>")[0]
-    fin = texto.rfind("}")
-    profundidad = 0
-    for indice in range(fin, -1, -1):
-        caracter = texto[indice]
-        if caracter == "}":
-            profundidad += 1
-        elif caracter == "{":
-            profundidad -= 1
-            if profundidad == 0:
-                try:
-                    programa = json.loads(texto[indice : fin + 1])
-                except json.JSONDecodeError as exc:
-                    raise ErrorGeneracion(f"JSON inválido del modelo: {exc}") from exc
-                if isinstance(programa, dict):
-                    return programa
-                break
-    raise ErrorGeneracion("La salida del modelo no contiene un programa JSON.")
+    decodificador = json.JSONDecoder()
+    programa = None
+    indice = texto.find("{")
+    while indice != -1:
+        try:
+            objeto, fin = decodificador.raw_decode(texto, indice)
+        except json.JSONDecodeError:
+            indice = texto.find("{", indice + 1)
+            continue
+        if isinstance(objeto, dict):
+            programa = objeto
+        indice = texto.find("{", fin)
+    if programa is None:
+        raise ErrorGeneracion("La salida del modelo no contiene un programa JSON.")
+    return programa
 
 
 def verificar_programa(programa: dict) -> dict:
@@ -208,11 +208,12 @@ def planificar_con_llm(texto_en: str) -> dict:
     }
     try:
         respuesta = llm.chat(cuerpo, url=url, timeout=TIEMPO_ESPERA_LLM)
+    except httpx.HTTPError as exc:  # tiempo de espera, conexión o estado HTTP
+        raise ModeloNoDisponible(f"El modelo no respondió: {exc}") from exc
+    try:
         contenido = respuesta["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
         raise ErrorGeneracion("Respuesta del modelo sin contenido.") from exc
-    except Exception as exc:  # httpx: conexión, tiempo de espera o HTTP
-        raise ModeloNoDisponible(f"El modelo no respondió: {exc}") from exc
     return extraer_programa(contenido)
 
 

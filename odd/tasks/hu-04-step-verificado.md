@@ -26,7 +26,8 @@ Assumptions (not user-stated):
 | T2 | S2, S4 | inline | done (S2 FreeCAD manual pending) | cff998f |
 | T3 | S3 | inline | done | cff998f · 5 analytic cases |
 | T4 | S5 | inline | done | cff998f |
-| T5 | S1-S5 | inline | done | API commit · RED 3 failed on base api.py → GREEN |
+| T5 | S1-S5 | inline | done | a0084b6 · RED 3 failed on base api.py → GREEN |
+| T6 | S1, S5 | inline | done | review hardening · RED 3 failed → GREEN 73 passed |
 
 Route evidence: no Writer trigger (single dependent unit of behavior); mapping trigger fired once (constraint-kit API) → one read-only explorer.
 
@@ -38,4 +39,5 @@ Route evidence: no Writer trigger (single dependent unit of behavior); mapping t
 - L4: A2 confirmed — `builder.export` writes GLB via `cadquery-gltf`, no Blender. Spacer volume 1256.6371 mm³ equals the analytic value.
 - L5: unrequested change dropped — filling `registro.traduccion` from the pipeline (suggest it separately for HU-06 metrics).
 - L6: full suite 62 passed, coverage 92 %, ruff check OK. `tests/test_api.py` was already not ruff-formatted at base (pre-existing).
+- L7 (2026-11-10, user): "aplica esos cambios" — external review items accepted: narrow `except` to `httpx.HTTPError`, string-aware JSON extraction (`raw_decode`), test guarding the copied prompt against the vendor, AC5 timing test with sleeping stubs, network-failure tests. Rejected: `mass_g or 0.0` (same result for 0.0). Deferred: `outputs/` retention, configurable LLM timeout.
 - Next: real end-to-end validation on the GPU instance (Spanish request → STEP/GLB/CSV) and open the STEP in FreeCAD (S2).

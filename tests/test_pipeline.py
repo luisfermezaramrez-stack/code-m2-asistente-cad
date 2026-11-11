@@ -226,3 +226,135 @@ def test_planificar_con_llm_sin_servidor_lanza_error(monkeypatch):
 
     with pytest.raises(pipeline.ModeloNoDisponible):
         pipeline.planificar_con_llm("a steel spacer")
+
+
+@pytest.mark.parametrize(
+    ("salida", "esperado"),
+    [
+        pytest.param(
+            '{"unsupported": "needs a } brace"}',
+            {"unsupported": "needs a } brace"},
+            id="llave-de-cierre-en-texto",
+        ),
+        pytest.param(
+            'reasoning {draft} <channel|>{"parts": [], "mates": [], "note": "a { b"}',
+            {"parts": [], "mates": [], "note": "a { b"},
+            id="llave-de-apertura-en-texto",
+        ),
+        pytest.param(
+            '{"a": 1} then the final answer {"parts": [], "mates": []} done',
+            {"parts": [], "mates": []},
+            id="ultimo-objeto",
+        ),
+        pytest.param(
+            'draft {not json} answer {"parts": [], "mates": []}',
+            {"parts": [], "mates": []},
+            id="llave-que-no-abre-json",
+        ),
+    ],
+)
+def test_extraer_programa_respeta_llaves_dentro_de_strings(salida, esperado):
+    """Las llaves dentro de cadenas JSON no rompen la extracción."""
+    assert pipeline.extraer_programa(salida) == esperado
+
+
+def test_prompt_sistema_coincide_con_el_vendor():
+    """La copia del prompt no se desvía de drivers/dsl_experiment.py del vendor."""
+    import ast
+    from pathlib import Path
+
+    fuente = Path("vendor/constraint-kit/drivers/dsl_experiment.py")
+    if not fuente.exists():
+        pytest.skip("constraint-kit no está vendorizado")
+
+    arbol = ast.parse(fuente.read_text(encoding="utf-8"))
+    sistema = next(
+        ast.literal_eval(nodo.value)
+        for nodo in arbol.body
+        if isinstance(nodo, ast.Assign)
+        and any(getattr(destino, "id", None) == "SYSTEM" for destino in nodo.targets)
+    )
+
+    assert pipeline.PROMPT_SISTEMA == sistema
+
+
+def test_generar_pieza_separa_tiempo_de_generacion_y_construccion(tmp_path, monkeypatch):
+    """AC5: la generación mide traducción + modelo y excluye la construcción."""
+    import time
+
+    espera_generacion = 0.1
+    espera_construccion = 0.3
+    construir_real = pipeline.construir_pieza
+
+    def planificar_lento(texto_en: str) -> dict:
+        time.sleep(espera_generacion)
+        return _programa("spacer")
+
+    def construir_lento(programa: dict, directorio):
+        time.sleep(espera_construccion)
+        return construir_real(programa, directorio)
+
+    monkeypatch.setattr(pipeline, "construir_pieza", construir_lento)
+
+    resultado = pipeline.generar_pieza(
+        "un espaciador",
+        traducir=lambda texto: "a spacer",
+        planificar=planificar_lento,
+        directorio=tmp_path,
+    )
+
+    assert espera_generacion <= resultado.tiempo_generacion_s < espera_construccion
+
+
+def _configurar_chat(monkeypatch, chat):
+    monkeypatch.setenv("LLM_BASE_URL", "http://llama:8080")
+    monkeypatch.setattr(pipeline.llm, "chat", chat)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param("timeout", id="tiempo-de-espera"),
+        pytest.param("conexion", id="conexion-caida"),
+        pytest.param("http", id="error-http"),
+    ],
+)
+def test_planificar_con_llm_falla_de_red_es_modelo_no_disponible(monkeypatch, error):
+    """Los fallos de red del modelo servido se informan como ModeloNoDisponible."""
+    import httpx
+
+    peticion = httpx.Request("POST", "http://llama:8080/chat/completions")
+    errores = {
+        "timeout": httpx.ReadTimeout("timed out", request=peticion),
+        "conexion": httpx.ConnectError("refused", request=peticion),
+        "http": httpx.HTTPStatusError(
+            "500", request=peticion, response=httpx.Response(500, request=peticion)
+        ),
+    }
+
+    def chat_fallido(cuerpo, *, url, timeout):
+        raise errores[error]
+
+    _configurar_chat(monkeypatch, chat_fallido)
+
+    with pytest.raises(pipeline.ModeloNoDisponible):
+        pipeline.planificar_con_llm("a spacer")
+
+
+def test_planificar_con_llm_respuesta_malformada_es_error_de_generacion(monkeypatch):
+    _configurar_chat(monkeypatch, lambda cuerpo, *, url, timeout: {"choices": []})
+
+    with pytest.raises(pipeline.ErrorGeneracion):
+        pipeline.planificar_con_llm("a spacer")
+
+
+def test_planificar_con_llm_no_oculta_errores_de_programacion(monkeypatch):
+    """Un error que no es de red no se disfraza de modelo no disponible."""
+
+    def chat_con_bug(cuerpo, *, url, timeout):
+        raise ValueError("bug")
+
+    _configurar_chat(monkeypatch, chat_con_bug)
+
+    with pytest.raises(ValueError, match="bug"):
+        pipeline.planificar_con_llm("a spacer")
