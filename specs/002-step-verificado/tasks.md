@@ -23,8 +23,8 @@ description: "Actividades de implementación para HU-04 (Generar pieza STEP veri
 
 ## Phase 1: Foundational (Generación)
 
-- [ ] T001 [US1] Implementar la generación del programa constraint-kit desde la solicitud traducida en `src/m2_cad/pipeline.py`
-- [ ] T002 [US1] Conectar el verificador de constraint-kit y confirmar que el programa pasa sin errores (AC1)
+- [x] T001 [US1] Implementar la generación del programa constraint-kit desde la solicitud traducida en `src/m2_cad/pipeline.py`
+- [x] T002 [US1] Conectar el verificador de constraint-kit y confirmar que el programa pasa sin errores (AC1)
 
 **Checkpoint**: programa verificado → listo para exportar.
 
@@ -32,28 +32,28 @@ description: "Actividades de implementación para HU-04 (Generar pieza STEP veri
 
 ## Phase 2: User Story 2 - Exportación STEP (P1)
 
-- [ ] T003 [US2] Implementar la exportación STEP (B-rep de OpenCascade) en `src/m2_cad/pipeline.py`
-- [ ] T004 [US2] Validar que el STEP abre en FreeCAD sin advertencias (AC2)
+- [x] T003 [US2] Implementar la exportación STEP (B-rep de OpenCascade) en `src/m2_cad/pipeline.py`
+- [ ] T004 [US2] Validar que el STEP abre en FreeCAD sin advertencias (AC2) — en CI se comprueba que el STEP se relee como sólido válido con OpenCascade; la apertura en FreeCAD queda como validación manual
 
 ---
 
 ## Phase 3: User Story 3 - Tolerancia geométrica (P2)
 
-- [ ] T005 [US3] Validar volumen y caja envolvente en 5 casos, dentro de ±2 % (AC3)
-- [ ] T006 [P] [US3] Añadir la prueba de tolerancia en `tests/test_pipeline.py`
+- [x] T005 [US3] Validar volumen y caja envolvente en 5 casos, dentro de ±2 % (AC3)
+- [x] T006 [P] [US3] Añadir la prueba de tolerancia en `tests/test_pipeline.py`
 
 ---
 
 ## Phase 4: User Story 4 - Entregables GLB y CSV (P2)
 
-- [ ] T007 [US4] Generar el GLB con Blender para la vista 3D (AC4)
-- [ ] T008 [P] [US4] Generar el CSV de lista de materiales (AC4)
+- [x] T007 [US4] Generar el GLB para la vista 3D (AC4) — exportado desde el B-rep con el exportador glTF de CadQuery (`builder.export`), sin Blender
+- [x] T008 [P] [US4] Generar el CSV de lista de materiales (AC4)
 
 ---
 
 ## Phase 5: User Story 5 - Registro de tiempo (P2)
 
-- [ ] T009 [US5] Registrar el tiempo de generación por solicitud (AC5)
+- [x] T009 [US5] Registrar el tiempo de generación por solicitud (AC5)
 
 ---
 
