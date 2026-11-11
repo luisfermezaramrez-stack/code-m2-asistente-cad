@@ -245,3 +245,80 @@ def test_generar_conserva_respuesta_con_registro(tmp_path, monkeypatch):
 
     assert respuesta.status_code == 200
     assert respuesta.json() == {"resultado": "generada", "step": "p.step"}
+
+
+def _resultado_pieza(tmp_path):
+    """Resultado de pipeline mínimo para probar la integración con la API."""
+    from m2_cad.pipeline import ResultadoPieza
+
+    return ResultadoPieza(
+        programa={"parts": [], "mates": []},
+        step=tmp_path / "pieza.step",
+        glb=tmp_path / "pieza.glb",
+        bom_csv=tmp_path / "pieza.csv",
+        volumen_mm3=1256.64,
+        caja_mm=(14.0, 14.0, 10.0),
+        tiempo_construccion_s=0.25,
+        tiempo_generacion_s=1.5,
+        traduccion="a steel spacer",
+    )
+
+
+def test_generar_usa_pipeline_cuando_el_modelo_esta_configurado(tmp_path, monkeypatch):
+    """HU-04: con LLM_BASE_URL, /generar entrega STEP, GLB, CSV y tiempos."""
+    pytest.importorskip("cadquery")
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api, pipeline
+
+    ruta = _preparar_registro(monkeypatch, tmp_path)
+    monkeypatch.setenv("LLM_BASE_URL", "http://llama:8080")
+    monkeypatch.setattr(pipeline, "generar_pieza", lambda texto: _resultado_pieza(tmp_path))
+
+    with TestClient(api.app) as client:
+        respuesta = client.post("/generar", json={"texto": "Espaciador de 14 mm"})
+
+    assert respuesta.status_code == 200
+    cuerpo = respuesta.json()
+    assert cuerpo["step"].endswith("pieza.step")
+    assert cuerpo["glb"].endswith("pieza.glb")
+    assert cuerpo["bom_csv"].endswith("pieza.csv")
+    assert cuerpo["tiempo_generacion_s"] == "1.500"
+    assert cuerpo["tiempo_construccion_s"] == "0.250"
+    filas = leer_registro_csv(ruta)
+    assert "tiempo_construccion_s" in filas[0]["resultado"]
+
+
+@pytest.mark.parametrize(
+    ("error", "codigo"),
+    [
+        ("declinada", 422),
+        ("verificacion", 422),
+        ("modelo", 503),
+    ],
+)
+def test_generar_traduce_errores_del_pipeline(tmp_path, monkeypatch, error, codigo):
+    """HU-04: los errores del pipeline llegan como HTTP y quedan registrados."""
+    pytest.importorskip("cadquery")
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api, pipeline
+
+    errores = {
+        "declinada": pipeline.PiezaDeclinada("gear train"),
+        "verificacion": pipeline.ErrorVerificacion("unknown part type"),
+        "modelo": pipeline.ModeloNoDisponible("timeout"),
+    }
+
+    def fallar(texto):
+        raise errores[error]
+
+    ruta = _preparar_registro(monkeypatch, tmp_path)
+    monkeypatch.setenv("LLM_BASE_URL", "http://llama:8080")
+    monkeypatch.setattr(pipeline, "generar_pieza", fallar)
+
+    with TestClient(api.app) as client:
+        respuesta = client.post("/generar", json={"texto": "Engranaje helicoidal"})
+
+    assert respuesta.status_code == codigo
+    assert leer_registro_csv(ruta)[0]["error"] != "ninguno"
