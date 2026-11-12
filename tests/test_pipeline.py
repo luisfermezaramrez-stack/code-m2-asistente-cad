@@ -97,11 +97,13 @@ def test_verificar_programa_invalido_lanza_error():
 
 
 def test_verificar_programa_declinado_lanza_declinacion():
-    """Una declinación del modelo no se construye y conserva su motivo."""
+    """Una declinación del modelo no se construye; el motivo va en español (HU-05)."""
     with pytest.raises(pipeline.PiezaDeclinada) as excinfo:
         pipeline.verificar_programa({"unsupported": "gear train"})
 
-    assert excinfo.value.motivo == "gear train"
+    assert excinfo.value.detalle == "gear train"
+    assert excinfo.value.motivo.startswith("El asistente no puede construir esta pieza:")
+    assert "«gear train»" in excinfo.value.motivo
 
 
 def test_extraer_programa_ignora_razonamiento_previo():
@@ -358,3 +360,109 @@ def test_planificar_con_llm_no_oculta_errores_de_programacion(monkeypatch):
 
     with pytest.raises(ValueError, match="bug"):
         pipeline.planificar_con_llm("a spacer")
+
+
+# --- HU-05: declinación con motivo y marca de diseño preliminar ---------------
+# Especificación: specs/003-declinacion-preliminar/spec.md (AC1-AC4).
+
+MARCA = "Diseño preliminar, requiere revisión profesional"
+
+
+def _caso_banco(identificador: str) -> dict:
+    from m2_cad.dataset import read_dataset
+
+    return next(fila for fila in read_dataset() if fila["id"] == identificador)
+
+
+def _programa_del_banco(identificador: str) -> dict:
+    medidas = json.loads(_caso_banco(identificador)["medidas"])
+    return {
+        "parts": [
+            {
+                "id": "p",
+                "type": medidas["tipo_motor"],
+                "material": "steel",
+                "params": medidas["parametros"],
+            }
+        ],
+        "mates": [],
+    }
+
+
+def _ensamble_dos_placas() -> dict:
+    return {
+        "parts": [
+            {"id": "base", "type": "plate", "params": {"width": 60, "depth": 60, "thick": 5}},
+            {"id": "tapa", "type": "plate", "params": {"width": 40, "depth": 40, "thick": 5}},
+        ],
+        "mates": [{"a": "base", "b": "tapa", "intent": "seat_on"}],
+    }
+
+
+def _descripcion_step(ruta) -> str:
+    """Devuelve FILE_DESCRIPTION del STEP con las cadenas \\X2\\ decodificadas."""
+    import re
+
+    cabecera = ruta.read_text(encoding="ascii").split("ENDSEC;")[0]
+    descripcion = re.search(r"FILE_DESCRIPTION\(\('(.*?)'\)", cabecera, re.S).group(1)
+    return re.sub(
+        r"\\X2\\((?:[0-9A-F]{4})+)\\X0\\",
+        lambda m: "".join(
+            chr(int(m.group(1)[i : i + 4], 16)) for i in range(0, len(m.group(1)), 4)
+        ),
+        descripcion,
+    )
+
+
+# (caso del banco HU-02, salida simulada del modelo): cada vía de declinación.
+CASOS_FUERA_DE_CATALOGO = [
+    pytest.param("HU02-N01", {"unsupported": "structural certification"}, id="no-soportado"),
+    pytest.param("HU02-N04", _programa("panel", width=900, depth=10, height=600), id="tipo-ajeno"),
+    pytest.param("HU02-N06", _ensamble_dos_placas(), id="ensamblaje"),
+]
+
+
+@pytest.mark.parametrize(("identificador", "salida_modelo"), CASOS_FUERA_DE_CATALOGO)
+def test_hu05_fuera_de_catalogo_se_declina_en_espanol_sin_step(
+    tmp_path, identificador, salida_modelo
+):
+    """AC1: 3/3 solicitudes fuera del catálogo se declinan con motivo y sin STEP."""
+    with pytest.raises(pipeline.PiezaDeclinada) as excinfo:
+        pipeline.generar_pieza(
+            _caso_banco(identificador)["solicitud"],
+            traducir=lambda texto: "request",
+            planificar=lambda texto_en: salida_modelo,
+            directorio=tmp_path,
+        )
+
+    motivo = excinfo.value.motivo
+    assert motivo.startswith("El asistente no puede construir esta pieza:")
+    assert "fuera del catálogo" in motivo or "fuera del alcance" in motivo
+    assert list(tmp_path.rglob("*.step")) == []
+
+
+@pytest.mark.parametrize(
+    "identificador", ["HU02-P01", "HU02-P06", "HU02-P11", "HU02-P21", "HU02-P26"]
+)
+def test_hu05_catalogo_no_se_declina_y_lleva_marca(tmp_path, identificador):
+    """AC2 y AC3: 0/5 piezas del catálogo se declinan y toda salida lleva la marca."""
+    resultado = pipeline.generar_pieza(
+        _caso_banco(identificador)["solicitud"],
+        traducir=lambda texto: "request",
+        planificar=lambda texto_en: _programa_del_banco(identificador),
+        directorio=tmp_path,
+    )
+
+    assert resultado.step.is_file()
+    assert _descripcion_step(resultado.step) == MARCA
+    assert resultado.a_respuesta()["aviso"] == MARCA
+
+
+def test_hu05_step_marcado_sigue_siendo_valido(tmp_path):
+    """AC3: la marca en la cabecera no rompe la lectura del B-rep."""
+    import cadquery as cq
+
+    resultado = pipeline.construir_pieza(_programa("spacer"), tmp_path)
+
+    assert _descripcion_step(resultado.step) == MARCA
+    assert cq.importers.importStep(str(resultado.step)).val().isValid()
