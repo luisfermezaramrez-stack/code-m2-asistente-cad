@@ -190,4 +190,4 @@ def test_la_sanitizacion_llega_a_todos_los_campos(tmp_path):
 
 def test_ruta_default_apunta_a_data():
     """El registro por defecto vive en data/registro.csv (plan de HU-06)."""
-    assert str(RUTA_DEFAULT) == "data/registro.csv"
+    assert RUTA_DEFAULT.as_posix() == "data/registro.csv"
