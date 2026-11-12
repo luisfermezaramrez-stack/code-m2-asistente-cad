@@ -1,5 +1,6 @@
 """API REST para la generación preliminar de componentes CAD (HU-06)."""
 
+import os
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -50,9 +51,35 @@ def procesador_no_disponible(texto: str) -> dict[str, str]:
     )
 
 
+def procesar_con_pipeline(texto: str) -> dict[str, str]:
+    """Genera la pieza con el pipeline CAD (HU-04) y traduce sus errores a HTTP."""
+    if not os.environ.get("LLM_BASE_URL"):
+        return procesador_no_disponible(texto)
+
+    # Importación diferida: el núcleo CAD (cadquery/OCP) solo se carga al usarlo.
+    from m2_cad import pipeline
+    from m2_cad.traduccion import ErrorTraduccion
+
+    try:
+        return pipeline.generar_pieza(texto).a_respuesta()
+    except pipeline.PiezaDeclinada as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Pieza declinada: {exc.motivo}",
+        ) from exc
+    except (pipeline.ErrorGeneracion, pipeline.ErrorVerificacion) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
+    except (pipeline.ModeloNoDisponible, ErrorTraduccion) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
+
+
 def obtener_procesador() -> Callable[[str], dict[str, str]]:
     """Proporciona el procesador CAD utilizado por la API."""
-    return procesador_no_disponible
+    return procesar_con_pipeline
 
 
 def obtener_ruta_registro() -> Path:
