@@ -2,7 +2,7 @@
 # Uso: `make <objetivo>` — `make help` lista todo.
 
 .PHONY: help install lock vendor test cov lint format check \
-        precommit-install precommit build up down clean \
+        precommit-install precommit build up down clean bench \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup
 
 help: ## Lista los objetivos disponibles
@@ -29,6 +29,9 @@ kernel-test: kernel-image ## Corre las 113 pruebas del kernel en el contenedor d
 		-v "$$(pwd)/vendor/constraint-kit:/tmp/constraint-kit" \
 		-w /tmp/constraint-kit -e PYTHONPATH=/tmp/constraint-kit -e HOME=/tmp \
 		cadkit:0.1 python3 tests/test_kernel.py
+
+bench: ## HU-14 AC7: corre el banco HU-02 contra el modelo (gasta tokens; IDS=...)
+	uv run python -m m2_cad.banco $(if $(IDS),--ids $(IDS))
 
 cov: ## Corre pytest con reporte de cobertura
 	uv run pytest --cov=src/m2_cad --cov-report=term-missing
