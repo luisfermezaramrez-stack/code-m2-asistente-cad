@@ -47,7 +47,7 @@ make precommit-install   # hooks de Ruff y bloqueo de pesos
 make check
 ```
 
-> 💡 Los secretos (`GEMINI_API_KEY`, …) van en `.env` (gitignored); nunca en el
+> 💡 Los secretos (`DEEPSEEK_API_KEY`, …) van en `.env` (gitignored); nunca en el
 > código ni en el commit.
 
 ## 🌿 Flujo de trabajo con Git

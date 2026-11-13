@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# HEREDADO (HU-01): desde HU-14 el modelo es la API de DeepSeek. Este script solo
+# sirve para reproducir la línea base con Gemma 4 12B ConstraintKit.
 # HU-01 — Bootstrap completo de una instancia Vast.ai NUEVA (o reiniciada).
 #
 # Idempotente: verifica cada paso antes de ejecutarlo y retoma donde quedó

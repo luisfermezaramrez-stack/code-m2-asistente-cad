@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# HEREDADO (HU-01): desde HU-14 el modelo es la API de DeepSeek. Este script solo
+# sirve para reproducir la línea base con Gemma 4 12B ConstraintKit.
 # HU-01 — Descarga y verificación del modelo Gemma 4 12B ConstraintKit (GGUF Q6_K).
 # Uso: bash scripts/fetch-model.sh   (idempotente: verifica antes de re-descargar)
 set -euo pipefail
