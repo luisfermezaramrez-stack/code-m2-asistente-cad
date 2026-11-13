@@ -37,19 +37,19 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 
 ## Cómo funciona
 
-1. **Traducción** ES→EN conservando números y unidades.
-2. **Generación** condicionada con Gemma 4 12B ConstraintKit (GGUF Q6_K sobre
-   llama.cpp).
-3. **Verificación** geométrica determinista (constraint-kit / CadQuery /
+1. **Generación** condicionada a partir de la solicitud en español, sin
+   traducción previa (HU-14), con DeepSeek (`deepseek-v4-pro`) por API.
+   Gemma 4 12B ConstraintKit sobre llama.cpp queda como línea base heredada.
+2. **Verificación** geométrica determinista (constraint-kit / CadQuery /
    build123d / OpenCascade): aprueba o declina cada pieza.
-4. **Entrega** por FastAPI + Gradio, con registro trazable (texto, resultado,
-   latencia y versión del modelo). Plan B: DeepSeek por API.
+3. **Entrega** por FastAPI + Gradio, con registro trazable (texto, resultado,
+   latencia y versión del modelo).
 
 ## Estructura
 
     m2-asistente-cad/
-    ├── src/m2_cad/          traduccion.py · pipeline.py · api.py · interfaz.py · registro.py
-    ├── tests/               test_dataset.py · test_translate.py · test_pipeline.py · test_api.py
+    ├── src/m2_cad/          pipeline.py · api.py · interfaz.py · registro.py
+    ├── tests/               test_dataset.py · test_pipeline.py · test_api.py
     ├── data/test_cases.csv  banco de 40 solicitudes
     ├── docs/                manuales y reporte del banco
     ├── Dockerfile · docker-compose.yml
@@ -59,9 +59,11 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 ## Requisitos
 
 - **Python 3.11+** (contenedor en 3.12) con `uv`.
-- **GPU**: 16 GB de VRAM mín. (recomendado 24 GB); el modelo ocupa ~12 GB.
-- **Modelo**: `gemma-4-12b-constraintkit-GGUF` (Q6_K, ~9,8 GB), no versionado.
-- **Docker** + NVIDIA Container Toolkit para el despliegue.
+- **API key de DeepSeek** en `DEEPSEEK_API_KEY` (entorno o `.env`, ignorado por git).
+  No hace falta GPU.
+- **Docker** para el despliegue.
+- Solo para la línea base heredada (HU-01): GPU con 16 GB de VRAM, NVIDIA Container
+  Toolkit y el GGUF `gemma-4-12b-constraintkit` (Q6_K, ~9,8 GB, no versionado).
 
 > El único entorno probado por el autor es el contenedor Docker.
 
@@ -69,23 +71,48 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 
 | Componente | Versión |
 | --- | --- |
-| Modelo | `gemma-4-12b-constraintkit-GGUF` (Q6_K, ~9,8 GB) |
+| Modelo | DeepSeek `deepseek-v4-pro` por API (HU-14) |
+| Modelo heredado | `gemma-4-12b-constraintkit-GGUF` (Q6_K, ~9,8 GB) |
 | Python | 3.12 (contenedor Docker) |
 | cadquery | 2.7.0 |
 | build123d | 0.10.0 |
 | bd_warehouse | 0.2.0 |
 | z3-solver | ≥ 4.12 |
 | python-solvespace | ≥ 3.0 |
-| llama.cpp | 0.9.0-dev (commit f4777f9, backend CUDA) — servidor GGUF (Q6_K) |
+| llama.cpp (heredado) | 0.9.0-dev (commit f4777f9, backend CUDA) — servidor GGUF (Q6_K) |
 | constraint-kit | repositorio del autor (sin modificar) |
 
 ## Instalación y uso
 
 ```bash
-uv sync --dev     # 1. dependencias (sin pip install)
-make check        # 2. Ruff + pytest
-make up           # 3. FastAPI (:8000) y Gradio (:7860) con GPU
+uv sync --dev                              # 1. dependencias (sin pip install)
+make check                                 # 2. Ruff + pytest
+echo "DEEPSEEK_API_KEY=sk-..." >> .env     # 3. API key (no se versiona)
+make up                                    # 4. FastAPI (:8000) y Gradio (:7860)
 ```
+
+Variables del modelo:
+
+| Variable | Uso | Valor por defecto |
+| --- | --- | --- |
+| `DEEPSEEK_API_KEY` | API key de DeepSeek (obligatoria) | — |
+| `LLM_MODEL` | Modelo de DeepSeek | `deepseek-v4-pro` |
+| `LLM_BASE_URL` | Otro servidor compatible con OpenAI (por ejemplo, llama.cpp) | `https://api.deepseek.com` |
+
+Sin API key, `/generar` responde 503 con «El modelo no está configurado: falta
+DEEPSEEK_API_KEY.». Los errores 401, 402, 429 y los tiempos de espera de DeepSeek se
+informan en español y nunca incluyen la key.
+
+Banco HU-02 contra el modelo real (HU-14, AC6 y AC7; gasta tokens):
+
+```bash
+make bench IDS=HU02-P01,HU02-P06,HU02-P11,HU02-P21,HU02-P26   # AC6: 5 solicitudes
+make bench                                                      # AC7: las 40
+```
+
+Deja en `outputs/banco/` un CSV por caso y un resumen JSON con acierto, tasa de
+`/dsl/check`, latencia media y tokens. Con `--precio-entrada` y `--precio-salida`
+(USD por millón de tokens) también calcula el costo estimado.
 
 O con Docker:
 
@@ -93,7 +120,11 @@ O con Docker:
 docker compose up --build
 ```
 
-## Entorno en la nube (Lambda)
+## Entorno en la nube (Lambda) — heredado
+
+> **Heredado (HU-01).** Desde HU-14 el modelo es la API de DeepSeek y no hace falta GPU.
+> Esta sección solo sirve para reproducir la línea base con Gemma
+> (`docker compose -f docker-compose.yml -f docker-compose.gemma.yml up`).
 
 La validación de HU-01 corre en una instancia de [Lambda](https://lambda.ai) con GPU NVIDIA
 (una **A10 de 24 GB** ya cumple el AC2 de ≤ 16 GB de VRAM). La GPU local de 4 GB no alcanza
@@ -111,7 +142,7 @@ cd code-m2-asistente-cad
 git switch feature/hu-01-gemma-constraintkit-serve
 bash scripts/cloud/lambda-bootstrap.sh   # Docker + NVIDIA Container Toolkit + smoke test
 make model-fetch                         # AC1: descarga 9,8 GB y verifica el SHA-256
-docker compose up -d llama
+docker compose -f docker-compose.yml -f docker-compose.gemma.yml up -d llama
 make verify-serve                        # AC2: n_ctx=8192 y VRAM <= 16 GB
 ```
 
