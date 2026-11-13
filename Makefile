@@ -53,19 +53,19 @@ precommit: ## Corre pre-commit sobre todos los archivos
 build: ## Construye la imagen Docker
 	docker compose build
 
-model-fetch: ## Descarga y verifica el modelo GGUF (HU-01)
+model-fetch: ## [Heredado HU-01] Descarga y verifica el modelo GGUF
 	bash scripts/fetch-model.sh
 
-model-serve: ## Levanta solo el servidor llama.cpp (sin FastAPI)
-	docker compose up llama
+model-serve: ## [Heredado HU-01] Levanta solo el servidor llama.cpp
+	docker compose -f docker-compose.yml -f docker-compose.gemma.yml up llama
 
-verify-serve: ## AC2: contexto 8192 y VRAM <= 16 GB del servicio llama en ejecución
+verify-serve: ## [Heredado HU-01] AC2: contexto 8192 y VRAM <= 16 GB del servicio llama en ejecución
 	bash scripts/verify-serve.sh
 
-cloud-setup: ## Prepara una instancia de Lambda: Docker + NVIDIA Container Toolkit
+cloud-setup: ## [Heredado HU-01] Prepara una instancia de Lambda: Docker + NVIDIA Container Toolkit
 	bash scripts/cloud/lambda-bootstrap.sh
 
-up: ## Levanta el servicio (llama + FastAPI + Gradio)
+up: ## Levanta FastAPI + Gradio con DeepSeek (requiere DEEPSEEK_API_KEY)
 	docker compose up
 
 down: ## Detiene el servicio

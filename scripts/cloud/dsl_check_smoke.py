@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""HU-01 AC4 — Prueba end-to-end: N solicitudes al modelo servido (llama.cpp vía
+"""HEREDADO (HU-01): desde HU-14 el modelo es la API de DeepSeek.
+
+HU-01 AC4 — Prueba end-to-end: N solicitudes al modelo servido (llama.cpp vía
 túnel) y validación de cada programa generado contra /dsl/check del servicio
 cadkit. Pasa si las N devuelven un programa que supera el chequeo (ok=true, sin
 severidad "error") y no son declinaciones honestas ("unsupported").
