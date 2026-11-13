@@ -134,6 +134,22 @@ O con Docker:
 docker compose up --build
 ```
 
+### Variables de entorno
+
+| Variable | La usa | Valor local | En Docker la fija |
+| --- | --- | --- | --- |
+| `GEMINI_API_KEY` | Traducción ES→EN | tu clave de [Google AI Studio](https://aistudio.google.com/apikey) | — (ver nota) |
+| `LLM_BASE_URL` | Pipeline → llama.cpp | `http://127.0.0.1:8080` | `http://llama:8080` |
+| `M2_API_URL` | UI Gradio → FastAPI | `http://127.0.0.1:8000` | `http://m2-cad:8000` |
+| `M2_UI_HOST` / `M2_UI_PORT` | Interfaz Gradio | `0.0.0.0:7860` | `0.0.0.0:7860` |
+| `M2_API_TIMEOUT` | Interfaz Gradio | `70` s | `70` s |
+
+Copia `.env.example` a `.env` para ejecutar fuera de Docker.
+
+> **Nota:** `docker-compose.yml` aún no inyecta `GEMINI_API_KEY` en el contenedor
+> `m2-cad`; al probar la traducción dentro de Docker, agrégala al servicio con
+> `env_file: .env` o `environment:`.
+
 ## Entorno en la nube (Lambda)
 
 La validación de HU-01 corre en una instancia de [Lambda](https://lambda.ai) con GPU NVIDIA

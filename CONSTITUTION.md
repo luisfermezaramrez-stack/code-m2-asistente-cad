@@ -225,6 +225,8 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-11 | UI Gradio que consume la API (HU-08) | Usuarios sin consola; `archivo_seguro` limita descargas a `outputs/` |
 | 2026-11-12 | Adoptar `CONSTITUTION.md` como fuente única de verdad y completar la gobernanza (CONTRIBUTING, CoC, plantillas, `.editorconfig`, `AGENTS.md`, `docs/`) | Estándar `jan-project-standard`: documento vivo y PR verificables |
 | 2026-11-12 | Diagrama de arquitectura con Archify en `docs/arquitectura.html` (fuente `docs/arquitectura.json`) | Documentación viva del runtime enlazada desde el README |
+| 2026-11-12 | Excluir `.agents/` (skills vendoreados) de pre-commit y `docs/arquitectura.html` de `trailing-whitespace` | Son terceros/plantillas con marcadores `{{...}}` y un artefacto generado: la higiene la da su fuente |
+| 2026-11-12 | Añadir `.env.example` y documentar las variables de entorno en el README | Configuración reproducible sin versionar secretos |
 
 ## 10. Notas y tareas pendientes
 
@@ -232,6 +234,7 @@ git push -u origin feature/hu-XX-tema
 - [ ] Proteger `develop` (CI verde + 1 aprobación) y `main` en GitHub.
 - [ ] HU-05 y HU-11 pendientes (ver `specs/`).
 - [ ] Sustituir el marcador `version="desconocida"` del registro por la versión real del modelo servido.
+- [ ] Inyectar `GEMINI_API_KEY` en el contenedor `m2-cad` (`env_file` en compose) para que la traducción funcione en Docker.
 - [ ] Mantener la cobertura ≥ 70 % al añadir módulos.
 - [ ] Evaluar el plan B (DeepSeek por API) cuando no haya GPU disponible.
 
@@ -249,8 +252,8 @@ git config --global user.email "tu-correo@example.com"
 Si usas una llave SSH dedicada para GitHub, declárala en `~/.ssh/config` con
 `IdentitiesOnly yes` (guía completa en `jan-project-standard` →
 `references/git-identity.md`). Los secretos (`GEMINI_API_KEY`, claves de nube)
-viven en `.env` (gitignored); el `.gitignore` ya lo contempla con
-`!.env.example`, así que añade ese archivo de referencia si hace falta.
+viven en `.env` (gitignored); copia el ejemplo versionado
+[`.env.example`](./.env.example) y completa los valores.
 
 ## 12. Licencias
 
