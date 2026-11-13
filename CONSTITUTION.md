@@ -21,7 +21,7 @@
 | **Licencia** | MIT (código propio); ver §12 para terceros |
 | **Rama de integración** | `develop` (toda rama de trabajo sale de aquí y vuelve por PR) |
 | **Rama de entregas** | `main` (solo recibe entregas) |
-| **Estado** | En construcción 🚧 — HU-01, 03, 04, 06, 08 y 09 implementadas; 05 y 11 pendientes |
+| **Estado** | En construcción 🚧 — HU-01, 03, 04, 06, 08 y 09 implementadas; 05, 07, 10–13, 15 y 16 pendientes |
 
 ## 1. Propósito y no-propósito
 
@@ -106,7 +106,7 @@ code-m2-asistente-cad/
 │   ├── test_cases.csv          # banco de 40 solicitudes
 │   └── registro.csv            # registro de solicitudes (ignorado en git)
 ├── outputs/                    # entregables por solicitud (uuid/; ignorado en git)
-├── specs/                      # especificaciones Spec Kit (001–007): spec, plan, tasks
+├── specs/                      # especificaciones Spec Kit (001–009): spec, plan, tasks
 ├── scripts/                    # fetch-model, verify-serve, vendor, cloud (Lambda/Vast.ai)
 ├── docs/                       # documentación y diagrama de arquitectura
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
@@ -232,7 +232,8 @@ git push -u origin feature/hu-XX-tema
 
 - [x] Crear `CONSTITUTION.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, plantillas de PR/issues, `.editorconfig`.
 - [ ] Proteger `develop` (CI verde + 1 aprobación) y `main` en GitHub.
-- [ ] HU-05 y HU-11 pendientes (ver `specs/`).
+- [ ] HU-05, 07, 10–13, 15 y 16 pendientes (ver `specs/`); HU-16 (seguimiento con
+  MLflow, responsable Luis Meza) planificada en `specs/009-hu-16-mlflow/`.
 - [ ] Sustituir el marcador `version="desconocida"` del registro por la versión real del modelo servido.
 - [x] Inyectar la configuración del modelo en el contenedor `m2-cad` (`DEEPSEEK_API_KEY`, `LLM_MODEL`; HU-14).
 - [ ] Mantener la cobertura ≥ 70 % al añadir módulos.
