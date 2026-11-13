@@ -15,6 +15,7 @@ Variables:
   MODEL_PLANNER  nombre del modelo para el payload (default: gemma4-12b-...)
   N_REQUESTS     cantidad de solicitudes    (default: 5; AC4 exige 5/5)
 """
+
 from __future__ import annotations
 
 import json
@@ -44,7 +45,7 @@ def extract_program(text: str) -> dict:
     if text.startswith("```"):
         text = text.split("```")[1]
         if text.startswith("json"):
-            text = text[len("json"):]
+            text = text[len("json") :]
     return json.loads(text.strip())
 
 
