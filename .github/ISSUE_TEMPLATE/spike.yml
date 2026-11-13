@@ -1,0 +1,32 @@
+name: 🔬 Spike (investigación técnica)
+description: Pregunta técnica acotada en el tiempo que necesita evidencia antes de decidir.
+labels: ["spike"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Un spike responde una **pregunta** con evidencia dentro de un timebox;
+        no implementa funcionalidad. El resultado se documenta en `docs/spikes/`
+        (o `specs/` si evoluciona a HU) y alimenta una decisión de la constitución.
+
+  - type: textarea
+    id: pregunta
+    attributes:
+      label: Pregunta de investigación
+      placeholder: "¿DeepSeek V3 por API cumple la latencia p90 ≤ 60 s sin GPU?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: hipotesis
+    attributes:
+      label: Hipótesis o alternativas
+      description: Qué se supone que pasará o qué opciones se compararán.
+
+  - type: textarea
+    id: timebox
+    attributes:
+      label: Timebox y resultado esperado
+      placeholder: "Máx. 3 días; entregar una recomendación con datos, no una implementación."
+    validations:
+      required: true

@@ -1,0 +1,50 @@
+name: ✨ Nueva funcionalidad
+description: Proponer una historia de usuario o mejora para el asistente CAD.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Revisa el alcance en [`CONSTITUTION.md`](../../CONSTITUTION.md) antes de
+        proponer: fuera de alcance están cálculo estructural, verificación
+        normativa, Revit/BIM, reentrenamiento, entrada por imagen, ensamblajes,
+        autenticación y concurrencia.
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema u oportunidad
+      description: ¿Qué necesita el usuario de CAD y hoy no puede hacer?
+      placeholder: "Como diseñador CAD, quiero … para …"
+    validations:
+      required: true
+
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Propuesta de solución
+      description: Describe la solución a alto nivel; evita detalles de implementación prematuros.
+    validations:
+      required: true
+
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación (AC)
+      description: Lista verificable; si hay spec, se desarrollará en specs/XXX-.../spec.md.
+      placeholder: |
+        - AC1: …
+        - AC2: …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: aporte
+    attributes:
+      label: ¿Estás dispuesto a enviar un PR?
+      options:
+        - "Sí"
+        - "No"
+        - "Tal vez"
+    validations:
+      required: true

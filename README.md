@@ -1,5 +1,12 @@
 # m2-asistente-cad
 
+[![CI](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/workflows/ci.yml)
+[![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-blue.svg)](LICENSE)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](.python-version)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v1.json)](https://docs.astral.sh/ruff/)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v1.json)](https://docs.astral.sh/uv/)
+[![Cobertura mínima: 70 %](https://img.shields.io/badge/Cobertura-%E2%89%A5%2070%25-green.svg)](pyproject.toml)
+
 Asistente CAD que convierte la descripción **en español** de un componente
 metálico auxiliar en un modelo CAD **preliminar verificado** (STEP, GLB y lista
 de materiales) en minutos — o que **declina con un motivo** cuando no puede
@@ -8,6 +15,23 @@ construirlo.
 > ⚠️ **Toda salida es preliminar.** La verificación es solo geométrica; la
 > resistencia y el cumplimiento de normas (NSR-10, RETIE) exigen revisión de un
 > profesional responsable.
+
+## Tabla de contenidos
+
+- [Qué resuelve](#qué-resuelve)
+- [Alcance](#alcance)
+- [Arquitectura](#arquitectura)
+- [Cómo funciona](#cómo-funciona)
+- [Estructura](#estructura)
+- [Requisitos](#requisitos)
+- [Versiones](#versiones)
+- [Instalación y uso](#instalación-y-uso)
+- [Entorno en la nube (Lambda)](#entorno-en-la-nube-lambda)
+- [Metas (objetivos 1–4)](#metas-objetivos-14)
+- [Flujo de ramas e integración continua](#flujo-de-ramas-e-integración-continua)
+- [Contribución](#contribución)
+- [Licencias](#licencias)
+- [Referencias](#referencias)
 
 ## Qué resuelve
 
@@ -35,6 +59,15 @@ Catálogo cerrado de 8 familias: `plate`, `sheet_bracket`, `adapter`, `flange`,
 Fuera de alcance: cálculo estructural, verificación NSR-10/RETIE, Revit/BIM,
 reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 
+## Arquitectura
+
+El diagrama interactivo de arquitectura de runtime vive en
+[`docs/arquitectura.html`](docs/arquitectura.html) (fuente versionada:
+[`docs/arquitectura.json`](docs/arquitectura.json)). Muestra el camino principal
+de una solicitud — del diseñador CAD a los entregables STEP/GLB/CSV — los tres
+contenedores de Docker Compose y los dos servicios externos (API Gemini y
+llama.cpp con GPU).
+
 ## Cómo funciona
 
 1. **Traducción** ES→EN conservando números y unidades.
@@ -49,12 +82,18 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 
     m2-asistente-cad/
     ├── src/m2_cad/          traduccion.py · pipeline.py · api.py · interfaz.py · registro.py
-    ├── tests/               test_dataset.py · test_translate.py · test_pipeline.py · test_api.py
+    ├── tests/               test_dataset.py · test_translate.py · test_pipeline.py ·
+    │                        test_api.py · test_registro.py · test_interfaz.py
     ├── data/test_cases.csv  banco de 40 solicitudes
-    ├── docs/                manuales y reporte del banco
-    ├── Dockerfile · docker-compose.yml
-    ├── pyproject.toml · uv.lock
-    └── .pre-commit-config.yaml · .github/workflows/ci.yml
+    ├── specs/               especificaciones Spec Kit (001–007): spec · plan · tasks
+    ├── scripts/             fetch-model · verify-serve · vendor · cloud (Lambda/Vast.ai)
+    ├── docs/                arquitectura.{html,json} y documentación
+    ├── Dockerfile · docker-compose.yml · docker-compose.gpu-remote.yml
+    ├── pyproject.toml · uv.lock · .python-version
+    ├── Makefile · .pre-commit-config.yaml · .editorconfig
+    ├── CONSTITUTION.md      fuente única de verdad del proyecto
+    ├── AGENTS.md · CONTRIBUTING.md · CODE_OF_CONDUCT.md
+    └── .github/             ci.yml · labels · Dependabot · plantillas de PR e issues
 
 ## Requisitos
 
@@ -63,7 +102,9 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 - **Modelo**: `gemma-4-12b-constraintkit-GGUF` (Q6_K, ~9,8 GB), no versionado.
 - **Docker** + NVIDIA Container Toolkit para el despliegue.
 
-> El único entorno probado por el autor es el contenedor Docker.
+> El entorno de referencia es el contenedor Docker (único probado). En **macOS
+> Intel** la sincronización completa no concluye: `nlopt` no publica wheel para
+> `x86_64` de macOS — usa Docker o la CI.
 
 ## Versiones
 
@@ -92,6 +133,22 @@ O con Docker:
 ```bash
 docker compose up --build
 ```
+
+### Variables de entorno
+
+| Variable | La usa | Valor local | En Docker la fija |
+| --- | --- | --- | --- |
+| `GEMINI_API_KEY` | Traducción ES→EN | tu clave de [Google AI Studio](https://aistudio.google.com/apikey) | — (ver nota) |
+| `LLM_BASE_URL` | Pipeline → llama.cpp | `http://127.0.0.1:8080` | `http://llama:8080` |
+| `M2_API_URL` | UI Gradio → FastAPI | `http://127.0.0.1:8000` | `http://m2-cad:8000` |
+| `M2_UI_HOST` / `M2_UI_PORT` | Interfaz Gradio | `0.0.0.0:7860` | `0.0.0.0:7860` |
+| `M2_API_TIMEOUT` | Interfaz Gradio | `70` s | `70` s |
+
+Copia `.env.example` a `.env` para ejecutar fuera de Docker.
+
+> **Nota:** `docker-compose.yml` aún no inyecta `GEMINI_API_KEY` en el contenedor
+> `m2-cad`; al probar la traducción dentro de Docker, agrégala al servicio con
+> `env_file: .env` o `environment:`.
 
 ## Entorno en la nube (Lambda)
 
@@ -152,6 +209,15 @@ La política de `develop` es exigir la CI en verde y una aprobación antes de fu
 con la protección de rama del repositorio (Configuración → Branches). pre-commit es
 la primera barrera local: bloquea errores de Ruff y archivos de pesos (`.gguf`, `.safetensors`),
 que nunca se versionan.
+
+## Contribución
+
+`develop` es la rama de integración: toda contribución entra por pull request
+con CI en verde y una aprobación. Lee [`CONTRIBUTING.md`](CONTRIBUTING.md)
+(entorno, flujo de ramas y estándares), [`CONSTITUTION.md`](CONSTITUTION.md)
+(verdad central del proyecto) y el
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Los issues usan plantillas de bug,
+funcionalidad y spike en `.github/ISSUE_TEMPLATE/`.
 
 ## Licencias
 
