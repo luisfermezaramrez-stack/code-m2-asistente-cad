@@ -72,8 +72,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **API** | [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` |
 | **UI** | [Gradio](https://www.gradio.app/) ≥ 4, < 7 |
 | **Kernel CAD** | `constraint-kit` (vendoreado en `vendor/`) con CadQuery 2.7.0, build123d 0.10.0, bd_warehouse 0.2.0, Z3, python-solvespace, OpenCascade (LGPL 2.1) |
-| **LLM local** | `gemma-4-12b-constraintkit` GGUF Q6_K (~9,8 GB) servido por llama.cpp (`:8080`, CUDA) |
-| **Traducción ES→EN** | API Gemini (`gemini-3.5-flash-lite`), requiere `GEMINI_API_KEY` |
+| **LLM** | DeepSeek `deepseek-v4-pro` por API (`https://api.deepseek.com`), requiere `DEEPSEEK_API_KEY` (HU-14) |
+| **LLM heredado** | `gemma-4-12b-constraintkit` GGUF Q6_K (~9,8 GB) por llama.cpp (`:8080`, CUDA); solo línea base HU-01 (`docker-compose.gemma.yml`) |
 | **Testing** | `pytest` + cobertura **≥ 70 %** de `src/m2_cad` (umbral en `pyproject.toml`) |
 | **Lint / Formato** | [Ruff](https://docs.astral.sh/ruff/) — reglas `E, F, I, B`, `line-length = 100` |
 | **Pre-commit** | Ruff + higiene de archivos + bloqueo de pesos (`.gguf`, `.safetensors`, …) |
@@ -97,11 +97,11 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 code-m2-asistente-cad/
 ├── src/m2_cad/                 # paquete propio (src-layout)
 │   ├── api.py                  # FastAPI: POST /generar, GET /health (HU-06)
-│   ├── pipeline.py             # orquesta traducción→DSL→verificación→B-rep (HU-04)
-│   ├── traduccion.py           # ES→EN con protección de cantidades (HU-03)
+│   ├── pipeline.py             # orquesta solicitud→DSL→verificación→B-rep (HU-04)
+│   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
 │   ├── registro.py             # registro CSV con exclusión de PII (HU-06)
 │   └── interfaz.py             # UI Gradio: texto → descargas (HU-08)
-├── tests/                      # pytest: dataset, translate, pipeline, api, registro, interfaz
+├── tests/                      # pytest: dataset, banco, pipeline, api, registro, interfaz
 ├── data/
 │   ├── test_cases.csv          # banco de 40 solicitudes
 │   └── registro.csv            # registro de solicitudes (ignorado en git)
@@ -234,9 +234,9 @@ git push -u origin feature/hu-XX-tema
 - [ ] Proteger `develop` (CI verde + 1 aprobación) y `main` en GitHub.
 - [ ] HU-05 y HU-11 pendientes (ver `specs/`).
 - [ ] Sustituir el marcador `version="desconocida"` del registro por la versión real del modelo servido.
-- [ ] Inyectar `GEMINI_API_KEY` en el contenedor `m2-cad` (`env_file` en compose) para que la traducción funcione en Docker.
+- [x] Inyectar la configuración del modelo en el contenedor `m2-cad` (`DEEPSEEK_API_KEY`, `LLM_MODEL`; HU-14).
 - [ ] Mantener la cobertura ≥ 70 % al añadir módulos.
-- [ ] Evaluar el plan B (DeepSeek por API) cuando no haya GPU disponible.
+- [ ] Regenerar el diagrama de arquitectura (`docs/arquitectura.*`) con Archify: todavía muestra la API Gemini y llama.cpp (HU-14).
 
 ## 11. Configuración local (no trackear)
 
@@ -251,7 +251,7 @@ git config --global user.email "tu-correo@example.com"
 
 Si usas una llave SSH dedicada para GitHub, declárala en `~/.ssh/config` con
 `IdentitiesOnly yes` (guía completa en `jan-project-standard` →
-`references/git-identity.md`). Los secretos (`GEMINI_API_KEY`, claves de nube)
+`references/git-identity.md`). Los secretos (`DEEPSEEK_API_KEY`, claves de nube)
 viven en `.env` (gitignored); copia el ejemplo versionado
 [`.env.example`](./.env.example) y completa los valores.
 

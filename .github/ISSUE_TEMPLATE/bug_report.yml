@@ -35,10 +35,10 @@ body:
       options:
         - "API (FastAPI, src/m2_cad/api.py)"
         - "Pipeline (src/m2_cad/pipeline.py)"
-        - "Traducción (src/m2_cad/traduccion.py)"
+        - "Banco de solicitudes (src/m2_cad/banco.py)"
         - "Registro (src/m2_cad/registro.py)"
         - "UI Gradio (src/m2_cad/interfaz.py)"
-        - "Servicio LLM (llama.cpp / modelo)"
+        - "Servicio LLM (DeepSeek / llama.cpp heredado)"
         - "Kernel CAD (constraint-kit)"
         - "CI / despliegue (Docker, GitHub Actions)"
         - "Otro"

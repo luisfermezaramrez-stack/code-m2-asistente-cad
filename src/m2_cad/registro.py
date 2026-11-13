@@ -39,6 +39,10 @@ PATRON_NOMBRE = re.compile(
 )
 
 
+# HU-14: la solicitud llega en español al modelo; no hay traducción que registrar.
+SIN_TRADUCCION = "no aplica"
+
+
 def _sanitizar(texto: str) -> str:
     """Excluye correos y nombres declarados del texto dado (AC4)."""
     texto = PATRON_CORREO.sub("[correo eliminado]", texto)

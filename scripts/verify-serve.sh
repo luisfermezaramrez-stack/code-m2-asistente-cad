@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# HEREDADO (HU-01): desde HU-14 el modelo es la API de DeepSeek. Este script solo
+# sirve para reproducir la línea base con Gemma 4 12B ConstraintKit.
 # HU-01 AC2 — Verifica que llama.cpp sirva el modelo con contexto de 8192 tokens
 # y que la VRAM ocupada por el proceso no supere los 16 GB.
 #
