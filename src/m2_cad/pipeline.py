@@ -253,6 +253,10 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
 
     inicio = time.perf_counter()
     ensamble, partes = builder.build_assembly(programa)
+    # La caja se mide antes de exportar: builder.export triangula la pieza para
+    # el GLB y la caja de OpenCascade posterior suma el margen de la malla
+    # (+2,74 mm por eje en un loft), lo que falsea el AC3 en piezas curvas.
+    caja = ensamble.toCompound().BoundingBox()
     base = Path(directorio) / NOMBRE_PIEZA
     exportado = builder.export(ensamble, str(base))
     marcar_step(Path(exportado["step"]))
@@ -267,7 +271,7 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
         glb=Path(exportado["glb"]),
         bom_csv=bom_csv,
         volumen_mm3=float(firma["volume"]),
-        caja_mm=tuple(float(lado) for lado in exportado["bbox"]["size"]),
+        caja_mm=(round(caja.xlen, 2), round(caja.ylen, 2), round(caja.zlen, 2)),
         tiempo_construccion_s=duracion,
     )
 

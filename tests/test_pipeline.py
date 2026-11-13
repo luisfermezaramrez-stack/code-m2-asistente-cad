@@ -40,6 +40,12 @@ def _area_circulo(diametro: float) -> float:
 # (programa, volumen esperado mm3, caja esperada mm) calculados a mano.
 CASOS_TOLERANCIA = [
     pytest.param(
+        _programa("adapter", bottom_w=40, bottom_d=40, top_d=24, height=30),
+        29166.930055426,
+        (40, 40, 30),
+        id="adaptador-loft-caja-antes-de-teselar",
+    ),
+    pytest.param(
         _programa("spacer", outer_d=20, bore_d=8, height=15),
         (_area_circulo(20) - _area_circulo(8)) * 15,
         (20, 20, 15),
