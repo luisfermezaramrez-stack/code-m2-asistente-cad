@@ -11,10 +11,15 @@ Especificación: specs/002-step-verificado/spec.md
 - AC3: volumen y caja envolvente dentro de ±2 % del valor esperado.
 - AC4: cada respuesta entrega STEP, GLB y CSV.
 - AC5: se registra el tiempo de generación y de construcción.
+
+HU-05 (specs/003-declinacion-preliminar/spec.md): declina con motivo en
+español y sin STEP lo que está fuera del catálogo, y marca todo STEP como
+diseño preliminar.
 """
 
 import json
 import os
+import re
 import time
 import uuid
 from collections import Counter, defaultdict
@@ -25,11 +30,25 @@ from pathlib import Path
 import httpx
 from constraint_kit import bom, builder, dsl, llm
 
+from m2_cad import MARCA_PRELIMINAR
 from m2_cad.traduccion import traducir_solicitud
 
 RUTA_SALIDA = Path("outputs")
 NOMBRE_PIEZA = "pieza"
 TIEMPO_ESPERA_LLM = 120.0
+
+# Frontera de validez del producto (HU-02/HU-05): tipo del motor -> nombre en español.
+CATALOGO = {
+    "plate": "placa",
+    "sheet_bracket": "escuadra de chapa",
+    "adapter": "adaptador",
+    "flange": "brida",
+    "spacer": "espaciador",
+    "screw": "tornillo",
+    "extrusion": "perfil extruido",
+    "pipe": "tubo",
+}
+PREFIJO_DECLINACION = "El asistente no puede construir esta pieza:"
 
 # Prompt de sistema tomado de vendor/constraint-kit/drivers/dsl_experiment.py
 # (traducción de texto en inglés a programa DSL de constraint-kit).
@@ -76,11 +95,21 @@ class ErrorVerificacion(ErrorPipeline):
 
 
 class PiezaDeclinada(ErrorPipeline):
-    """El modelo declinó la pieza; se conserva su motivo."""
+    """La pieza no se construye; `motivo` es legible en español (HU-05, AC1)."""
 
-    def __init__(self, motivo: str) -> None:
+    def __init__(self, motivo: str, detalle: str | None = None) -> None:
         super().__init__(f"Pieza declinada: {motivo}")
         self.motivo = motivo
+        self.detalle = detalle
+
+
+def _declinar(explicacion: str, detalle: str | None = None) -> PiezaDeclinada:
+    catalogo = ", ".join(CATALOGO.values())
+    return PiezaDeclinada(
+        f"{PREFIJO_DECLINACION} {explicacion} Solo se generan piezas únicas del catálogo: "
+        f"{catalogo}.",
+        detalle,
+    )
 
 
 @dataclass(frozen=True)
@@ -104,6 +133,7 @@ class ResultadoPieza:
             "glb": str(self.glb),
             "bom_csv": str(self.bom_csv),
             "traduccion": self.traduccion,
+            "aviso": MARCA_PRELIMINAR,
             "volumen_mm3": f"{self.volumen_mm3:.2f}",
             "caja_mm": "x".join(f"{lado:.2f}" for lado in self.caja_mm),
             "tiempo_generacion_s": f"{self.tiempo_generacion_s:.3f}",
@@ -144,7 +174,10 @@ def verificar_programa(programa: dict) -> dict:
     """
     informe = dsl.check(programa)
     if informe["declined"]:
-        raise PiezaDeclinada(informe["reason"] or "sin motivo")
+        detalle = informe["reason"] or "sin detalle"
+        raise _declinar(
+            f"la solicitud está fuera del catálogo (el modelo indicó: «{detalle}»).", detalle
+        )
     if not informe["ok"] or informe["n_errors"]:
         errores = [
             diagnostico["message"]
@@ -153,6 +186,52 @@ def verificar_programa(programa: dict) -> dict:
         ]
         raise ErrorVerificacion("; ".join(errores) or "programa inválido")
     return informe
+
+
+def validar_catalogo(programa: dict) -> None:
+    """Declina lo que no es una pieza única del catálogo (HU-05, AC1).
+
+    Las declinaciones del modelo y los programas mal formados se dejan al
+    verificador de constraint-kit, que da el diagnóstico correspondiente.
+    """
+    partes = programa.get("parts")
+    if dsl.is_decline(programa) or not isinstance(partes, list):
+        return
+    if "defs" in programa or len(partes) > 1:
+        raise _declinar("los ensamblajes de varias piezas están fuera del alcance.")
+    tipos = [parte.get("type") for parte in partes if isinstance(parte, dict)]
+    ajenos = [tipo for tipo in tipos if tipo not in CATALOGO]
+    if ajenos:
+        raise _declinar(f"el tipo de pieza «{ajenos[0]}» está fuera del catálogo.", ajenos[0])
+
+
+def _codificar_cadena_step(texto: str) -> str:
+    """Codifica una cadena para STEP (ISO 10303-21): no ASCII como \\X2\\hhhh\\X0\\."""
+    salida = []
+    for caracter in texto.replace("'", "''"):
+        if caracter == "\\":
+            salida.append("\\\\")
+        elif ord(caracter) < 128:
+            salida.append(caracter)
+        else:
+            salida.append(f"\\X2\\{ord(caracter):04X}\\X0\\")
+    return "".join(salida)
+
+
+def marcar_step(ruta: Path) -> None:
+    """Escribe la marca de diseño preliminar en FILE_DESCRIPTION del STEP (AC3)."""
+    contenido = ruta.read_text(encoding="ascii")
+    cabecera, separador, datos = contenido.partition("ENDSEC;")
+    marcada, reemplazos = re.subn(
+        r"FILE_DESCRIPTION\(\(.*?\),",
+        lambda _: f"FILE_DESCRIPTION(('{_codificar_cadena_step(MARCA_PRELIMINAR)}'),",
+        cabecera,
+        count=1,
+        flags=re.S,
+    )
+    if not reemplazos:
+        raise ErrorPipeline("El STEP exportado no tiene FILE_DESCRIPTION para la marca.")
+    ruta.write_text(marcada + separador + datos, encoding="ascii")
 
 
 def _resumen_materiales(partes: list[dict]) -> dict:
@@ -176,6 +255,7 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
     ensamble, partes = builder.build_assembly(programa)
     base = Path(directorio) / NOMBRE_PIEZA
     exportado = builder.export(ensamble, str(base))
+    marcar_step(Path(exportado["step"]))
     bom_csv = base.with_suffix(".csv")
     bom_csv.write_text(bom.bom_document(_resumen_materiales(partes), fmt="csv"), encoding="utf-8")
     firma = dsl.signature(ensamble)
@@ -232,6 +312,8 @@ def generar_pieza(
     traduccion = traducir(texto)
     programa = planificar(traduccion)
     tiempo_generacion = time.perf_counter() - inicio
+
+    validar_catalogo(programa)
 
     resultado = construir_pieza(programa, Path(directorio) / uuid.uuid4().hex)
     return ResultadoPieza(
