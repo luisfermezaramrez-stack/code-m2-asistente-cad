@@ -68,6 +68,10 @@ de una solicitud — del diseñador CAD a los entregables STEP/GLB/CSV — los t
 contenedores de Docker Compose y los dos servicios externos (API Gemini y
 llama.cpp con GPU).
 
+> **Pendiente (HU-14):** el diagrama todavía muestra la API Gemini y llama.cpp.
+> El runtime actual usa DeepSeek por API y Compose tiene dos servicios
+> (`m2-cad` y `m2-cad-ui`); falta regenerarlo con Archify.
+
 ## Cómo funciona
 
 1. **Generación** condicionada a partir de la solicitud en español, sin

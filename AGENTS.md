@@ -89,7 +89,7 @@ En OpenCode la preferencia se aplica automáticamente mediante la regla
 ## Estructura y convenciones
 
 - `src/m2_cad/` — paquete propio (src-layout): `api.py` (FastAPI), `pipeline.py`,
-  `traduccion.py`, `registro.py`, `interfaz.py` (Gradio).
+  `banco.py` (banco de solicitudes), `registro.py`, `interfaz.py` (Gradio).
 - `tests/` — pruebas con `pytest` (patrón AAA); sin GPU ni red real.
 - `specs/` — especificaciones Spec Kit (001–007); cada módulo cita su spec y AC.
 - `docs/` — documentación y diagrama de arquitectura (Archify).
