@@ -18,6 +18,7 @@ ENV/
 
 # ===== uv (uv.lock sí se versiona) =====
 .uv/
+uv.lock.local.backup
 
 # ===== Cachés de herramientas =====
 .pytest_cache/
@@ -38,6 +39,9 @@ outputs/
 data/outputs/
 artifacts/
 registro*.csv
+
+# ===== Archify (carpeta de trabajo del diagrama; la fuente versionada es docs/arquitectura.json) =====
+.archify/
 
 # ===== Secretos y entorno =====
 .env
