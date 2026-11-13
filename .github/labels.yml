@@ -34,7 +34,7 @@
   description: "API FastAPI y registro de solicitudes"
 - name: frontend
   color: f9d0c4
-  description: "Interfaz Gradio (vista 3D y descargas)"
+  description: "Interfaz Vue (vista 3D y descargas)"
 - name: testing
   color: fbca04
   description: "Banco de pruebas, métricas y validación"

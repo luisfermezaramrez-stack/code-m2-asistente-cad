@@ -68,3 +68,8 @@ vendor/
 # ===== Claude Code =====
 # Symlinks de skills generados localmente por el CLI `skills`.
 .claude/
+
+# ===== Frontend =====
+node_modules/
+frontend/coverage/
+*.tsbuildinfo

@@ -23,38 +23,34 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
+          version: "0.13.5"
           enable-cache: true
-          # El action cachea por `**/uv.lock` por defecto y aborta si el glob no
-          # encuentra ningun archivo. `develop` no versiona `uv.lock`, asi que la
-          # clave se calcula con las dependencias declaradas; los branches que si
-          # lo versionan (HU-01) siguen funcionando con la misma clave.
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: "frontend/package-lock.json"
 
       - name: Vendorear constraint-kit
-        # `vendor/` esta en .gitignore a proposito: constraint-kit se clona en una
-        # revision fija y se parchea en setup (ver el objetivo `make vendor`). El
-        # pyproject lo declara como source local en [tool.uv.sources], asi que en un
-        # checkout limpio `uv sync` aborta con exit 2 si esa carpeta no existe.
-        # El guard mantiene verde a los branches que no declaran ese source (develop
-        # hoy no lo tiene) y evita el clonado inutil en cada corrida ajena a HU-01.
-        run: |
-          if grep -q 'path = "vendor/constraint-kit"' pyproject.toml; then
-            bash scripts/vendor-constraint-kit.sh
-          else
-            echo "sin source local en vendor/constraint-kit: nada que vendorear"
-          fi
+        # Source local fijado y parcheado antes de instalar desde uv.lock.
+        run: bash scripts/vendor-constraint-kit.sh
 
       - name: Instalar dependencias
         # python-solvespace 3.0.8 no publica wheels para Linux: se compila desde
         # sdist y su mimalloc incluido usa ATOMIC_VAR_INIT, simbolo eliminado en
         # C23. La imagen ubuntu-latest compila en C23 por defecto (gcc 15), asi
-        # que se fija C17 para los sdists y el build queda igual que en local.
+        # que se fija C17 para los sdists, igual que en Docker.
         env:
           CFLAGS: "-std=gnu17"
-        run: uv sync --dev
+        run: uv sync --locked --dev
 
-      - name: Ruff (reglas E, F, I, B)
-        run: uv run ruff check src tests
+      - name: Instalar frontend desde lockfile
+        run: make frontend-install
 
-      - name: Pytest con cobertura (umbral en [tool.coverage.report])
-        run: uv run pytest --cov=src/m2_cad --cov-report=term-missing
+      - name: Ruff, Vitest, TypeScript, build integrado y pytest con cobertura
+        run: make check
+
+      - name: Arranque integrado HTTP (modelo y traductor simulados, CAD real)
+        run: uv run --no-sync python scripts/verify_hu15_deployment.py --simulate-model

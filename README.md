@@ -42,13 +42,15 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
    llama.cpp).
 3. **Verificación** geométrica determinista (constraint-kit / CadQuery /
    build123d / OpenCascade): aprueba o declina cada pieza.
-4. **Entrega** por FastAPI + Gradio, con registro trazable (texto, resultado,
+4. **Entrega** por Vue 3 + FastAPI, con etapas reales mediante SSE y registro trazable (texto, resultado,
    latencia y versión del modelo). Plan B: DeepSeek por API.
 
 ## Estructura
 
     m2-asistente-cad/
-    ├── src/m2_cad/          traduccion.py · pipeline.py · api.py · interfaz.py · registro.py
+    ├── src/m2_cad/          traduccion.py · pipeline.py · api.py · trabajos.py · web.py · registro.py
+    ├── frontend/            Vue 3 · Composition API · TypeScript · Vite · Vitest
+    ├── design/              referencia validada y tokens únicos
     ├── tests/               test_dataset.py · test_translate.py · test_pipeline.py · test_api.py
     ├── data/test_cases.csv  banco de 40 solicitudes
     ├── docs/                manuales y reporte del banco
@@ -59,11 +61,14 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 ## Requisitos
 
 - **Python 3.11+** (contenedor en 3.12) con `uv`.
+- **Node 24** para desarrollar/compilar localmente; Docker lo usa solo durante el build.
 - **GPU**: 16 GB de VRAM mín. (recomendado 24 GB); el modelo ocupa ~12 GB.
 - **Modelo**: `gemma-4-12b-constraintkit-GGUF` (Q6_K, ~9,8 GB), no versionado.
 - **Docker** + NVIDIA Container Toolkit para el despliegue.
 
-> El único entorno probado por el autor es el contenedor Docker.
+> La evidencia HU-15 distingue pruebas nativas, servicios simulados e inferencia
+> real. Docker no pudo arrancar en la validación local más reciente; véase
+> [evidencia de despliegue](docs/hu15-despliegue.md).
 
 ## Versiones
 
@@ -82,16 +87,44 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 ## Instalación y uso
 
 ```bash
-uv sync --dev     # 1. dependencias (sin pip install)
-make check        # 2. Ruff + pytest
-make up           # 3. FastAPI (:8000) y Gradio (:7860) con GPU
+bash scripts/vendor-constraint-kit.sh
+uv sync --locked --dev
+make frontend-install
+make check        # Ruff + Vitest + TypeScript + build + pytest/cobertura
+uv run --locked uvicorn m2_cad.api:app --app-dir src --host 127.0.0.1 --port 8000 --workers 1
 ```
 
-O con Docker:
+Abrir **http://127.0.0.1:8000/**: FastAPI sirve el build, API, SSE y descargas en
+el mismo origen. No se inicia otro servidor frontend. El desarrollo con HMR
+se explica en [frontend/README.md](frontend/README.md).
+
+Con Docker, sin compilar Vue ni preparar el vendor manualmente en el host:
 
 ```bash
 docker compose up --build
 ```
+
+Requiere pesos del modelo en `models/`, GPU/NVIDIA Container Toolkit y
+`GEMINI_API_KEY` definida únicamente en el entorno del backend (o `.env` local
+ignorado). API/UI publicadas en **8000**; el modelo tiene diagnóstico local en
+`127.0.0.1:8080`. Gradio y su puerto se retiraron. El volumen `outputs/` conserva
+los archivos generados. Para GPU remota se usa el archivo independiente
+`docker-compose.gpu-remote.yml`; mantiene el mismo origen web y volumen de salidas.
+
+`M2_FRONTEND_DIST` permite ubicar el build (Docker: `/app/frontend/dist`).
+`M2_CORS_ORIGINS` es una lista separada por comas de orígenes exactos HTTP(S), sin
+comodines; por defecto admite `http://localhost:8000,http://127.0.0.1:8000`.
+Para una URL de despliegue distinta, configurar su origen explícito. Una lista
+vacía no autoriza llamadas cross-origin; la SPA del mismo origen sigue funcionando.
+Las rutas API desconocidas devuelven JSON 404/405 y no HTML. Los assets del build
+se sirven en `/assets/`; la SPA actual solo necesita `/`.
+
+SSE no tiene middleware de compresión/buffering y devuelve `no-cache, no-transform`
+y `X-Accel-Buffering: no`. No se deben añadir proxies que acumulen eventos.
+Cancelar pide una detención cooperativa local: una llamada bloqueante al modelo o
+CAD puede continuar hasta retornar; no confirma detención remota.
+Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
+[CONSTITUTION.md](CONSTITUTION.md).
 
 ## Entorno en la nube (Lambda)
 
@@ -101,21 +134,22 @@ para el GGUF Q6_K de ~9,8 GB: el modelo no entra.
 
 1. Dashboard de Lambda → *Launch instance* → imagen **Lambda Stack (Ubuntu 22.04)** →
    1× A10 (24 GB) → tu clave SSH → *Launch*.
-2. **Exponer el servicio**: *Firewall rules* → agregar TCP **8080** (llama.cpp) y **8000**
-   (FastAPI), restringidos a tu IP. Sin esa regla el puerto no queda accesible desde afuera.
+2. **Exponer el servicio**: *Firewall rules* → agregar TCP **8000** (Vue/FastAPI)
+   restringido a tu IP. Sin esa regla el puerto no queda accesible desde afuera.
 3. En la instancia:
 
 ```bash
 git clone https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad.git
 cd code-m2-asistente-cad
-git switch feature/hu-01-gemma-constraintkit-serve
+git switch develop
 bash scripts/cloud/lambda-bootstrap.sh   # Docker + NVIDIA Container Toolkit + smoke test
 make model-fetch                         # AC1: descarga 9,8 GB y verifica el SHA-256
-docker compose up -d llama
+docker compose up -d --build
 make verify-serve                        # AC2: n_ctx=8192 y VRAM <= 16 GB
 ```
 
-4. Comprobar desde tu máquina: `curl http://<IP-pública>:8080/health`.
+4. Comprobar desde tu máquina: `curl http://<IP-pública>:8000/health`.
+   La verificación del modelo en 8080 se ejecuta dentro de la instancia, no desde el navegador.
 5. Terminar la instancia (se factura por hora) cuando cierres la validación.
 
 El AC3 (113 pruebas del kernel) no necesita GPU: se corre con `make kernel-test`, que
@@ -143,10 +177,12 @@ make precommit-install                 # 3. una vez: hooks de Ruff y bloqueo de 
 make check                             # 4. antes de abrir el PR: Ruff + pytest + cobertura
 ```
 
-Cada pull request a `develop` dispara `.github/workflows/ci.yml`, que corre en Python 3.12 (el
-de `.python-version`) y exige tres cosas: **Ruff** limpio con las reglas E, F, I y B, **pytest con
-cobertura ≥ 70 %** de `src/` (umbral en `[tool.coverage.report]` de `pyproject.toml`) y el
-despliegue de ese entorno con `uv sync --dev` (sin `pip install` ni `requirements.txt`).
+Cada pull request a `develop` dispara `.github/workflows/ci.yml`: Python 3.12
+(`.python-version`), Node 24, `uv sync --locked --dev`, `npm ci` y `make check`.
+Exige Ruff limpio, pruebas Vitest, TypeScript, build y pytest con cobertura ≥70 %
+de `src/`. El build se genera antes de probar las rutas estáticas integradas.
+Las pruebas útiles de la UI anterior se migraron a SPA/API; la trazabilidad de
+los 23 casos está en [HU-15/despliegue](docs/hu15-despliegue.md).
 
 La política de `develop` es exigir la CI en verde y una aprobación antes de fusionar; se activa
 con la protección de rama del repositorio (Configuración → Branches). pre-commit es

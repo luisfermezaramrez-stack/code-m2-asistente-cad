@@ -21,6 +21,74 @@ from m2_cad import pipeline  # noqa: E402
 TOLERANCIA = 0.02
 
 
+def test_progreso_corresponde_a_operaciones_reales(tmp_path):
+    from m2_cad.seguimiento import ControlGeneracion
+
+    llamadas = []
+    control = ControlGeneracion(lambda etapa: llamadas.append(etapa))
+
+    def traducir(texto):
+        assert llamadas == ["validando"]
+        llamadas.append("traduccion")
+        return "spacer"
+
+    def planificar(texto):
+        assert llamadas == ["validando", "traduccion", "generando"]
+        llamadas.append("modelo")
+        return _programa("spacer")
+
+    resultado = pipeline.generar_pieza(
+        "Espaciador",
+        traducir=traducir,
+        planificar=planificar,
+        directorio=tmp_path,
+        control=control,
+    )
+    assert resultado.step.exists() and resultado.glb.exists() and resultado.bom_csv.exists()
+    assert llamadas == ["validando", "traduccion", "generando", "modelo"]
+
+
+@pytest.mark.parametrize("cancelar_en", ["traduccion", "modelo", "construccion"])
+def test_cancelacion_entre_operaciones_no_avanza_etapas(tmp_path, monkeypatch, cancelar_en):
+    from m2_cad.seguimiento import ControlGeneracion, GeneracionCancelada
+
+    llamadas = []
+    etapas = []
+    control = ControlGeneracion(etapas.append)
+    construir_real = pipeline.construir_pieza
+
+    def terminar_operacion(nombre):
+        llamadas.append(nombre)
+        if nombre == cancelar_en:
+            control.cancelacion.set()
+
+    def traducir(texto):
+        terminar_operacion("traduccion")
+        return "spacer"
+
+    def planificar(texto):
+        terminar_operacion("modelo")
+        return _programa("spacer")
+
+    def construir(programa, directorio):
+        resultado = construir_real(programa, directorio)
+        terminar_operacion("construccion")
+        return resultado
+
+    monkeypatch.setattr(pipeline, "construir_pieza", construir)
+    with pytest.raises(GeneracionCancelada):
+        pipeline.generar_pieza(
+            "Espaciador",
+            traducir=traducir,
+            planificar=planificar,
+            directorio=tmp_path,
+            control=control,
+        )
+    todas = ["traduccion", "modelo", "construccion"]
+    assert llamadas == todas[: todas.index(cancelar_en) + 1]
+    assert etapas == (["validando"] if cancelar_en == "traduccion" else ["validando", "generando"])
+
+
 def _programa(tipo: str, **params: float) -> dict:
     return {
         "parts": [{"id": "p", "type": tipo, "material": "steel", "params": params}],

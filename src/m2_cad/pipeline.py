@@ -31,6 +31,7 @@ import httpx
 from constraint_kit import bom, builder, dsl, llm
 
 from m2_cad import MARCA_PRELIMINAR
+from m2_cad.seguimiento import ControlGeneracion
 from m2_cad.traduccion import traducir_solicitud
 
 RUTA_SALIDA = Path("outputs")
@@ -257,7 +258,9 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
     exportado = builder.export(ensamble, str(base))
     marcar_step(Path(exportado["step"]))
     bom_csv = base.with_suffix(".csv")
-    bom_csv.write_text(bom.bom_document(_resumen_materiales(partes), fmt="csv"), encoding="utf-8")
+    bom_csv.write_text(
+        bom.bom_document(_resumen_materiales(partes), fmt="csv"), encoding="utf-8", newline=""
+    )
     firma = dsl.signature(ensamble)
     duracion = time.perf_counter() - inicio
 
@@ -303,19 +306,33 @@ def generar_pieza(
     traducir: Callable[[str], str] = traducir_solicitud,
     planificar: Callable[[str], dict] = planificar_con_llm,
     directorio: Path = RUTA_SALIDA,
+    control: ControlGeneracion | None = None,
 ) -> ResultadoPieza:
     """Traduce, genera el programa y construye la pieza (AC1-AC5).
 
     Cada solicitud escribe en su propia subcarpeta de `directorio`.
     """
+    if control is not None:
+        control.informar("validando")
+    if not texto.strip() or len(texto) > 1000:
+        raise ValueError("La descripción debe contener entre 1 y 1000 caracteres.")
     inicio = time.perf_counter()
     traduccion = traducir(texto)
+    if control is not None:
+        control.informar("generando")
     programa = planificar(traduccion)
+    if control is not None:
+        control.comprobar_cancelacion()
     tiempo_generacion = time.perf_counter() - inicio
 
     validar_catalogo(programa)
 
+    if control is not None:
+        control.comprobar_cancelacion()
+
     resultado = construir_pieza(programa, Path(directorio) / uuid.uuid4().hex)
+    if control is not None:
+        control.comprobar_cancelacion()
     return ResultadoPieza(
         programa=resultado.programa,
         step=resultado.step,
