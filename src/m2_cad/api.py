@@ -9,7 +9,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
-from m2_cad.registro import RUTA_DEFAULT, registrar
+from m2_cad.registro import RUTA_DEFAULT, SIN_TRADUCCION, registrar
 
 app = FastAPI(
     title="M2 CAD Assistant API",
@@ -44,21 +44,27 @@ def health() -> dict[str, str]:
 
 
 def procesador_no_disponible(texto: str) -> dict[str, str]:
-    """Informa que el pipeline CAD todavía no está integrado."""
+    """Informa que falta la API key del modelo (HU-14, AC3)."""
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail="El pipeline CAD aún no está disponible.",
+        detail="El modelo no está configurado: falta DEEPSEEK_API_KEY.",
+    )
+
+
+def _modelo_configurado() -> bool:
+    """Hay modelo: DeepSeek con key (HU-14) o un servidor propio en LLM_BASE_URL."""
+    return any(
+        os.environ.get(variable) for variable in ("LLM_BASE_URL", "LLM_API_KEY", "DEEPSEEK_API_KEY")
     )
 
 
 def procesar_con_pipeline(texto: str) -> dict[str, str]:
     """Genera la pieza con el pipeline CAD (HU-04) y traduce sus errores a HTTP."""
-    if not os.environ.get("LLM_BASE_URL"):
+    if not _modelo_configurado():
         return procesador_no_disponible(texto)
 
     # Importación diferida: el núcleo CAD (cadquery/OCP) solo se carga al usarlo.
     from m2_cad import pipeline
-    from m2_cad.traduccion import ErrorTraduccion
 
     try:
         return pipeline.generar_pieza(texto).a_respuesta()
@@ -71,7 +77,7 @@ def procesar_con_pipeline(texto: str) -> dict[str, str]:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
-    except (pipeline.ModeloNoDisponible, ErrorTraduccion) as exc:
+    except pipeline.ModeloNoDisponible as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
         ) from exc
@@ -102,7 +108,7 @@ def generar(
     except HTTPException as exc:
         registrar(
             texto=solicitud.texto,
-            traduccion="",
+            traduccion=SIN_TRADUCCION,
             resultado=None,
             latencia_ms=(time.perf_counter() - inicio) * 1000,
             error=str(exc.detail),
@@ -113,7 +119,7 @@ def generar(
 
     registrar(
         texto=solicitud.texto,
-        traduccion="",
+        traduccion=SIN_TRADUCCION,
         resultado=respuesta,
         latencia_ms=(time.perf_counter() - inicio) * 1000,
         version="desconocida",

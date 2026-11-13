@@ -81,11 +81,14 @@ def test_generar_con_procesador_simulado():
         app.dependency_overrides.pop(obtener_procesador, None)
 
 
-def test_generar_pipeline_no_disponible():
-    """Verifica que la API informe si el pipeline no está disponible."""
+def test_generar_pipeline_no_disponible(monkeypatch):
+    """HU-14 AC3: sin API key de DeepSeek la API responde 503 en español."""
     from fastapi.testclient import TestClient
 
     from m2_cad.api import app
+
+    for variable in ("LLM_BASE_URL", "LLM_API_KEY", "DEEPSEEK_API_KEY"):
+        monkeypatch.delenv(variable, raising=False)
 
     with TestClient(app) as client:
         respuesta = client.post(
@@ -94,7 +97,7 @@ def test_generar_pipeline_no_disponible():
         )
 
     assert respuesta.status_code == 503
-    assert respuesta.json() == {"detail": "El pipeline CAD aún no está disponible."}
+    assert respuesta.json() == {"detail": "El modelo no está configurado: falta DEEPSEEK_API_KEY."}
 
 
 def test_generar_archivos_cad_simulados():
@@ -186,6 +189,8 @@ def test_generar_registra_error_del_pipeline(tmp_path, monkeypatch):
     from m2_cad import api
 
     ruta = _preparar_registro(monkeypatch, tmp_path)
+    for variable in ("LLM_BASE_URL", "LLM_API_KEY", "DEEPSEEK_API_KEY"):
+        monkeypatch.delenv(variable, raising=False)
 
     with TestClient(api.app) as client:
         respuesta = client.post("/generar", json={"texto": "Placa de 120 mm"})
@@ -194,7 +199,7 @@ def test_generar_registra_error_del_pipeline(tmp_path, monkeypatch):
     filas = leer_registro_csv(ruta)
     assert len(filas) == 1
     fila = filas[0]
-    assert "pipeline" in fila["error"]
+    assert "DEEPSEEK_API_KEY" in fila["error"]
     for campo in fila:
         assert fila[campo] != "", f"campo vacío: {campo}"
 
@@ -207,9 +212,7 @@ def test_generar_registra_sin_datos_personales(tmp_path, monkeypatch):
 
     ruta = _preparar_registro(monkeypatch, tmp_path)
     app_dependency = api.obtener_procesador
-    api.app.dependency_overrides[app_dependency] = lambda: (
-        lambda texto: {"resultado": "generada"}
-    )
+    api.app.dependency_overrides[app_dependency] = lambda: lambda texto: {"resultado": "generada"}
 
     try:
         with TestClient(api.app) as client:
@@ -260,7 +263,6 @@ def _resultado_pieza(tmp_path):
         caja_mm=(14.0, 14.0, 10.0),
         tiempo_construccion_s=0.25,
         tiempo_generacion_s=1.5,
-        traduccion="a steel spacer",
     )
 
 
@@ -285,8 +287,29 @@ def test_generar_usa_pipeline_cuando_el_modelo_esta_configurado(tmp_path, monkey
     assert cuerpo["bom_csv"].endswith("pieza.csv")
     assert cuerpo["tiempo_generacion_s"] == "1.500"
     assert cuerpo["tiempo_construccion_s"] == "0.250"
+    assert "traduccion" not in cuerpo
     filas = leer_registro_csv(ruta)
     assert "tiempo_construccion_s" in filas[0]["resultado"]
+    assert filas[0]["traduccion"] == "no aplica"
+
+
+def test_hu14_con_solo_la_api_key_de_deepseek_usa_el_pipeline(tmp_path, monkeypatch):
+    """HU-14 AC1: DEEPSEEK_API_KEY basta para activar el pipeline (sin LLM_BASE_URL)."""
+    pytest.importorskip("cadquery")
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api, pipeline
+
+    _preparar_registro(monkeypatch, tmp_path)
+    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-prueba")
+    monkeypatch.setattr(pipeline, "generar_pieza", lambda texto: _resultado_pieza(tmp_path))
+
+    with TestClient(api.app) as client:
+        respuesta = client.post("/generar", json={"texto": "Espaciador de 14 mm"})
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["step"].endswith("pieza.step")
 
 
 @pytest.mark.parametrize(
@@ -321,4 +344,6 @@ def test_generar_traduce_errores_del_pipeline(tmp_path, monkeypatch, error, codi
         respuesta = client.post("/generar", json={"texto": "Engranaje helicoidal"})
 
     assert respuesta.status_code == codigo
-    assert leer_registro_csv(ruta)[0]["error"] != "ninguno"
+    fila = leer_registro_csv(ruta)[0]
+    assert fila["error"] != "ninguno"
+    assert fila["traduccion"] == "no aplica"
