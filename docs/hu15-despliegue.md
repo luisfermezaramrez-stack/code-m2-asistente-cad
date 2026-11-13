@@ -93,11 +93,10 @@ Chrome a 1280/768 y teclado están descritas en `frontend/README.md`.
 
 ## Bloqueos de entorno observados
 
-- **Docker no verificado:** el cliente 29.9.2 está instalado, pero el daemon
-  `dockerDesktopLinuxEngine` no está disponible (named pipe inexistente).
-  No se afirma construcción de imagen, arranque Compose, montaje de volumen en
-  contenedor ni inferencia GPU aprobados. La validación sintáctica de Compose no
-  equivale a un arranque.
+- **Docker, bloqueo inicial resuelto:** tras abrir Docker Desktop, Engine 29.9.2
+  responde con contenedores Linux. Build de la aplicación, FastAPI/Vue y smoke
+  SSE/CAD en Compose aislado comprobados; véase [evidencia Docker](hu15-docker-validation.md).
+  No se probaron arranque completo con llama/GPU ni volúmenes de producción.
 - **Instalación limpia Windows bloqueada:** `uv lock` se regeneró y `uv lock --check`
   es válido; `uv sync --locked --dev` falla compilando `python-solvespace==3.0.8`
   por ausencia de Microsoft Visual C++ 14+. No se omite ese paquete del lockfile
@@ -123,7 +122,8 @@ Chrome a 1280/768 y teclado están descritas en `frontend/README.md`.
 | SSE nativo por red | Incremental, sin compresión; DELETE devuelve 202 mientras el modelo simulado aún bloquea |
 | Archivos generados reales | STEP 12446 bytes, GLB 32496 bytes, CSV 77 bytes; GET/HEAD correctos |
 | Chrome, mismo origen FastAPI | 1280/768 sin desbordamientos; teclado/foco/visor y descargas reales correctos |
-| Docker build/arranque y CI remota | No ejecutados satisfactoriamente; daemon local no disponible, sin push ni ejecución remota de CI |
+| Docker build/arranque aislado | Correctos; FastAPI/Vue y smoke SSE con CAD real dentro de Linux; traductor/modelo simulados. Véase evidencia Docker |
+| Compose completo con modelo y CI remota | Pendientes; sin arranque llama/GPU, sin push ni ejecución remota de CI |
 | Instalación limpia Windows | Bloqueada por compilador MSVC ausente; no se confunde con las pruebas del entorno existente |
 | Inferencia real | No ejecutada; traductor/modelo simulados, CAD/exportación y transporte reales |
 
