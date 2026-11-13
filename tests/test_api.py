@@ -207,9 +207,7 @@ def test_generar_registra_sin_datos_personales(tmp_path, monkeypatch):
 
     ruta = _preparar_registro(monkeypatch, tmp_path)
     app_dependency = api.obtener_procesador
-    api.app.dependency_overrides[app_dependency] = lambda: (
-        lambda texto: {"resultado": "generada"}
-    )
+    api.app.dependency_overrides[app_dependency] = lambda: lambda texto: {"resultado": "generada"}
 
     try:
         with TestClient(api.app) as client:

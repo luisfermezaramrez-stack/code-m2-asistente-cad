@@ -1,9 +1,9 @@
 # HU-08 — Evidencias de implementación y validación
 
-**Proyecto:** Asistente CAD — Diseño preliminar de componentes metálicos auxiliares  
-**Historia:** HU-08 — Interfaz web con Gradio  
-**Rama:** `feature/hu-08-gradio`  
-**Fecha de registro:** 11 de noviembre de 2026  
+**Proyecto:** Asistente CAD — Diseño preliminar de componentes metálicos auxiliares
+**Historia:** HU-08 — Interfaz web con Gradio
+**Rama:** `feature/hu-08-gradio`
+**Fecha de registro:** 11 de noviembre de 2026
 **Estado:** Validación parcial; pendiente cierre de criterios de aceptación
 
 ## 1. Entorno de desarrollo
