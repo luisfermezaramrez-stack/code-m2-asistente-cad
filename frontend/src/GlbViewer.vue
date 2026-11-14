@@ -54,7 +54,7 @@ watch(() => [props.url, host.value] as const, async ([url, element], _old, onCle
     renderer.toneMappingExposure = 0.65
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
     const scene = new Scene()
-    scene.background = new Color(getComputedStyle(document.documentElement).getPropertyValue('--color-surface-subtle').trim())
+    scene.background = new Color(getComputedStyle(document.documentElement).getPropertyValue('--color-viewer-background').trim())
     scene.add(new HemisphereLight(0xffffff, 0x465a70, 3))
     const light = new DirectionalLight(0xffffff, 3)
     light.position.set(1, 2, 3); scene.add(light)

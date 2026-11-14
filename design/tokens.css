@@ -4,6 +4,8 @@
   --color-background: #eef2f6;
   --color-surface: #ffffff;
   --color-surface-subtle: #f5f7fa;
+  /* Fondo del visor 3D: oscuro para que la pieza metálica clara contraste. */
+  --color-viewer-background: #2f3e4f;
   --color-text: #172b40;
   --color-muted: #465a70;
   --color-border: #748499;
