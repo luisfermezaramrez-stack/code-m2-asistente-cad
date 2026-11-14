@@ -28,6 +28,7 @@ construirlo.
 - [Instalación y uso](#instalación-y-uso)
 - [Entorno en la nube (Lambda)](#entorno-en-la-nube-lambda)
 - [Metas (objetivos 1–4)](#metas-objetivos-14)
+- [Informe final](docs/informe-final.md)
 - [Flujo de ramas e integración continua](#flujo-de-ramas-e-integración-continua)
 - [Contribución](#contribución)
 - [Licencias](#licencias)
@@ -64,13 +65,16 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 El diagrama interactivo de arquitectura de runtime vive en
 [`docs/arquitectura.html`](docs/arquitectura.html) (fuente versionada:
 [`docs/arquitectura.json`](docs/arquitectura.json)). Muestra el camino principal
-de una solicitud — del diseñador CAD a los entregables STEP/GLB/CSV — los tres
-contenedores de Docker Compose y los dos servicios externos (API Gemini y
-llama.cpp con GPU).
+de una solicitud — de la SPA en Vue, por `POST /generar` con progreso SSE, al
+pipeline, la verificación y los entregables STEP/GLB/CSV — los dos contenedores de
+Docker Compose (`m2-cad` y `mlflow`) y la API externa de DeepSeek. Cada componente
+cita su código en una revisión fija; se regenera con Archify
+([SPEC-020](specs/020-diagrama-arquitectura/spec.md)).
 
-> **Pendiente (HU-14):** el diagrama todavía muestra la API Gemini y llama.cpp.
-> El runtime actual usa DeepSeek por API y un único servicio Compose
-> (`m2-cad`, Vue/FastAPI); falta regenerarlo con Archify.
+La gestión del proyecto vive en el
+[tablero Kanban de GitHub Projects](https://github.com/users/luisfermezaramrez-stack/projects/1/views/1)
+(Backlog, In Progress, In Review y Done), y cada historia enlaza su especificación en
+[`specs/`](specs/README.md) y su pull request.
 
 La [Model Card](docs/model-card.md) documenta el modelo servido (`deepseek-v4-pro`) y la
 línea base heredada de Hugging Face: origen, métricas medidas, limitaciones, sesgos y
@@ -327,6 +331,9 @@ construye el contenedor del autor y ejecuta su suite dentro.
 | Latencia p90 (solicitud → STEP) | ≤ 60 s |
 | Autonomía de usuarios (tareas sin ayuda) | ≥ 7/9 |
 | Reproducibilidad | 1 comando, CI en verde |
+
+El [informe final](docs/informe-final.md) consolida la meta, el valor medido, el
+estado y la evidencia de cada objetivo (HU-13).
 
 ## Flujo de ramas e integración continua
 
