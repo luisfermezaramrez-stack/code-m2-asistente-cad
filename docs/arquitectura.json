@@ -9,7 +9,7 @@
     "repository": {
       "url": "https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad.git",
       "provider": "github",
-      "revision": "bb8740d7f0947c3f7828a8770cbb188b1d5a74a3"
+      "revision": "dffa637ce62206fd13b1b552a9b6d89e1886411e"
     }
   },
   "components": [
@@ -18,32 +18,109 @@
       "type": "external",
       "label": "Diseñador CAD",
       "sublabel": "entrada en español",
-      "pos": [40, 40],
-      "size": [130, 64]
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        130,
+        64
+      ]
     },
     {
       "id": "ui",
       "type": "frontend",
-      "label": "Interfaz Gradio",
-      "sublabel": ":7860 · interfaz.py",
-      "pos": [40, 190],
-      "size": [150, 64],
+      "label": "SPA Vue 3",
+      "sublabel": "Vite · TS · visor Three.js",
+      "pos": [
+        40,
+        190
+      ],
+      "size": [
+        170,
+        64
+      ],
       "sources": [
-        { "path": "src/m2_cad/interfaz.py", "line": 20, "end_line": 42, "label": "consulta la API" },
-        { "path": "src/m2_cad/interfaz.py", "line": 106, "end_line": 139, "label": "interfaz Blocks" }
+        {
+          "path": "frontend/src/useGeneration.ts",
+          "line": 136,
+          "end_line": 160,
+          "label": "POST /generar con SSE"
+        },
+        {
+          "path": "frontend/src/sse.ts",
+          "line": 4,
+          "end_line": 53,
+          "label": "lector SSE"
+        },
+        {
+          "path": "src/m2_cad/web.py",
+          "line": 36,
+          "end_line": 73,
+          "label": "build servido por FastAPI"
+        }
       ]
     },
     {
       "id": "api",
       "type": "backend",
       "label": "FastAPI /generar",
-      "sublabel": ":8000 · api.py",
-      "pos": [40, 340],
-      "size": [150, 64],
+      "sublabel": ":8000 · api.py · SSE",
+      "pos": [
+        40,
+        340
+      ],
+      "size": [
+        170,
+        64
+      ],
       "sources": [
-        { "path": "src/m2_cad/api.py", "line": 21, "end_line": 37, "label": "validación Pydantic" },
-        { "path": "src/m2_cad/api.py", "line": 54, "end_line": 77, "label": "mapeo de errores" },
-        { "path": "src/m2_cad/api.py", "line": 90, "end_line": 122, "label": "POST /generar" }
+        {
+          "path": "src/m2_cad/api.py",
+          "line": 35,
+          "end_line": 50,
+          "label": "validación Pydantic"
+        },
+        {
+          "path": "src/m2_cad/api.py",
+          "line": 397,
+          "end_line": 494,
+          "label": "POST /generar"
+        },
+        {
+          "path": "src/m2_cad/api.py",
+          "line": 54,
+          "end_line": 56,
+          "label": "GET /health"
+        }
+      ]
+    },
+    {
+      "id": "trabajos",
+      "type": "backend",
+      "label": "Gestor de trabajos",
+      "sublabel": "trabajos.py · etapas SSE",
+      "pos": [
+        40,
+        490
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/m2_cad/trabajos.py",
+          "line": 141,
+          "end_line": 180,
+          "label": "GestorTrabajos"
+        },
+        {
+          "path": "src/m2_cad/trabajos.py",
+          "line": 71,
+          "end_line": 140,
+          "label": "ejecución por etapas"
+        }
       ]
     },
     {
@@ -51,12 +128,33 @@
       "type": "backend",
       "label": "Pipeline CAD",
       "sublabel": "pipeline.py",
-      "pos": [40, 490],
-      "size": [150, 64],
+      "pos": [
+        40,
+        640
+      ],
+      "size": [
+        170,
+        64
+      ],
       "sources": [
-        { "path": "src/m2_cad/pipeline.py", "line": 220, "end_line": 247, "label": "generar_pieza" },
-        { "path": "src/m2_cad/pipeline.py", "line": 195, "end_line": 217, "label": "planificar con LLM" },
-        { "path": "src/m2_cad/pipeline.py", "line": 36, "end_line": 59, "label": "prompt sistema" }
+        {
+          "path": "src/m2_cad/pipeline.py",
+          "line": 399,
+          "end_line": 474,
+          "label": "generar_pieza"
+        },
+        {
+          "path": "src/m2_cad/pipeline.py",
+          "line": 327,
+          "end_line": 336,
+          "label": "planificar con LLM"
+        },
+        {
+          "path": "src/m2_cad/pipeline.py",
+          "line": 222,
+          "end_line": 237,
+          "label": "catálogo"
+        }
       ]
     },
     {
@@ -64,11 +162,27 @@
       "type": "backend",
       "label": "Verificación + B-rep",
       "sublabel": "constraint-kit · OpenCascade",
-      "pos": [40, 640],
-      "size": [180, 64],
+      "pos": [
+        40,
+        790
+      ],
+      "size": [
+        190,
+        64
+      ],
       "sources": [
-        { "path": "src/m2_cad/pipeline.py", "line": 139, "end_line": 155, "label": "dsl.check" },
-        { "path": "src/m2_cad/pipeline.py", "line": 171, "end_line": 192, "label": "build + export" }
+        {
+          "path": "src/m2_cad/pipeline.py",
+          "line": 200,
+          "end_line": 221,
+          "label": "dsl.check"
+        },
+        {
+          "path": "src/m2_cad/pipeline.py",
+          "line": 281,
+          "end_line": 313,
+          "label": "build + export"
+        }
       ]
     },
     {
@@ -76,11 +190,21 @@
       "type": "database",
       "label": "outputs/<uuid>/",
       "sublabel": "STEP · GLB · CSV",
-      "pos": [40, 790],
-      "size": [150, 64],
+      "pos": [
+        40,
+        940
+      ],
+      "size": [
+        170,
+        64
+      ],
       "sources": [
-        { "path": "src/m2_cad/pipeline.py", "line": 30, "end_line": 30, "label": "ruta outputs" },
-        { "path": "src/m2_cad/pipeline.py", "line": 236, "end_line": 236, "label": "subcarpeta uuid" }
+        {
+          "path": "src/m2_cad/pipeline.py",
+          "line": 39,
+          "end_line": 39,
+          "label": "ruta outputs"
+        }
       ]
     },
     {
@@ -88,65 +212,128 @@
       "type": "database",
       "label": "Registro de solicitudes",
       "sublabel": "data/registro.csv · sin PII",
-      "pos": [560, 340],
-      "size": [170, 64],
+      "pos": [
+        300,
+        340
+      ],
+      "size": [
+        190,
+        64
+      ],
       "sources": [
-        { "path": "src/m2_cad/registro.py", "line": 42, "end_line": 45, "label": "sanitiza PII" },
-        { "path": "src/m2_cad/registro.py", "line": 54, "end_line": 89, "label": "registrar()" },
-        { "path": "src/m2_cad/api.py", "line": 114, "end_line": 121, "label": "llamado en /generar" }
+        {
+          "path": "src/m2_cad/registro.py",
+          "line": 58,
+          "end_line": 95,
+          "label": "registrar()"
+        },
+        {
+          "path": "src/m2_cad/registro.py",
+          "line": 34,
+          "end_line": 34,
+          "label": "sin correos"
+        }
       ]
     },
     {
-      "id": "traduccion",
+      "id": "seguimiento",
       "type": "backend",
-      "label": "Traducción ES→EN",
-      "sublabel": "traduccion.py",
-      "pos": [300, 490],
-      "size": [150, 64],
+      "label": "Seguimiento",
+      "sublabel": "seguimiento.py · best-effort",
+      "pos": [
+        300,
+        490
+      ],
+      "size": [
+        190,
+        64
+      ],
       "sources": [
-        { "path": "src/m2_cad/traduccion.py", "line": 103, "end_line": 120, "label": "traducir_solicitud" },
-        { "path": "src/m2_cad/traduccion.py", "line": 27, "end_line": 36, "label": "protege medidas" }
+        {
+          "path": "src/m2_cad/seguimiento.py",
+          "line": 263,
+          "end_line": 280,
+          "label": "iniciar_corrida"
+        },
+        {
+          "path": "src/m2_cad/seguimiento.py",
+          "line": 126,
+          "end_line": 262,
+          "label": "Corrida"
+        },
+        {
+          "path": "src/m2_cad/seguimiento.py",
+          "line": 286,
+          "end_line": 338,
+          "label": "registro de modelos"
+        }
       ]
     },
     {
-      "id": "gemini",
-      "type": "cloud",
-      "label": "API Gemini",
-      "sublabel": "gemini-3.5-flash-lite",
-      "pos": [540, 490],
-      "size": [130, 64],
+      "id": "mlflow",
+      "type": "database",
+      "label": "Servidor MLflow",
+      "sublabel": ":5000 · SQLite + artefactos",
+      "pos": [
+        600,
+        490
+      ],
+      "size": [
+        190,
+        64
+      ],
       "sources": [
-        { "path": "src/m2_cad/traduccion.py", "line": 9, "end_line": 14, "label": "endpoint y modelo" },
-        { "path": "src/m2_cad/traduccion.py", "line": 39, "end_line": 65, "label": "consulta REST" }
+        {
+          "path": "docker-compose.yml",
+          "line": 4,
+          "end_line": 22,
+          "label": "servicio mlflow"
+        }
       ]
     },
     {
-      "id": "llama",
+      "id": "deepseek",
       "type": "cloud",
-      "label": "Servidor llama.cpp",
-      "sublabel": "Gemma 4 12B · GGUF · :8080",
-      "pos": [540, 640],
-      "size": [170, 64],
+      "label": "API DeepSeek",
+      "sublabel": "deepseek-v4-pro · JSON",
+      "pos": [
+        600,
+        640
+      ],
+      "size": [
+        190,
+        64
+      ],
       "sources": [
-        { "path": "docker-compose.yml", "line": 6, "end_line": 27, "label": "servicio llama" }
+        {
+          "path": "src/m2_cad/pipeline.py",
+          "line": 369,
+          "end_line": 398,
+          "label": "petición al modelo"
+        }
       ]
     }
   ],
   "boundaries": [
     {
       "kind": "region",
-      "label": "Contenedor m2-cad (FastAPI + pipeline)",
-      "wraps": ["api", "pipeline", "kernel", "traduccion"]
+      "label": "Contenedor m2-cad (:8000)",
+      "wraps": [
+        "api",
+        "trabajos",
+        "pipeline",
+        "kernel",
+        "outputs",
+        "registro",
+        "seguimiento"
+      ]
     },
     {
       "kind": "region",
-      "label": "Contenedor m2-cad-ui (Gradio)",
-      "wraps": ["ui"]
-    },
-    {
-      "kind": "region",
-      "label": "Contenedor llama (GPU)",
-      "wraps": ["llama"]
+      "label": "Contenedor mlflow (:5000)",
+      "wraps": [
+        "mlflow"
+      ]
     }
   ],
   "connections": [
@@ -161,12 +348,19 @@
       "id": "ui-api",
       "from": "ui",
       "to": "api",
-      "label": "POST /generar",
+      "label": "POST /generar · SSE",
       "variant": "emphasis"
     },
     {
-      "id": "api-pipeline",
+      "id": "api-trabajos",
       "from": "api",
+      "to": "trabajos",
+      "label": "crear trabajo",
+      "variant": "emphasis"
+    },
+    {
+      "id": "trabajos-pipeline",
+      "from": "trabajos",
       "to": "pipeline",
       "label": "generar_pieza()",
       "variant": "emphasis"
@@ -185,6 +379,13 @@
       "label": "STEP · GLB · CSV"
     },
     {
+      "id": "pipeline-deepseek",
+      "from": "pipeline",
+      "to": "deepseek",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
       "id": "api-registro",
       "from": "api",
       "to": "registro",
@@ -192,26 +393,17 @@
       "variant": "dashed"
     },
     {
-      "id": "pipeline-traduccion",
-      "from": "pipeline",
-      "to": "traduccion",
-      "label": "traducir",
-      "variant": "emphasis"
+      "id": "api-seguimiento",
+      "from": "api",
+      "to": "seguimiento",
+      "label": "corrida por solicitud",
+      "variant": "dashed"
     },
     {
-      "id": "traduccion-gemini",
-      "from": "traduccion",
-      "to": "gemini",
-      "label": "HTTPS"
-    },
-    {
-      "id": "pipeline-llama",
-      "from": "pipeline",
-      "to": "llama",
-      "label": "HTTP :8080",
-      "fromSide": "bottom",
-      "toSide": "top",
-      "variant": "emphasis"
+      "id": "seguimiento-mlflow",
+      "from": "seguimiento",
+      "to": "mlflow",
+      "label": "HTTP :5000"
     },
     {
       "id": "ui-outputs",
@@ -221,8 +413,20 @@
       "variant": "dashed",
       "fromSide": "left",
       "toSide": "left",
-      "via": [[20, 222], [20, 822]],
-      "labelAt": [60, 718]
+      "via": [
+        [
+          20,
+          222
+        ],
+        [
+          20,
+          972
+        ]
+      ],
+      "labelAt": [
+        60,
+        868
+      ]
     }
   ],
   "cards": [
@@ -230,27 +434,27 @@
       "dot": "cyan",
       "title": "Errores → HTTP",
       "items": [
-        "Pieza declinada o verificación fallida → HTTP 422",
-        "Modelo no disponible o error de traducción → HTTP 503",
-        "Texto vacío o mayor a 1000 caracteres → rechazo en validación"
+        "Texto vacío o mayor a 1000 caracteres → 422 (Pydantic)",
+        "Pieza declinada o verificación fallida → 422 con motivo",
+        "Modelo no disponible → 503 con mensaje en español"
       ]
     },
     {
       "dot": "emerald",
       "title": "Verificación honesta",
       "items": [
-        "dsl.check aprueba o declina cada programa antes de construir (AC1)",
-        "El modelo declina piezas fuera del catálogo en vez de sustituirlas",
-        "STEP es B-rep de OpenCascade; volumen y caja dentro de ±2 % (AC3)"
+        "dsl.check aprueba o declina cada programa antes de construir",
+        "Fuera del catálogo se declina con motivo, nunca se sustituye",
+        "STEP es B-rep de OpenCascade, marcado como diseño preliminar"
       ]
     },
     {
       "dot": "rose",
-      "title": "Privacidad y alcance",
+      "title": "Privacidad y observabilidad",
       "items": [
-        "El registro excluye correos y nombres declarados (Ley 1581 de 2012)",
-        "La interfaz solo entrega archivos dentro de outputs/ (archivo_seguro)",
-        "Toda salida es preliminar: exige revisión de un profesional responsable"
+        "Registro y MLflow eliminan correos y nombres (Ley 1581 de 2012)",
+        "El seguimiento es best-effort: si MLflow cae, la pieza se entrega igual",
+        "La UI de MLflow y la app solo escuchan en 127.0.0.1"
       ]
     }
   ]

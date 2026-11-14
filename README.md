@@ -65,13 +65,16 @@ reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 El diagrama interactivo de arquitectura de runtime vive en
 [`docs/arquitectura.html`](docs/arquitectura.html) (fuente versionada:
 [`docs/arquitectura.json`](docs/arquitectura.json)). Muestra el camino principal
-de una solicitud — del diseñador CAD a los entregables STEP/GLB/CSV — los tres
-contenedores de Docker Compose y los dos servicios externos (API Gemini y
-llama.cpp con GPU).
+de una solicitud — de la SPA en Vue, por `POST /generar` con progreso SSE, al
+pipeline, la verificación y los entregables STEP/GLB/CSV — los dos contenedores de
+Docker Compose (`m2-cad` y `mlflow`) y la API externa de DeepSeek. Cada componente
+cita su código en una revisión fija; se regenera con Archify
+([SPEC-020](specs/020-diagrama-arquitectura/spec.md)).
 
-> **Pendiente (HU-14):** el diagrama todavía muestra la API Gemini y llama.cpp.
-> El runtime actual usa DeepSeek por API y un único servicio Compose
-> (`m2-cad`, Vue/FastAPI); falta regenerarlo con Archify.
+La gestión del proyecto vive en el
+[tablero Kanban de GitHub Projects](https://github.com/users/luisfermezaramrez-stack/projects/1/views/1)
+(Backlog, In Progress, In Review y Done), y cada historia enlaza su especificación en
+[`specs/`](specs/README.md) y su pull request.
 
 La [Model Card](docs/model-card.md) documenta el modelo servido (`deepseek-v4-pro`) y la
 línea base heredada de Hugging Face: origen, métricas medidas, limitaciones, sesgos y
