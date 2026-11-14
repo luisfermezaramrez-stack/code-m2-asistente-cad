@@ -72,6 +72,10 @@ llama.cpp con GPU).
 > El runtime actual usa DeepSeek por API y un único servicio Compose
 > (`m2-cad`, Vue/FastAPI); falta regenerarlo con Archify.
 
+La [Model Card](docs/model-card.md) documenta el modelo servido (`deepseek-v4-pro`) y la
+línea base heredada de Hugging Face: origen, métricas medidas, limitaciones, sesgos y
+licencia.
+
 ## Cómo funciona
 
 1. **Generación** condicionada a partir de la solicitud en español, sin
