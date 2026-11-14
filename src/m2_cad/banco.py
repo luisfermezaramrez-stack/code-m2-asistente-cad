@@ -22,7 +22,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from m2_cad import pipeline
+from m2_cad import pipeline, seguimiento
 from m2_cad.dataset import DEFAULT_PATH, read_dataset
 
 TOLERANCIA = 0.02
@@ -66,11 +66,43 @@ def _dentro_de_tolerancia(resultado: pipeline.ResultadoPieza, esperado: dict) ->
     return volumen_ok and caja_ok
 
 
+def error_relativo_pct(resultado: pipeline.ResultadoPieza, esperado: dict) -> float | None:
+    """Error relativo del volumen construido contra la referencia, en porcentaje."""
+    volumen_esperado = float(esperado["volumen_mm3"])
+    if not volumen_esperado:
+        return None
+    return abs(resultado.volumen_mm3 - volumen_esperado) / volumen_esperado * 100
+
+
+def _seguir_caso(registro: dict, configuracion: seguimiento.Configuracion) -> None:
+    """Registra la corrida hija de un caso del banco (HU-16, AC4)."""
+    corrida = seguimiento.iniciar_corrida(
+        configuracion.experimento_banco,
+        nombre=registro["id"],
+        anidada=True,
+        configuracion=configuracion,
+        tags={
+            "caso": registro["id"],
+            "esperado": registro["esperado"],
+            "estado": registro["estado"],
+        },
+    )
+    corrida.registrar_params(caso=registro["id"], familia=registro["familia"])
+    corrida.registrar_metricas(
+        acierto=int(bool(registro["correcto"])),
+        dsl_check_ok=registro["dsl_check_ok"],
+        error_relativo_pct=registro["error_relativo_pct"],
+        latencia_s=registro["latencia_s"],
+    )
+    corrida.finalizar()
+
+
 def evaluar_caso(
     fila: dict,
     *,
     generar: Callable[..., pipeline.ResultadoPieza] | None = None,
     directorio: Path,
+    configuracion: seguimiento.Configuracion | None = None,
 ) -> dict:
     """Corre una solicitud del banco y la clasifica.
 
@@ -83,6 +115,7 @@ def evaluar_caso(
     registro = {"id": fila["id"], "familia": fila["familia"], "esperado": esperado}
 
     inicio = time.perf_counter()
+    relativo = None
     try:
         resultado = generar(fila["solicitud"], directorio=directorio)
     except pipeline.ModeloNoDisponible:
@@ -97,7 +130,11 @@ def evaluar_caso(
         estado, correcto, detalle = "error_construccion", False, f"{type(exc).__name__}: {exc}"
     else:
         estado = "construida"
-        correcto = not declinar and _dentro_de_tolerancia(resultado, json.loads(esperado))
+        correcto = False
+        if not declinar:
+            esperado_pieza = json.loads(esperado)
+            correcto = _dentro_de_tolerancia(resultado, esperado_pieza)
+            relativo = error_relativo_pct(resultado, esperado_pieza)
         detalle = f"volumen={resultado.volumen_mm3:.2f} caja={resultado.caja_mm}"
 
     registro.update(
@@ -105,7 +142,11 @@ def evaluar_caso(
         correcto=correcto,
         latencia_s=round(time.perf_counter() - inicio, 3),
         detalle=detalle,
+        dsl_check_ok=int(estado in ESTADOS_VERIFICADOS),
+        error_relativo_pct=relativo,
     )
+    if configuracion is not None:
+        _seguir_caso(registro, configuracion)
     return registro
 
 
@@ -137,12 +178,65 @@ def _argumentos(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _acierto(registros: list[dict]) -> float:
+    """Proporción de casos correctos del grupo dado (0 si el grupo está vacío)."""
+    return sum(bool(r["correcto"]) for r in registros) / len(registros) if registros else 0.0
+
+
+def _registrar_resumen(padre: seguimiento.Corrida, registros: list[dict], resumen: dict) -> None:
+    """Vuelca el resumen del banco como métricas de la corrida padre (AC4)."""
+    padre.registrar_metricas(
+        acierto=resumen["acierto"],
+        acierto_positivas=_acierto([r for r in registros if r["esperado"] != "declinar"]),
+        acierto_negativas=_acierto([r for r in registros if r["esperado"] == "declinar"]),
+        dsl_check_ok_total=sum(r["dsl_check_ok"] for r in registros),
+        latencia_media_s=resumen["latencia_media_s"],
+        tokens_entrada=resumen["tokens_entrada"],
+        tokens_salida=resumen["tokens_salida"],
+        costo_usd=resumen["costo_usd"],
+    )
+
+
+def _abrir_corrida_padre(
+    args: argparse.Namespace, filas: list[dict], configuracion: seguimiento.Configuracion
+) -> seguimiento.Corrida:
+    """Abre la corrida padre del banco y registra la versión de modelo servida (AC4, AC7)."""
+    modelo = pipeline.llm.planner_model()
+    padre = seguimiento.iniciar_corrida(
+        configuracion.experimento_banco,
+        nombre=modelo,
+        tags={"modelo": modelo, "version_modelo": seguimiento.version_modelo()},
+        configuracion=configuracion,
+    )
+    padre.registrar_params(
+        modelo=modelo,
+        version_modelo=seguimiento.version_modelo(),
+        precio_entrada=args.precio_entrada,
+        precio_salida=args.precio_salida,
+        n_casos=len(filas),
+    )
+    referencia = seguimiento.registrar_version_modelo(
+        nombre=f"m2-cad-{modelo}",
+        version=seguimiento.version_modelo(),
+        corrida_id=padre.id,
+        fuente=f"runs:/{padre.id}",
+        configuracion=configuracion,
+        descripcion=f"Configuración servida al banco HU-02: {modelo}",
+    )
+    padre.registrar_tags(modelo_registrado=referencia)
+    return padre
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _argumentos(argv)
     filas = read_dataset(args.banco)
     if args.ids:
         elegidos = [i.strip() for i in args.ids.split(",") if i.strip()]
         filas = [fila for fila in filas if fila["id"] in elegidos]
+
+    configuracion = seguimiento.Configuracion.desde_entorno()
+    padre = _abrir_corrida_padre(args, filas, configuracion)
+    seguimiento_casos = configuracion if padre.activa else None
 
     contador = ContadorUso(pipeline.llm.chat)
     original = pipeline.llm.chat
@@ -152,14 +246,21 @@ def main(argv: list[str] | None = None) -> int:
         with tempfile.TemporaryDirectory() as temporal:
             for fila in filas:
                 antes = (contador.entrada, contador.salida)
-                registro = evaluar_caso(fila, directorio=Path(temporal))
+                registro = evaluar_caso(
+                    fila, directorio=Path(temporal), configuracion=seguimiento_casos
+                )
                 registro["tokens_entrada"] = contador.entrada - antes[0]
                 registro["tokens_salida"] = contador.salida - antes[1]
                 registros.append(registro)
                 print(f"{registro['id']}: {registro['estado']} correcto={registro['correcto']}")
     except pipeline.ModeloNoDisponible as exc:
         print(f"Banco detenido: {exc}")
+        padre.finalizar(estado="error", error="ModeloNoDisponible")
         return 2
+    except BaseException as exc:
+        # Cualquier otra interrupción cierra la corrida padre (nunca en RUNNING).
+        padre.finalizar(estado="error", error=type(exc).__name__)
+        raise
     finally:
         pipeline.llm.chat = original
 
@@ -167,6 +268,8 @@ def main(argv: list[str] | None = None) -> int:
         registros, precio_entrada=args.precio_entrada, precio_salida=args.precio_salida
     )
     resumen["modelo"] = pipeline.llm.planner_model()
+    _registrar_resumen(padre, registros, resumen)
+    padre.finalizar(estado="completado")
 
     args.salida.mkdir(parents=True, exist_ok=True)
     marca = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -174,7 +277,7 @@ def main(argv: list[str] | None = None) -> int:
     with base.with_suffix(".csv").open("w", encoding="utf-8", newline="") as archivo:
         escritor = csv.DictWriter(archivo, fieldnames=CAMPOS)
         escritor.writeheader()
-        escritor.writerows(registros)
+        escritor.writerows({campo: registro[campo] for campo in CAMPOS} for registro in registros)
     base.with_suffix(".json").write_text(json.dumps(resumen, indent=2), encoding="utf-8")
     print(json.dumps(resumen, indent=2))
     return 0
