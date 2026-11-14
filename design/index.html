@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HU-15 · Referencia visual del asistente CAD</title>
+  <link rel="stylesheet" href="reference.css">
+</head>
+<body>
+  <a class="skip" href="#solicitud">Saltar a la solicitud</a>
+  <div class="shell">
+    <header class="masthead">
+      <div><p class="eyebrow">M2 / ASISTENTE CAD</p><h1>De la descripción a la pieza</h1><p class="muted">Componentes metálicos auxiliares · Solicitudes en español</p></div>
+      <span class="tag">MAQUETA ESTÁTICA · SIN CONEXIÓN</span>
+    </header>
+    <aside class="notice" aria-label="Aviso profesional"><strong>Diseño preliminar: requiere revisión profesional</strong><br>La verificación geométrica no certifica resistencia ni cumplimiento normativo.</aside>
+    <main>
+      <div class="workspace">
+        <section class="panel" aria-labelledby="request-title">
+          <p class="eyebrow">01 / SOLICITUD</p><h2 id="request-title">Describe tu pieza</h2>
+          <label for="solicitud">Descripción técnica</label>
+          <textarea id="solicitud" maxlength="1000" aria-describedby="input-help mock-help" placeholder="Ej.: placa de 120 × 120 mm, espesor de 6 mm y 4 agujeros de 12 mm en un círculo de 90 mm."></textarea>
+          <p id="input-help" class="help">Entre 1 y 1000 caracteres. Incluye dimensiones, unidades y material si lo conoces.</p>
+          <div class="actions"><button class="primary" type="button" disabled>Generar pieza</button><button type="button" disabled>Cancelar solicitud</button></div>
+          <p id="mock-help" class="help">Acciones deshabilitadas en esta referencia. Escribir no envía datos. Cancelar se habilitará durante una solicitud activa.</p>
+          <p class="help">Antes del envío se validará el texto. Las descargas dependerán de los archivos realmente disponibles.</p>
+        </section>
+        <div class="stack">
+          <section class="panel" aria-labelledby="process-title">
+            <div class="section-heading"><h2 id="process-title">Proceso</h2><span class="tag">Sin solicitud</span></div>
+            <ol class="steps">
+              <li><strong>1. Validando</strong><span class="muted">Pendiente</span></li>
+              <li><strong>2. Generando</strong><span class="muted">Pendiente</span></li>
+              <li><strong>3. Resultado</strong><span class="muted">Verificado / declinado / error</span></li>
+            </ol>
+            <p class="help">Las etapas solo cambiarán con eventos del servidor. Sin porcentajes ni tiempos inventados.</p>
+          </section>
+          <section class="panel" aria-labelledby="preview-title">
+            <div class="section-heading"><h2 id="preview-title">Vista 3D</h2><span class="tag">GLB</span></div>
+            <div class="viewport"><h3>Aún no hay una pieza</h3><p class="muted">Aquí aparecerá el modelo cuando exista un archivo GLB. La descarga STEP no depende de esta vista.</p></div>
+          </section>
+          <section class="panel" aria-labelledby="downloads-title">
+            <h2 id="downloads-title">Archivos de la pieza</h2>
+            <p class="muted">No hay archivos disponibles. En caso de declinación, se ocultarán las descargas y el modelo anterior.</p>
+          </section>
+        </div>
+      </div>
+      <section class="catalog" aria-labelledby="catalog-title">
+        <p class="eyebrow">REFERENCIA / ESTADOS INDEPENDIENTES</p><h2 id="catalog-title">Variantes para revisión</h2>
+        <p class="muted">Estas muestras son textos fijos, no una ejecución. Abre cada variante con clic o con Enter/Espacio. No hay temporizadores, animaciones, servicios ni transición automática.</p>
+        <details open><summary>Solicitud activa · validando / generando</summary><div class="specimen">
+          <div class="state validando"><strong>Validando</strong><br>Muestra: el servidor informó la etapa «validando».</div>
+          <div class="state generando"><strong>Generando</strong><br>Muestra alternativa: el servidor informó la etapa «generando». Esperando el resultado geométrico; sin estimación de duración.</div>
+          <div class="actions"><button class="primary" type="button" disabled>Generación en curso</button><button type="button" disabled>Cancelar solicitud · muestra</button></div>
+          <p class="help">En la aplicación, Cancelar será operable por teclado mientras exista una solicitud activa. El foco permanecerá en el control; el resultado se anunciará sin moverlo automáticamente.</p>
+        </div></details>
+        <details open><summary>Servidor sin información de progreso</summary><div class="specimen"><div class="state idle"><strong>Progreso no disponible</strong><br>El backend no informa progreso. Esperando respuesta; no es posible confirmar la etapa actual.</div><p class="help">No marcar Validando o Generando como completados por tiempo transcurrido.</p></div></details>
+        <details open><summary>Éxito · verificado y archivos disponibles</summary><div class="specimen">
+          <div class="state verificado"><strong>Verificado · comprobación geométrica completada</strong><br>Diseño preliminar: requiere revisión profesional</div>
+          <figure class="viewport"><svg class="wireframe" viewBox="0 0 360 180" role="img" aria-labelledby="plate-title plate-description"><title id="plate-title">Ilustración estática de una placa</title><desc id="plate-description">Placa en perspectiva con cuatro perforaciones ilustrativas. No es un resultado CAD ni un visor interactivo.</desc><polygon points="55,100 225,35 310,85 140,150"/><polygon points="55,100 140,150 140,162 55,112"/><polygon points="140,150 310,85 310,97 140,162"/><ellipse cx="112" cy="101" rx="12" ry="6"/><ellipse cx="218" cy="61" rx="12" ry="6"/><ellipse cx="158" cy="127" rx="12" ry="6"/><ellipse cx="264" cy="87" rx="12" ry="6"/></svg><figcaption class="help">Ilustración de composición · sin modelo cargado ni interacción 3D</figcaption></figure>
+          <div class="downloads" aria-label="Ejemplo de archivos, sin enlaces de descarga"><div class="download"><strong>STEP</strong><span>pieza.step · ejemplo</span></div><div class="download"><strong>Vista 3D</strong><span>pieza.glb · ejemplo</span></div><div class="download"><strong>Materiales</strong><span>materiales.csv · ejemplo</span></div></div>
+          <p class="help">En el producto, cada archivo disponible tendrá su propio enlace descriptivo y accesible por teclado. Esta maqueta no ofrece descargas ficticias.</p>
+        </div></details>
+        <details open><summary>Éxito parcial · STEP sin GLB</summary><div class="specimen"><div class="state verificado"><strong>Verificado · STEP disponible</strong><br>La vista 3D no está disponible. Puedes descargar el STEP de forma independiente.</div><div class="downloads"><div class="download"><strong>STEP</strong><span>pieza.step · ejemplo</span></div></div><p class="help">Si existe GLB sin STEP: mostrar la vista e indicar «No hay archivo STEP disponible». CSV también es independiente.</p></div></details>
+        <details open><summary>Declinación · sin modelo ni descargas</summary><div class="specimen"><div class="state declinado"><strong>Solicitud declinada</strong><br>Ejemplo de motivo: la pieza solicitada está fuera del catálogo admitido.</div><p>Reformula la descripción para una familia admitida. No se muestran archivos ni resultados anteriores.</p></div></details>
+        <details open><summary>Error · recuperación y cancelación</summary><div class="specimen"><div class="state error"><strong>No se pudo completar la solicitud</strong><br>Ejemplo: no hay conexión con FastAPI. Conserva tu descripción y vuelve a intentarlo cuando el servicio esté disponible.</div><p class="help">El timeout será configurable. Los errores de validación se asociarán al campo; los de red o servidor, a la solicitud.</p><div class="state idle"><strong>Espera interrumpida · cancelación no confirmada</strong><br>Se dejó de esperar la respuesta. El procesamiento podría continuar en el servidor.</div><div class="state idle"><strong>Solicitud cancelada · solo con confirmación del servidor</strong><br>Variante reservada para cuando el backend confirme que detuvo el trabajo.</div></div></details>
+      </section>
+    </main>
+    <footer>HU-15 / Issue #39 · Propuesta pendiente de aprobación · Sin conexión al backend</footer>
+  </div>
+</body>
+</html>

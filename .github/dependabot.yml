@@ -1,6 +1,17 @@
 version: 2
 
 updates:
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: [chore, infra]
+    commit-message:
+      prefix: "chore"
+
   # Dependencias de Python / uv (pyproject.toml + uv.lock)
   - package-ecosystem: "uv"
     directory: "/"

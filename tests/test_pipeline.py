@@ -21,6 +21,71 @@ from m2_cad import pipeline  # noqa: E402
 TOLERANCIA = 0.02
 
 
+def test_progreso_corresponde_a_operaciones_reales(tmp_path):
+    from m2_cad.control import ControlGeneracion
+
+    llamadas = []
+    control = ControlGeneracion(lambda etapa: llamadas.append(etapa))
+
+    def planificar(texto):
+        assert texto == "Espaciador"
+        assert llamadas == ["validando", "generando"]
+        llamadas.append("modelo")
+        return _programa("spacer")
+
+    resultado = pipeline.generar_pieza(
+        "Espaciador",
+        planificar=planificar,
+        directorio=tmp_path,
+        control=control,
+    )
+    assert resultado.step.exists() and resultado.glb.exists() and resultado.bom_csv.exists()
+    assert llamadas == ["validando", "generando", "modelo"]
+
+
+@pytest.mark.parametrize("cancelar_en", ["validacion", "modelo", "construccion"])
+def test_cancelacion_entre_operaciones_no_avanza_etapas(tmp_path, monkeypatch, cancelar_en):
+    from m2_cad.control import ControlGeneracion, GeneracionCancelada
+
+    llamadas = []
+    etapas = []
+
+    def informar(etapa):
+        etapas.append(etapa)
+        if cancelar_en == "validacion":
+            control.cancelacion.set()
+
+    control = ControlGeneracion(informar)
+    construir_real = pipeline.construir_pieza
+
+    def terminar_operacion(nombre):
+        llamadas.append(nombre)
+        if nombre == cancelar_en:
+            control.cancelacion.set()
+
+    def planificar(texto):
+        terminar_operacion("modelo")
+        return _programa("spacer")
+
+    def construir(programa, directorio):
+        resultado = construir_real(programa, directorio)
+        terminar_operacion("construccion")
+        return resultado
+
+    monkeypatch.setattr(pipeline, "construir_pieza", construir)
+    with pytest.raises(GeneracionCancelada):
+        pipeline.generar_pieza(
+            "Espaciador",
+            planificar=planificar,
+            directorio=tmp_path,
+            control=control,
+        )
+    todas = ["modelo", "construccion"]
+    esperadas = [] if cancelar_en == "validacion" else todas[: todas.index(cancelar_en) + 1]
+    assert llamadas == esperadas
+    assert etapas == (["validando"] if cancelar_en == "validacion" else ["validando", "generando"])
+
+
 def _programa(tipo: str, **params: float) -> dict:
     return {
         "parts": [{"id": "p", "type": tipo, "material": "steel", "params": params}],
@@ -557,3 +622,35 @@ def test_hu05_step_marcado_sigue_siendo_valido(tmp_path):
 
     assert _descripcion_step(resultado.step) == MARCA
     assert cq.importers.importStep(str(resultado.step)).val().isValid()
+
+
+def test_programa_json_escrito_pasa_por_la_sanitizacion(tmp_path, monkeypatch):
+    """AC5: el artefacto programa.json no conserva correos ni nombres del usuario."""
+    from pathlib import Path
+
+    texto_pii = "me llamo Ana López y escribo a ana.lopez@example.com"
+
+    def planificar(texto: str) -> dict:
+        assert texto == "Espaciador de 14 mm"
+        return {"parts": [{"type": "spacer"}], "mates": [], "nota": texto_pii}
+
+    monkeypatch.setattr(
+        pipeline,
+        "construir_pieza",
+        lambda programa, directorio: pipeline.ResultadoPieza(
+            programa=programa,
+            step=Path(directorio) / "pieza.step",
+            glb=Path(directorio) / "pieza.glb",
+            bom_csv=Path(directorio) / "pieza.csv",
+            volumen_mm3=1.0,
+            caja_mm=(1.0, 1.0, 1.0),
+            tiempo_construccion_s=0.0,
+        ),
+    )
+
+    pipeline.generar_pieza("Espaciador de 14 mm", planificar=planificar, directorio=tmp_path)
+
+    contenido = next(tmp_path.glob("*/programa.json")).read_text(encoding="utf-8")
+    assert "ana.lopez@example.com" not in contenido
+    assert "Ana López" not in contenido
+    assert "[correo eliminado]" in contenido

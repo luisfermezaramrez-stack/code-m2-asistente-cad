@@ -25,19 +25,19 @@
   color: fef2c0
   description: "Mantenimiento y configuración"
 
-# --- Área técnica (etiquetas del backlog: ML, Backend, Frontend, Testing) ---
-- name: ml
-  color: c2e0c6
-  description: "Modelo, traducción y pipeline de generación/verificación"
-- name: backend
-  color: 5319e7
-  description: "API FastAPI y registro de solicitudes"
-- name: frontend
-  color: f9d0c4
-  description: "Interfaz Gradio (vista 3D y descargas)"
-- name: testing
-  color: fbca04
-  description: "Banco de pruebas, métricas y validación"
+# --- Área técnica (etiquetas del backlog; GitHub compara nombres sin distinguir mayúsculas) ---
+- name: ML
+  color: 05f244
+  description: "Tareas de modelos de IA: inferencia, preparación de datos, prompts y evaluación de resultados"
+- name: Backend
+  color: "960512"
+  description: "Lógica del servidor: procesamiento, API, base de datos, contenedores y despliegue"
+- name: Frontend
+  color: fbd782
+  description: "Interfaz de usuario: pantallas, interacción, visualización y experiencia de uso"
+- name: Testing
+  color: 5c1a67
+  description: "Calidad: pruebas automáticas, integración continua, validación con usuarios y documentación"
 - name: infra
   color: bfdadc
   description: "Infraestructura, Docker, entorno y CI/CD"
