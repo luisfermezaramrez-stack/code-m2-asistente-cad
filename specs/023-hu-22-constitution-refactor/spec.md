@@ -5,7 +5,7 @@
 - **Historia**: #77 (HU-22) · 1 SP · Etiquetas: documentation, refactor · Hito: M3
 - **Responsable**: Luis Fernando Meza
 - **Rama**: `docs/hu-22-constitution-refactor`
-- **Estado**: Especificada, en implementación
+- **Estado**: Implementada, PR pendiente de revisión
 - **Relacionada**: SPEC-021 (HU-20, #72, publicación `v1.0`), SPEC-020 (HU-19, #68,
   diagrama), SPEC-022 (HU-21, #73)
 - **Plan**: [`plan.md`](./plan.md) · **Tareas**: [`tasks.md`](./tasks.md)
