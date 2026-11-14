@@ -13,7 +13,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import StreamingResponse
 from starlette.types import Receive, Scope, Send
 
-from m2_cad.seguimiento import (
+from m2_cad.control import (
     ControlGeneracion,
     GeneracionCancelada,
     SolicitudDeclinada,
@@ -101,7 +101,7 @@ class Trabajo:
                 "codigo_http": 500,
             }
         try:
-            al_finalizar(terminal)
+            al_finalizar({"solicitud_id": self.id, **terminal})
         except Exception:
             logger.exception("Fallo de registro SSE %s", self.id)
             terminal = {

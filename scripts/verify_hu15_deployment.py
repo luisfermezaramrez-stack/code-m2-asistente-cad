@@ -30,7 +30,7 @@ def servir(salidas: Path, puerto: int) -> None:
 
     generar_real = pipeline.generar_pieza
 
-    def generar(texto, *, control):
+    def generar(texto, *, control, medir_uso=None):
         def planificar(_):
             if "cancelar" in texto:
                 time.sleep(2)  # Llamada bloqueante simulada; no genera progreso del cliente.
@@ -48,6 +48,7 @@ def servir(salidas: Path, puerto: int) -> None:
             control=control,
             planificar=planificar,
             directorio=salidas,
+            medir_uso=medir_uso,
         )
 
     pipeline.generar_pieza = generar

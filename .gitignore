@@ -77,3 +77,9 @@ vendor/
 node_modules/
 frontend/coverage/
 *.tsbuildinfo
+
+# ===== HU-16: seguimiento de experimentos con MLflow =====
+# Base de datos y artefactos locales del seguimiento; nunca se versionan.
+mlruns/
+mlflow.db
+mlflow-artifacts/

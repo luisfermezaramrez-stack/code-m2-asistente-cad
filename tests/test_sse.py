@@ -11,8 +11,8 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from starlette.requests import ClientDisconnect, Request
 
-from m2_cad import api
-from m2_cad.seguimiento import SolicitudDeclinada
+from m2_cad import api, seguimiento
+from m2_cad.control import SolicitudDeclinada
 from m2_cad.trabajos import GestorTrabajos, RespuestaSSE, Trabajo
 
 
@@ -21,13 +21,20 @@ def entorno(monkeypatch, tmp_path):
     gestor = GestorTrabajos()
     monkeypatch.setattr(api, "obtener_ruta_registro", lambda: tmp_path / "registro.csv")
     api.app.dependency_overrides[api.obtener_gestor_trabajos] = lambda: gestor
+    # Aísla el transporte SSE del seguimiento MLflow (HU-16): sin mlruns/ en el repo.
+    api.app.dependency_overrides[api.obtener_configuracion_seguimiento] = lambda: (
+        seguimiento.Configuracion(activo=False)
+    )
     yield gestor
     api.app.dependency_overrides.pop(api.obtener_gestor_trabajos, None)
+    api.app.dependency_overrides.pop(api.obtener_configuracion_seguimiento, None)
     api.app.dependency_overrides.pop(api.obtener_procesador_sse, None)
 
 
 def procesador(procesar):
-    api.app.dependency_overrides[api.obtener_procesador_sse] = lambda: procesar
+    api.app.dependency_overrides[api.obtener_procesador_sse] = lambda: (
+        lambda texto, control, medicion=None: procesar(texto, control)
+    )
 
 
 def leer_eventos(texto):
@@ -401,12 +408,13 @@ def test_sse_integra_pipeline_real_sin_servicios(entorno, monkeypatch, tmp_path,
             "mates": [],
         }
 
-    def generar(texto, *, control):
+    def generar(texto, *, control, medir_uso=None):
         return generar_real(
             texto,
             control=control,
             planificar=planificar,
             directorio=tmp_path,
+            medir_uso=medir_uso,
         )
 
     monkeypatch.setenv("LLM_BASE_URL", "http://modelo-no-consultado")

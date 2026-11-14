@@ -1,4 +1,24 @@
 services:
+  # HU-16: servidor de seguimiento de experimentos (observabilidad, no entregables).
+  # Sin autenticación: la UI se publica solo en 127.0.0.1 y escucha en la red interna.
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.18.0
+    command:
+      - mlflow
+      - server
+      - --backend-store-uri
+      - sqlite:////mlflow/mlflow.db
+      - --artifacts-destination
+      - /mlflow/artifacts
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+    ports:
+      - "127.0.0.1:5000:5000"   # UI de MLflow, solo en local
+    volumes:
+      - mlflow-datos:/mlflow
+
   # HU-14: DeepSeek por API; HU-15: Vue servido por FastAPI, sin otro servicio UI.
   # Línea base heredada Gemma: añadir explícitamente docker-compose.gemma.yml.
   m2-cad:
@@ -9,6 +29,13 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-deepseek-v4-pro}
       M2_CORS_ORIGINS: "${M2_CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}"
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_TRACKING_ENABLED: ${MLFLOW_TRACKING_ENABLED:-1}
     volumes:
       - ./data:/app/data
       - ./outputs:/app/outputs
+    depends_on:
+      - mlflow
+
+volumes:
+  mlflow-datos:

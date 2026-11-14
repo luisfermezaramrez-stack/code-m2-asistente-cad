@@ -170,6 +170,35 @@ Deja en `outputs/banco/` un CSV por caso y un resumen JSON con acierto, tasa de
 `/dsl/check`, latencia media y tokens. Con `--precio-entrada` y `--precio-salida`
 (USD por millón de tokens) también calcula el costo estimado.
 
+### Seguimiento de experimentos (MLflow, HU-16)
+
+Cada solicitud y cada corrida del banco queda en MLflow (params, métricas y
+artefactos paso a paso), así dos modelos se comparan en la UI sin revisar casos a mano:
+
+```bash
+make mlflow                         # solo el servidor (UI en http://127.0.0.1:5000)
+docker compose up --build           # m2-cad apunta a http://mlflow:5000
+make bench IDS=HU02-P01,HU02-P06,HU02-P11,HU02-P21,HU02-P26 --precio-entrada 0.1 --precio-salida 0.4
+```
+
+- `m2-cad-generacion`: una corrida por solicitud con `modelo`, `version_modelo`,
+  `familia`, `temperatura`, `latencia_ms`, tokens, `costo_usd`, `verificacion_ok`,
+  los tags `solicitud_id`/`estado` (`entregada`, `declinada`, `error`, y `cancelada` en
+  SSE) y los artefactos
+  `programa.json`, `step`, `glb` y `csv`. Declinaciones y fallos cierran la corrida con
+  su motivo; nunca queda en `RUNNING`. Las solicitudes SSE (HU-15) también generan su
+  corrida, con el tag `transporte=sse`, al alcanzar el estado terminal.
+- `m2-cad-banco`: una corrida padre por modelo con el resumen (acierto, latencia media,
+  tokens y costo) y una hija por caso con `acierto`, `dsl_check_ok` y `error_relativo_pct`.
+- Cada configuración servida queda como versión de modelo en el registro de MLflow
+  (`LLM_MODEL_VERSION` o el id del modelo) y la corrida del CSV de registro ya no dice
+  `desconocida`.
+
+Sin servidor (o con `MLFLOW_TRACKING_ENABLED=0`) la generación concluye igual y el fallo
+del seguimiento se emite como advertencia en el log: es observabilidad, no criterio de
+aceptación de la pieza. `mlruns/`, `mlflow.db` y `mlflow-artifacts/` están en `.gitignore`.
+
+
 Con Docker, sin compilar Vue ni preparar el vendor manualmente en el host,
 definir `DEEPSEEK_API_KEY` en el entorno o `.env` ignorado por Git:
 
@@ -206,6 +235,11 @@ Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 | `LLM_BASE_URL` | Pipeline → servidor compatible con OpenAI | `https://api.deepseek.com` | — (valor por defecto del código) |
 | `M2_FRONTEND_DIST` | FastAPI → build Vue | `frontend/dist` | `/app/frontend/dist` |
 | `M2_CORS_ORIGINS` | CORS exacto de FastAPI | localhost/127.0.0.1 en 8000 | mismo valor por defecto |
+| `MLFLOW_TRACKING_URI` | Seguimiento → servidor MLflow o file store (HU-16) | `file:./mlruns` | `http://mlflow:5000` |
+| `MLFLOW_TRACKING_ENABLED` | `0` apaga el seguimiento (no-op) | `1` | `${MLFLOW_TRACKING_ENABLED:-1}` |
+| `MLFLOW_EXPERIMENT_NAME` / `MLFLOW_EXPERIMENT_BANCO` | Nombres de experimento | `m2-cad-generacion` / `m2-cad-banco` | igual |
+| `MLFLOW_PRECIO_ENTRADA` / `MLFLOW_PRECIO_SALIDA` | USD por millón de tokens para `costo_usd` | `0` | `0` |
+| `LLM_MODEL_VERSION` | Versión publicada por el proveedor (AC7) | id del modelo servido | id del modelo servido |
 
 Copia `.env.example` a `.env` para ejecutar fuera de Docker.
 

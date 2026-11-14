@@ -33,11 +33,13 @@ import httpx
 from constraint_kit import bom, builder, dsl, llm
 
 from m2_cad import MARCA_PRELIMINAR
-from m2_cad.seguimiento import ControlGeneracion
+from m2_cad.control import ControlGeneracion
+from m2_cad.registro import _sanitizar
 
 RUTA_SALIDA = Path("outputs")
 NOMBRE_PIEZA = "pieza"
 TIEMPO_ESPERA_LLM = 120.0
+TEMPERATURA_LLM = 0.1
 
 # Frontera de validez del producto (HU-02/HU-05): tipo del motor -> nombre en español.
 CATALOGO = {
@@ -121,6 +123,8 @@ class PiezaDeclinada(ErrorPipeline):
         super().__init__(f"Pieza declinada: {motivo}")
         self.motivo = motivo
         self.detalle = detalle
+        # Programa que originó la declinación, para el seguimiento (HU-16, AC2).
+        self.programa_json: Path | None = None
 
 
 def _declinar(explicacion: str, detalle: str | None = None) -> PiezaDeclinada:
@@ -144,6 +148,8 @@ class ResultadoPieza:
     caja_mm: tuple[float, float, float]
     tiempo_construccion_s: float
     tiempo_generacion_s: float = 0.0
+    familia: str = ""
+    programa_json: Path | None = None
 
     def a_respuesta(self) -> dict[str, str]:
         """Serializa el resultado para la API (todos los valores como texto)."""
@@ -293,7 +299,22 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
         volumen_mm3=float(firma["volume"]),
         caja_mm=(round(caja.xlen, 2), round(caja.ylen, 2), round(caja.zlen, 2)),
         tiempo_construccion_s=duracion,
+        familia=familia_de_programa(programa),
+        programa_json=Path(directorio) / "programa.json",
     )
+
+
+def familia_de_programa(programa: dict) -> str:
+    """Familia del catálogo según los tipos de pieza del programa (HU-16, AC2)."""
+    partes = programa.get("parts")
+    if not isinstance(partes, list):
+        return "desconocida"
+    tipos = {
+        str(parte["type"]) for parte in partes if isinstance(parte, dict) and parte.get("type")
+    }
+    if len(tipos) == 1:
+        return next(iter(tipos))
+    return "ensamblaje" if tipos else "desconocida"
 
 
 def planificar_con_llm(texto: str) -> dict:
@@ -303,6 +324,32 @@ def planificar_con_llm(texto: str) -> dict:
     LLM_BASE_URL apunta a otro servidor compatible con OpenAI y LLM_MODEL
     cambia el modelo. La API key nunca forma parte de los mensajes de error.
     """
+    return _programa_de(_respuesta_modelo(texto))
+
+
+def _planificador_con_uso(medir_uso: Callable[[dict], None] | None) -> Callable[[str], dict]:
+    """Planificador por defecto que informa el `usage` del proveedor (HU-16, AC2)."""
+
+    def planificar(texto: str) -> dict:
+        respuesta = _respuesta_modelo(texto)
+        if medir_uso is not None:
+            medir_uso(respuesta.get("usage") or {})
+        return _programa_de(respuesta)
+
+    return planificar
+
+
+def _programa_de(respuesta: dict) -> dict:
+    """Extrae el programa del cuerpo de respuesta del proveedor."""
+    try:
+        contenido = respuesta["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise ErrorGeneracion("Respuesta del modelo sin contenido.") from exc
+    return extraer_programa(contenido)
+
+
+def _respuesta_modelo(texto: str) -> dict:
+    """Llama al modelo servido con el prompt del sistema y la solicitud."""
     url = llm.base_url("planner")
     con_clave = os.environ.get("LLM_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
     if "api.deepseek.com" in url and not con_clave:
@@ -314,11 +361,11 @@ def planificar_con_llm(texto: str) -> dict:
             {"role": "system", "content": PROMPT_SISTEMA},
             {"role": "user", "content": texto},
         ],
-        "temperature": 0.1,
+        "temperature": TEMPERATURA_LLM,
         "response_format": {"type": "json_object"},
     }
     try:
-        respuesta = llm.chat(cuerpo, url=url, timeout=TIEMPO_ESPERA_LLM)
+        return llm.chat(cuerpo, url=url, timeout=TIEMPO_ESPERA_LLM)
     except httpx.TimeoutException as exc:
         raise ModeloNoDisponible(
             f"El modelo no respondió a tiempo (más de {TIEMPO_ESPERA_LLM:.0f} s)."
@@ -329,23 +376,22 @@ def planificar_con_llm(texto: str) -> dict:
         raise ModeloNoDisponible(mensaje) from exc
     except httpx.HTTPError as exc:  # conexión caída u otro fallo de transporte
         raise ModeloNoDisponible("No fue posible conectar con el modelo.") from exc
-    try:
-        contenido = respuesta["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError) as exc:
-        raise ErrorGeneracion("Respuesta del modelo sin contenido.") from exc
-    return extraer_programa(contenido)
 
 
 def generar_pieza(
     texto: str,
     *,
-    planificar: Callable[[str], dict] = planificar_con_llm,
+    planificar: Callable[[str], dict] | None = None,
     directorio: Path = RUTA_SALIDA,
     control: ControlGeneracion | None = None,
+    medir_uso: Callable[[dict], None] | None = None,
 ) -> ResultadoPieza:
     """Genera el programa desde el texto en español y construye la pieza (AC1-AC5).
 
-    Cada solicitud escribe en su propia subcarpeta de `directorio`.
+    Cada solicitud escribe en su propia subcarpeta de `directorio`, con
+    `programa.json` en cuanto el modelo entrega un programa y los entregables
+    cuando la pieza se construye. `medir_uso` recibe el `usage` del proveedor
+    para el seguimiento (HU-16); sin él el comportamiento es el de siempre.
     """
     if control is not None:
         control.informar("validando")
@@ -354,17 +400,32 @@ def generar_pieza(
     inicio = time.perf_counter()
     if control is not None:
         control.informar("generando")
+    if planificar is None:
+        planificar = _planificador_con_uso(medir_uso)
     programa = planificar(texto)
     if control is not None:
         control.comprobar_cancelacion()
     tiempo_generacion = time.perf_counter() - inicio
 
-    validar_catalogo(programa)
+    salida = Path(directorio) / uuid.uuid4().hex
+    salida.mkdir(parents=True, exist_ok=True)
+    programa_json = salida / "programa.json"
+    # AC5 (HU-16): el artefacto pasa por la misma sanitización que el registro; el
+    # programa en memoria sigue intacto para construir la pieza.
+    programa_json.write_text(
+        _sanitizar(json.dumps(programa, ensure_ascii=False, indent=2)), encoding="utf-8"
+    )
+
+    try:
+        validar_catalogo(programa)
+    except PiezaDeclinada as exc:
+        exc.programa_json = programa_json
+        raise
 
     if control is not None:
         control.comprobar_cancelacion()
 
-    resultado = construir_pieza(programa, Path(directorio) / uuid.uuid4().hex)
+    resultado = construir_pieza(programa, salida)
     if control is not None:
         control.comprobar_cancelacion()
     return ResultadoPieza(
@@ -376,4 +437,6 @@ def generar_pieza(
         caja_mm=resultado.caja_mm,
         tiempo_construccion_s=resultado.tiempo_construccion_s,
         tiempo_generacion_s=tiempo_generacion,
+        familia=resultado.familia,
+        programa_json=programa_json,
     )
