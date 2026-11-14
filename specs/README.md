@@ -22,7 +22,7 @@ Cada spec se vincula a su historia del tablero y a la PR que la implementa.
 | [003](003-declinacion-preliminar/) | HU-05 · Declinación y marca preliminar | #5 | #36 | Spec Kit | Fusionada |
 | [004](004-registro-solicitudes/) | HU-06 · Registro de solicitudes (parte L. Meza) | #6 | #29 | Spec Kit | Fusionada |
 | [005](005-ci-github-actions/) | HU-09 · CI con GitHub Actions y pre-commit | #9 | #14 | Spec Kit | Fusionada |
-| [006](006-prueba-usuarios/) | HU-11 · Prueba con usuarios externos | #11 | — | Spec Kit | Pendiente |
+| [006](006-prueba-usuarios/) | HU-11 · Prueba de uso simulada | #11 | — | Spec Kit | Pendiente |
 | [007](007-hu-08-interfaz-gradio/) | HU-08 · Interfaz web con Gradio | #8 | #34 | Spec Kit | Fusionada; reemplazada por HU-15 |
 | [008](008-hu-14-deepseek/) | HU-14 · DeepSeek por API sin traducción | #37 | #43 | Retroactiva | Fusionada |
 | [009](009-hu-16-mlflow/) | HU-16 · Seguimiento con MLflow | #45 | #47 | Spec Kit | Fusionada |
