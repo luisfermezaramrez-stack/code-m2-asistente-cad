@@ -20,4 +20,4 @@ Cada tarea se marca `[x]` al cerrarse, con su evidencia.
       · Evidencia: `make check` 311 passed, cobertura 96,52 %.
 - [x] T07 — PR hacia `develop` con `Closes #77`, enlace a esta spec y revisión de un
       compañero. · Depende de: T06
-      · Evidencia: PR #78 abierta; revisión de un compañero pendiente.
+      · Evidencia: PR #78 aprobada y fusionada en `develop` (`bd28c57`); #77 cerrada.
