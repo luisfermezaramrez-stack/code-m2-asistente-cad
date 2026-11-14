@@ -1,0 +1,41 @@
+id,familia,estado_http,resultado,latencia_s,detalle
+HU02-P01,plate,200,pieza,3.304,
+HU02-P06,sheet_bracket,200,pieza,3.405,
+HU02-P11,adapter,200,pieza,3.534,
+HU02-P16,flange,200,pieza,3.156,
+HU02-P21,spacer,200,pieza,3.313,
+HU02-P26,tornillería,200,pieza,4.619,
+HU02-N01,fuera_alcance,422,declinada,3.224,"Pieza declinada: El asistente no puede construir esta pieza: la solicitud está fuera del catálogo (el modelo indicó: «structural calculation/certification of a steel beam, not a single mechanical part»). Solo se generan piezas únicas del catálogo: placa, escuadra de chapa, adaptador, brida, espaciador, tornillo, perfil extruido, tubo."
+HU02-P02,plate,200,pieza,3.724,
+HU02-P07,sheet_bracket,200,pieza,3.393,
+HU02-P12,adapter,200,pieza,3.701,
+HU02-P17,flange,200,pieza,5.021,
+HU02-P22,spacer,200,pieza,3.836,
+HU02-P27,tornillería,200,pieza,3.404,
+HU02-N02,fuera_alcance,422,declinada,3.167,"Pieza declinada: El asistente no puede construir esta pieza: la solicitud está fuera del catálogo (el modelo indicó: «NSR-10 structural compliance verification requires analysis of loads, materials, connections, and seismic design not expressible as a single mechanical part»). Solo se generan piezas únicas del catálogo: placa, escuadra de chapa, adaptador, brida, espaciador, tornillo, perfil extruido, tubo."
+HU02-P03,plate,200,pieza,3.568,
+HU02-P08,sheet_bracket,200,pieza,3.601,
+HU02-P13,adapter,200,pieza,3.375,
+HU02-P18,flange,200,pieza,4.786,
+HU02-P23,spacer,200,pieza,3.902,
+HU02-P28,tornillería,200,pieza,4.303,
+HU02-N03,fuera_alcance,422,error,7.621,"""program needs a non-empty 'parts' list"""
+HU02-P04,plate,200,pieza,4.371,
+HU02-P09,sheet_bracket,200,pieza,3.376,
+HU02-P14,adapter,200,pieza,3.62,
+HU02-P19,flange,200,pieza,4.497,
+HU02-P24,spacer,200,pieza,3.363,
+HU02-P29,tornillería,200,pieza,4.095,
+HU02-N04,fuera_alcance,422,declinada,3.042,"Pieza declinada: El asistente no puede construir esta pieza: la solicitud está fuera del catálogo (el modelo indicó: «BIM building model in native Revit format»). Solo se generan piezas únicas del catálogo: placa, escuadra de chapa, adaptador, brida, espaciador, tornillo, perfil extruido, tubo."
+HU02-P05,plate,200,pieza,4.198,
+HU02-P10,sheet_bracket,200,pieza,3.476,
+HU02-P15,adapter,200,pieza,3.173,
+HU02-P20,flange,200,pieza,3.706,
+HU02-P25,spacer,200,pieza,3.51,
+HU02-P30,tornillería,200,pieza,3.34,
+HU02-N05,fuera_alcance,422,declinada,3.16,"Pieza declinada: El asistente no puede construir esta pieza: la solicitud está fuera del catálogo (el modelo indicó: «image-based reconstruction without textual geometry or dimensions»). Solo se generan piezas únicas del catálogo: placa, escuadra de chapa, adaptador, brida, espaciador, tornillo, perfil extruido, tubo."
+HU02-N06,fuera_alcance,422,declinada,3.047,"Pieza declinada: El asistente no puede construir esta pieza: la solicitud está fuera del catálogo (el modelo indicó: «assembly with multiple parts and articulated joints»). Solo se generan piezas únicas del catálogo: placa, escuadra de chapa, adaptador, brida, espaciador, tornillo, perfil extruido, tubo."
+HU02-N07,fuera_alcance,422,declinada,2.99,"Pieza declinada: El asistente no puede construir esta pieza: la solicitud está fuera del catálogo (el modelo indicó: «Reentrenar un modelo de lenguaje no es una pieza mecánica; no se puede expresar como una pieza en el kit de restricciones.»). Solo se generan piezas únicas del catálogo: placa, escuadra de chapa, adaptador, brida, espaciador, tornillo, perfil extruido, tubo."
+HU02-N08,fuera_alcance,422,declinada,2.916,"Pieza declinada: El asistente no puede construir esta pieza: la solicitud está fuera del catálogo (el modelo indicó: «user accounts, login and permissions are not mechanical parts»). Solo se generan piezas únicas del catálogo: placa, escuadra de chapa, adaptador, brida, espaciador, tornillo, perfil extruido, tubo."
+HU02-N09,fuera_alcance,422,declinada,3.118,"Pieza declinada: El asistente no puede construir esta pieza: la solicitud está fuera del catálogo (el modelo indicó: «concurrent multi-user CAD request management is not a single mechanical part»). Solo se generan piezas únicas del catálogo: placa, escuadra de chapa, adaptador, brida, espaciador, tornillo, perfil extruido, tubo."
+HU02-N10,fuera_alcance,422,declinada,2.771,"Pieza declinada: El asistente no puede construir esta pieza: la solicitud está fuera del catálogo (el modelo indicó: «FEA analysis and deformation certification are not supported by the constraint-kit DSL»). Solo se generan piezas únicas del catálogo: placa, escuadra de chapa, adaptador, brida, espaciador, tornillo, perfil extruido, tubo."
