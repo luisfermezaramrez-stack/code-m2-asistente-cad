@@ -100,6 +100,7 @@ code-m2-asistente-cad/
 │   ├── api.py                  # FastAPI: POST /generar, GET /health (HU-06)
 │   ├── pipeline.py             # orquesta solicitud→DSL→verificación→B-rep (HU-04)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
+│   ├── evaluacion.py           # evaluador HTTP HU-07: reporte por familia y enlaces CSV/STEP
 │   ├── registro.py             # registro CSV con exclusión de PII (HU-06)
 │   ├── trabajos.py             # SSE, registro en memoria y cancelación cooperativa
 │   ├── control.py              # puntos seguros de cancelación del pipeline (HU-15)
@@ -186,6 +187,31 @@ worker mantiene hasta 128 trabajos en memoria, sin persistencia tras reinicio.
 La cancelación es cooperativa entre operaciones bloqueantes: DELETE 202 no
 confirma detención; `cancelado` confirma solo la salida local segura, nunca la
 detención de un proveedor remoto. No hay rollback garantizado de archivos.
+
+La recuperación HU-07 añade trazabilidad persistente sin cambiar el cuerpo
+JSON de `/generar`: la cabecera `X-Request-ID` admite un UUID para ese transporte; `X-Registro-ID` y
+`X-Registro-URL` enlazan la única fila CSV; `X-Step-URL` enlaza el STEP cuando
+se declara. `/registros/{id}` y `/registros/{id}/step` permiten consultar esas
+salidas fuera del registro temporal de trabajos, limitando STEP a `outputs/`.
+JSON comparte ID entre CSV y MLflow; SSE conserva el ID de trabajo para ambos.
+Se conserva DeepSeek en español y `no aplica` en traducción. El evaluador HTTP
+genera reportes en `docs/hu07/`, sin sustituir el runner `banco` ni sus referencias.
+La corrida real única HU-07 dejó 30/30 conformes y 10/10 declinaciones correctas,
+sin errores silenciosos; conserva 40 registros/MLflow y 30 STEP con hashes del
+banco y código evaluado. La revisión de aceptación sigue pendiente;
+ver `docs/hu07/README.md` para el reporte y sus límites.
+`make bench-report` expone la evaluación HTTP de 40 casos sin alterar `make bench`.
+Según SPEC-016 RNF-2 se versiona solo la evidencia Markdown; registros JSON/CSV,
+STEP y código archivado permanecen locales con hashes consignados en el reporte.
+Volumen/caja conformes no garantizan equivalencia completa de forma; queda
+pendiente la revisión humana de geometría y aceptación de la historia.
+`scripts/smoke_hu07.py` prepara un único positivo HU02-P01 por HTTP, sin cambiar
+el banco ni el prompt: conserva registro/STEP/métricas y enlaza la corrida
+MLflow existente por `solicitud_id`, sin una segunda corrida de seguimiento.
+Ejecutarlo realiza una llamada al proveedor; sus pruebas son simuladas.
+El servidor MLflow admite explícitamente los hosts `mlflow:5000`,
+`127.0.0.1:5000` y `localhost:5000`: sin el host interno, MLflow 3.18 puede
+rechazar con 403 al cliente de la API aunque `/health` responda correctamente.
 
 - Ningún commit se salta los hooks (`--no-verify` prohibido salvo causa
   justificada y documentada).

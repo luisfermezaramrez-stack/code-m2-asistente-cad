@@ -45,7 +45,7 @@ summary { cursor: pointer; min-height: var(--control-min); padding-block: var(--
 .download { display: block; padding: var(--space-3); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-small); overflow-wrap: anywhere; }
 .download strong, .download span { display: block; }
 .download span { color: var(--color-muted); font-size: var(--text-small); }
-.model-canvas { width: 100%; min-width: 0; background: var(--color-surface-subtle); border-radius: var(--radius-small); }
+.model-canvas { width: 100%; min-width: 0; background: var(--color-viewer-background); border-radius: var(--radius-small); }
 .model-canvas canvas { display: block; width: 100%; height: var(--preview-height); }
 .viewer-actions button { font-size: var(--text-small); }
 @media (max-width: 900px) {

@@ -72,6 +72,10 @@ llama.cpp con GPU).
 > El runtime actual usa DeepSeek por API y un único servicio Compose
 > (`m2-cad`, Vue/FastAPI); falta regenerarlo con Archify.
 
+La [Model Card](docs/model-card.md) documenta el modelo servido (`deepseek-v4-pro`) y la
+línea base heredada de Hugging Face: origen, métricas medidas, limitaciones, sesgos y
+licencia.
+
 ## Cómo funciona
 
 1. **Generación** condicionada a partir de la solicitud en español, sin
@@ -91,7 +95,7 @@ llama.cpp con GPU).
     ├── tests/               test_dataset.py · test_pipeline.py · test_banco.py ·
     │                        test_api.py · test_registro.py · test_sse.py · test_web.py
     ├── data/test_cases.csv  banco de 40 solicitudes
-    ├── specs/               especificaciones Spec Kit (001–007): spec · plan · tasks
+    ├── specs/               especificaciones SDD (001–017, índice en specs/README.md)
     ├── scripts/             fetch-model · verify-serve · vendor · cloud (Lambda/Vast.ai)
     ├── docs/                arquitectura.{html,json} y documentación
     ├── Dockerfile · docker-compose.yml · docker-compose.gemma.yml ·
@@ -166,7 +170,12 @@ make bench IDS=HU02-P01,HU02-P06,HU02-P11,HU02-P21,HU02-P26   # AC6: 5 solicitud
 make bench                                                      # AC7: las 40
 ```
 
-Deja en `outputs/banco/` un CSV por caso y un resumen JSON con acierto, tasa de
+HU-07 añade `make bench-report`: evaluación HTTP de las 40 solicitudes con reporte
+por familia y enlaces de trazabilidad, sin cambiar `make bench`. Ambos consumen
+tokens si apuntan al modelo real. La [evidencia auditada HU-07](docs/hu07/README.md)
+registra 30/30 conformes y 10/10 declinaciones; la revisión humana de forma sigue pendiente.
+
+`make bench` deja en `outputs/banco/` un CSV por caso y un resumen JSON con acierto, tasa de
 `/dsl/check`, latencia media y tokens. Con `--precio-entrada` y `--precio-salida`
 (USD por millón de tokens) también calcula el costo estimado.
 
@@ -199,14 +208,44 @@ del seguimiento se emite como advertencia en el log: es observabilidad, no crite
 aceptación de la pieza. `mlruns/`, `mlflow.db` y `mlflow-artifacts/` están en `.gitignore`.
 
 
-Con Docker, sin compilar Vue ni preparar el vendor manualmente en el host,
-definir `DEEPSEEK_API_KEY` en el entorno o `.env` ignorado por Git:
+### Despliegue local con Docker Compose (HU-10)
+
+Requisitos: **Docker** con Compose v2 y `DEEPSEEK_API_KEY` en `.env` (ignorado por Git).
+No hace falta GPU, pesos, Node ni preparar el vendor en el host: la imagen lo resuelve.
 
 ```bash
-docker compose up --build
+echo "DEEPSEEK_API_KEY=sk-..." > .env
+make up            # docker compose up: m2-cad (API + SPA) y MLflow, en primer plano
+make down          # en otra terminal: detiene y elimina todos los contenedores
 ```
 
-API/UI publicadas en **8000**, sin GPU ni pesos. Gradio y su puerto se retiraron.
+La primera vez usar `docker compose up --build` para construir la imagen (requiere
+memoria holgada: el build compila dependencias CAD).
+
+| URL | Servicio |
+| --- | --- |
+| http://localhost:8000 | SPA en Vue (mismo origen que la API) |
+| http://localhost:8000/health | Salud de la API (`{"status": "ok"}`) |
+| http://localhost:8000/docs | Contrato OpenAPI |
+| http://127.0.0.1:5000 | UI de MLflow |
+
+Ambos puertos se publican solo en `127.0.0.1`; nada queda expuesto en la red.
+Si un puerto está ocupado, liberarlo o cambiar el lado izquierdo del mapeo en
+`docker-compose.yml` (por ejemplo `127.0.0.1:8001:8000`).
+
+Prueba de humo y latencia contra el servicio levantado (gasta tokens de DeepSeek):
+
+```bash
+uv run python scripts/smoke_deploy.py --n 5     # AC4: una solicitud por familia
+uv run python scripts/smoke_deploy.py --n 40    # AC3: p50/p90 sobre el banco completo
+```
+
+Escribe `smoke.csv` (id, familia, estado HTTP, resultado y latencia) y `smoke.json`
+(p50/p90) en `outputs/smoke/` (`--salida` para cambiarlo) y termina con código 1 si
+alguna solicitud no devuelve pieza ni declinación con motivo. Evidencia de HU-10:
+[evidence.md](specs/010-hu-10-despliegue-local/evidence.md).
+
+Gradio y su puerto `7860` se retiraron con HU-15.
 El volumen `outputs/` conserva los archivos generados. La línea base Gemma y el
 archivo independiente `docker-compose.gpu-remote.yml` son opciones heredadas;
 no se activan en el arranque normal.
