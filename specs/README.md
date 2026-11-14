@@ -39,4 +39,4 @@ Cada spec se vincula a su historia del tablero y a la PR que la implementa.
 | [020](020-diagrama-arquitectura/) | HU-19 · Diagrama de arquitectura actualizado y enlace al tablero (refactor) | #68 | #69 | Spec-first | Fusionada |
 | [021](021-hu-20-cierre-entrega/) | HU-20 · Publicación de la entrega en `main` con `v1.0` | #72 | #75 | Spec-first | Fusionada; `v1.0` publicada |
 | [022](022-hu-21-informe-final-refactor/) | HU-21 · Refactor del informe final y la trazabilidad de la HU-13 (refactor) | #73 | #74 | Spec-first | Fusionada |
-| [023](023-hu-22-constitution-refactor/) | HU-22 · Refactor de CONSTITUTION.md al estado real de la entrega (refactor) | #77 | — | Spec-first | Implementada, PR pendiente |
+| [023](023-hu-22-constitution-refactor/) | HU-22 · Refactor de CONSTITUTION.md al estado real de la entrega (refactor) | #77 | #78 | Spec-first | Implementada, PR #78 en revisión |

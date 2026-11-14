@@ -18,5 +18,6 @@ Cada tarea se marca `[x]` al cerrarse, con su evidencia.
       · Evidencia: Fila 2026-11-14 en §9; fila 023 en `specs/README.md`.
 - [x] T06 — Ejecutar `make check` (AC5). · Depende de: T05
       · Evidencia: `make check` 311 passed, cobertura 96,52 %.
-- [ ] T07 — PR hacia `develop` con `Closes #77`, enlace a esta spec y revisión de un
+- [x] T07 — PR hacia `develop` con `Closes #77`, enlace a esta spec y revisión de un
       compañero. · Depende de: T06
+      · Evidencia: PR #78 abierta; revisión de un compañero pendiente.
