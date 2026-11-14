@@ -92,7 +92,7 @@ En OpenCode la preferencia se aplica automáticamente mediante la regla
   `banco.py` (banco de solicitudes), `registro.py`, `trabajos.py`/`seguimiento.py` (SSE)
   y `web.py` (build Vue y CORS). `frontend/` contiene Vue/TypeScript/Vite.
 - `tests/` — pruebas con `pytest` (patrón AAA); sin GPU ni red real.
-- `specs/` — especificaciones Spec Kit (001–007); cada módulo cita su spec y AC.
+- `specs/` — especificaciones SDD (001–017, índice en `specs/README.md`); cada módulo cita su spec y AC.
 - `docs/` — documentación y diagrama de arquitectura (Archify).
 - `vendor/` — constraint-kit vendoreado (gitignored; `make vendor`).
 - `CONSTITUTION.md` — fuente única de verdad.
