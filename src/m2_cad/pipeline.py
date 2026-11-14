@@ -33,6 +33,7 @@ import httpx
 from constraint_kit import bom, builder, dsl, llm
 
 from m2_cad import MARCA_PRELIMINAR
+from m2_cad.control import ControlGeneracion
 from m2_cad.registro import _sanitizar
 
 RUTA_SALIDA = Path("outputs")
@@ -284,7 +285,9 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
     exportado = builder.export(ensamble, str(base))
     marcar_step(Path(exportado["step"]))
     bom_csv = base.with_suffix(".csv")
-    bom_csv.write_text(bom.bom_document(_resumen_materiales(partes), fmt="csv"), encoding="utf-8")
+    bom_csv.write_text(
+        bom.bom_document(_resumen_materiales(partes), fmt="csv"), encoding="utf-8", newline=""
+    )
     firma = dsl.signature(ensamble)
     duracion = time.perf_counter() - inicio
 
@@ -380,6 +383,7 @@ def generar_pieza(
     *,
     planificar: Callable[[str], dict] | None = None,
     directorio: Path = RUTA_SALIDA,
+    control: ControlGeneracion | None = None,
     medir_uso: Callable[[dict], None] | None = None,
 ) -> ResultadoPieza:
     """Genera el programa desde el texto en español y construye la pieza (AC1-AC5).
@@ -389,10 +393,18 @@ def generar_pieza(
     cuando la pieza se construye. `medir_uso` recibe el `usage` del proveedor
     para el seguimiento (HU-16); sin él el comportamiento es el de siempre.
     """
+    if control is not None:
+        control.informar("validando")
+    if not texto.strip() or len(texto) > 1000:
+        raise ValueError("La descripción debe contener entre 1 y 1000 caracteres.")
     inicio = time.perf_counter()
+    if control is not None:
+        control.informar("generando")
     if planificar is None:
         planificar = _planificador_con_uso(medir_uso)
     programa = planificar(texto)
+    if control is not None:
+        control.comprobar_cancelacion()
     tiempo_generacion = time.perf_counter() - inicio
 
     salida = Path(directorio) / uuid.uuid4().hex
@@ -410,7 +422,12 @@ def generar_pieza(
         exc.programa_json = programa_json
         raise
 
+    if control is not None:
+        control.comprobar_cancelacion()
+
     resultado = construir_pieza(programa, salida)
+    if control is not None:
+        control.comprobar_cancelacion()
     return ResultadoPieza(
         programa=resultado.programa,
         step=resultado.step,

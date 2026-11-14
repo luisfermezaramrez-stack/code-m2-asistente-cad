@@ -1,0 +1,27 @@
+# Uso explícito: nunca se combina automáticamente con el Compose normal.
+# El smoke usa red interna; no se heredan credenciales ni URLs de proveedores.
+services:
+  web:
+    image: hu15-validation-m2-cad:latest
+    pull_policy: never
+    ports:
+      - "127.0.0.1:18015:8000"
+    networks: [web]
+  smoke:
+    image: hu15-validation-m2-cad:latest
+    pull_policy: never
+    profiles: [verification]
+    command:
+      - /app/.venv/bin/python
+      - /validation/verify_hu15_deployment.py
+      - --simulate-model
+    volumes:
+      - ./scripts/verify_hu15_deployment.py:/validation/verify_hu15_deployment.py:ro
+    networks: [isolated]
+    # El smoke inicia y termina su propio Uvicorn; no escucha en 8000.
+    healthcheck:
+      disable: true
+networks:
+  web: {}
+  isolated:
+    internal: true

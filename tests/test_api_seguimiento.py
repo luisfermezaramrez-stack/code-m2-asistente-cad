@@ -248,3 +248,68 @@ def test_solicitud_ligada_a_la_version_de_modelo_registrada(tmp_path, monkeypatc
     cliente = MlflowClient(tracking_uri=f"file:{tmp_path / 'mlruns'}")
     nombre = seguimiento.nombre_modelo_registrado(f"m2-cad-{pipeline.llm.planner_model()}")
     assert len(cliente.search_model_versions(f"name='{nombre}'")) == 1
+
+
+def _post_sse(texto):
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api
+
+    with TestClient(api.app) as client:
+        return client.post(
+            "/generar", json={"texto": texto}, headers={"Accept": "text/event-stream"}
+        )
+
+
+def test_solicitud_sse_entregada_registra_su_corrida(tmp_path, monkeypatch):
+    """HU-15 + HU-16: la ruta SSE también deja una corrida cerrada con sus métricas."""
+    pytest.importorskip("cadquery")
+    from m2_cad import pipeline
+
+    def generar_falso(texto, *, control, medir_uso=None):
+        control.informar("validando")
+        control.informar("generando")
+        medir_uso({"prompt_tokens": 90, "completion_tokens": 30})
+        return _pieza(tmp_path)
+
+    monkeypatch.setenv("LLM_BASE_URL", "http://llama:8080")
+    monkeypatch.setattr(pipeline, "generar_pieza", generar_falso)
+
+    respuesta = _post_sse("Espaciador de 14 mm")
+
+    assert respuesta.status_code == 200
+    assert "event: verificado" in respuesta.text
+    corridas = _corridas(tmp_path)
+    assert len(corridas) == 1
+    corrida = corridas[0]
+    assert corrida.info.status == "FINISHED"
+    assert corrida.data.tags["estado"] == "entregada"
+    assert corrida.data.tags["transporte"] == "sse"
+    assert corrida.data.tags["solicitud_id"] in respuesta.text
+    assert corrida.data.params["familia"] == "spacer"
+    assert corrida.data.metrics["tokens_entrada"] == pytest.approx(90.0)
+    assert corrida.data.metrics["verificacion_ok"] == pytest.approx(1.0)
+
+
+def test_solicitud_sse_declinada_cierra_la_corrida_con_su_motivo(tmp_path, monkeypatch):
+    """AC3 en SSE: la declinación cierra la corrida con estado y motivo."""
+    pytest.importorskip("cadquery")
+    from m2_cad import pipeline
+
+    def generar_falso(texto, *, control, medir_uso=None):
+        control.informar("validando")
+        control.informar("generando")
+        raise pipeline.PiezaDeclinada("engranaje fuera de catálogo")
+
+    monkeypatch.setenv("LLM_BASE_URL", "http://llama:8080")
+    monkeypatch.setattr(pipeline, "generar_pieza", generar_falso)
+
+    respuesta = _post_sse("Engranaje helicoidal")
+
+    assert "event: declinado" in respuesta.text
+    corridas = _corridas(tmp_path)
+    assert len(corridas) == 1
+    assert corridas[0].info.status == "FINISHED"
+    assert corridas[0].data.tags["estado"] == "declinada"
+    assert corridas[0].data.tags["motivo_declinacion"] == "engranaje fuera de catálogo"
+    assert corridas[0].data.metrics["verificacion_ok"] == pytest.approx(0.0)

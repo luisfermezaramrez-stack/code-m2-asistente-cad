@@ -5,7 +5,7 @@
 #
 # Las instancias Docker de Vast.ai no soportan docker-in-docker, así que el
 # servicio `llama` del compose base corre FUERA (llama-server nativo en la
-# instancia). Este override elimina el servicio llama y las reservas de GPU,
+# instancia). Este archivo independiente no define llama ni reservas de GPU,
 # y apunta LLM_BASE_URL al túnel SSH en el host local:
 #
 #   1. En la instancia:  bash scripts/cloud/vastai-serve.sh
@@ -18,11 +18,13 @@ services:
   m2-cad:
     build: .
     ports:
-      - "8000:8000"   # FastAPI
-      - "7860:7860"   # Gradio
+      - "8000:8000"   # Vue + FastAPI, SSE y descargas.
     environment:
       LLM_BASE_URL: http://host.docker.internal:8080
+      LLM_MODEL: gemma4-12b-constraintkit
+      M2_CORS_ORIGINS: "${M2_CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./data:/app/data
+      - ./outputs:/app/outputs

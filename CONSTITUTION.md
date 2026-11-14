@@ -47,14 +47,14 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 
 - Catálogo cerrado de 8 familias: `plate`, `sheet_bracket`, `adapter`, `flange`,
   `spacer`, `tornillería`, `extrusion` y `pipe`.
-- Pipeline: traducción ES→EN → generación DSL (Gemma 4 12B ConstraintKit vía
-  llama.cpp) → verificación geométrica determinista → construcción B-rep →
+- Pipeline: solicitud en español → generación DSL (DeepSeek por API, HU-14,
+  sin traducción) → verificación geométrica determinista → construcción B-rep →
   entrega STEP/GLB/CSV.
-- API REST (`POST /generar`, `GET /health`) y UI web (Gradio) con resultados
-  descargables.
+- API REST (`POST /generar`, `GET /health`), progreso SSE, consulta/cancelación
+  en `/generaciones/{id}` y Vue 3 con resultados descargables (HU-15).
 - Registro trazable de solicitudes (texto, resultado, latencia, error, versión)
   con exclusión de datos personales (Ley 1581 de 2012).
-- Plan B documentado: DeepSeek por API.
+- Línea base heredada Gemma/llama.cpp solo con overlay explícito.
 
 ### Fuera del alcance (por ahora)
 
@@ -70,7 +70,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Gestor de paquetes y entorno** | [`uv`](https://docs.astral.sh/uv/) — prohibido `pip` y `requirements.txt` |
 | **Build backend** | `hatchling` (wheel desde `src/m2_cad`) |
 | **API** | [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` |
-| **UI** | [Gradio](https://www.gradio.app/) ≥ 4, < 7 |
+| **UI** | Vue 3 Composition API + TypeScript + Vite, Node 24, npm lockfile |
 | **Kernel CAD** | `constraint-kit` (vendoreado en `vendor/`) con CadQuery 2.7.0, build123d 0.10.0, bd_warehouse 0.2.0, Z3, python-solvespace, OpenCascade (LGPL 2.1) |
 | **LLM** | DeepSeek `deepseek-v4-pro` por API (`https://api.deepseek.com`), requiere `DEEPSEEK_API_KEY` (HU-14) |
 | **LLM heredado** | `gemma-4-12b-constraintkit` GGUF Q6_K (~9,8 GB) por llama.cpp (`:8080`, CUDA); solo línea base HU-01 (`docker-compose.gemma.yml`) |
@@ -80,7 +80,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Pre-commit** | Ruff + higiene de archivos + bloqueo de pesos (`.gguf`, `.safetensors`, …) |
 | **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `develop` |
 | **Dependencias automáticas** | [Dependabot](.github/dependabot.yml) (target `develop`) |
-| **Despliegue** | Docker Compose: `mlflow` (`:5000`) + `m2-cad` (FastAPI `:8000`) + `m2-cad-ui` (Gradio `:7860`); `llama` solo como overlay heredado |
+| **Despliegue** | Docker multietapa Node/vendor/Python; Compose: `mlflow` (`:5000`) + `m2-cad` (Vue + FastAPI `:8000`), DeepSeek externo |
 
 > ⚠️ **Regla dura:** toda gestión de dependencias y entornos pasa por `uv`.
 > Dependencias nuevas con `uv add` / `uv add --dev`; `uv.lock` se versiona.
@@ -101,9 +101,13 @@ code-m2-asistente-cad/
 │   ├── pipeline.py             # orquesta solicitud→DSL→verificación→B-rep (HU-04)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
 │   ├── registro.py             # registro CSV con exclusión de PII (HU-06)
+│   ├── trabajos.py             # SSE, registro en memoria y cancelación cooperativa
+│   ├── control.py              # puntos seguros de cancelación del pipeline (HU-15)
 │   ├── seguimiento.py          # MLflow: una corrida por solicitud y por caso del banco (HU-16)
-│   └── interfaz.py             # UI Gradio: texto → descargas (HU-08)
-├── tests/                      # pytest: dataset, banco, pipeline, api, registro, seguimiento, interfaz
+│   └── web.py                  # Vue/estáticos, CORS restringido y errores JSON
+├── frontend/                   # Vue, TypeScript, Vite y pruebas Vitest
+├── design/                     # referencia y fuente única de tokens (tokens.css)
+├── tests/                      # pytest: dataset, banco, pipeline, API, registro, seguimiento, SSE, web
 ├── data/
 │   ├── test_cases.csv          # banco de 40 solicitudes
 │   └── registro.csv            # registro de solicitudes (ignorado en git)
@@ -127,7 +131,7 @@ code-m2-asistente-cad/
 ├── .editorconfig               # convenciones de estilo entre editores
 ├── .pre-commit-config.yaml     # hooks de calidad
 ├── Dockerfile                  # imagen base python:3.12-slim + uv
-└── docker-compose.yml          # mlflow + m2-cad + m2-cad-ui
+└── docker-compose.yml          # mlflow + m2-cad (Vue/FastAPI) + DeepSeek externo (sin GPU)
 ```
 
 ## 5. Convenciones de código
@@ -168,7 +172,20 @@ code-m2-asistente-cad/
 | `pre-commit` | Hooks antes de cada commit | `make precommit-install` / `make precommit` |
 | GitHub Actions | CI en PRs a `develop` | `.github/workflows/ci.yml` |
 | Kernel del autor | 113 pruebas dentro del contenedor `cadkit:0.1` | `make kernel-image` + `make kernel-test` |
-| Servicio | llama.cpp + FastAPI + Gradio | `make up` / `make down` |
+| Frontend | Vitest, TypeScript y build | `make frontend-check` |
+| Servicio | Vue/FastAPI + DeepSeek externo | `make up` / `make down` |
+
+`make check` ejecuta Ruff, Vitest, TypeScript, build y pytest con cobertura;
+CI reproduce estos controles desde lockfiles. Las pruebas con dobles se
+identifican como simuladas y no prueban inferencia real.
+
+FastAPI sirve HTML/assets, JSON, SSE y archivos desde un mismo origen; las rutas
+API desconocidas devuelven JSON, nunca el índice Vue. CORS admite solo orígenes
+HTTP(S) exactos. Las claves y URLs del modelo permanecen en el backend. Un único
+worker mantiene hasta 128 trabajos en memoria, sin persistencia tras reinicio.
+La cancelación es cooperativa entre operaciones bloqueantes: DELETE 202 no
+confirma detención; `cancelado` confirma solo la salida local segura, nunca la
+detención de un proveedor remoto. No hay rollback garantizado de archivos.
 
 - Ningún commit se salta los hooks (`--no-verify` prohibido salvo causa
   justificada y documentada).
@@ -230,7 +247,11 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-12 | Diagrama de arquitectura con Archify en `docs/arquitectura.html` (fuente `docs/arquitectura.json`) | Documentación viva del runtime enlazada desde el README |
 | 2026-11-12 | Excluir `.agents/` (skills vendoreados) de pre-commit y `docs/arquitectura.html` de `trailing-whitespace` | Son terceros/plantillas con marcadores `{{...}}` y un artefacto generado: la higiene la da su fuente |
 | 2026-11-12 | Añadir `.env.example` y documentar las variables de entorno en el README | Configuración reproducible sin versionar secretos |
+| 2026-11-13 | Integrar HU-14: DeepSeek recibe español directamente, sin Gemini/traducción; registro `no aplica` | Conservar el contrato actual del modelo al añadir SSE |
+| 2026-11-13 | HU-15/#39 sustituye Gradio por Vue; FastAPI sirve el build y SSE con cancelación cooperativa | Un solo origen y servicio web, sin progreso ficticio ni confirmación remota inventada |
+| 2026-11-13 | Validación Docker aislada y smoke con modelo simulado, geometría/exportación reales | Evidencia reproducible sin servicios de pago; ver `docs/hu15-integracion-hu14.md` |
 | 2026-11-13 | Seguimiento de experimentos con MLflow (`seguimiento.py`, servicio `mlflow`, `make mlflow`); versión de modelo registrada y fin de `version="desconocida"` (HU-16) | Comparar DeepSeek contra la línea base Gemma sin revisar casos a mano y ligar cada evidencia al modelo que la produjo; el seguimiento es best-effort y nunca bloquea la respuesta |
+| 2026-11-14 | Integrar HU-16 en HU-15: el control de cancelación pasa a `control.py` y `seguimiento.py` queda para MLflow; la ruta SSE abre y cierra su corrida en el hilo del trabajo | Evitar el choque de nombres entre ambas HU y medir también las solicitudes SSE; MLflow guarda la corrida activa por hilo |
 
 ## 10. Notas y tareas pendientes
 

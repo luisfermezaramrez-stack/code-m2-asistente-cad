@@ -7,19 +7,25 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from m2_cad import seguimiento
+from m2_cad.control import ControlGeneracion, SolicitudDeclinada
 from m2_cad.registro import RUTA_DEFAULT, SIN_TRADUCCION, registrar
+from m2_cad.trabajos import GestorTrabajos, RespuestaSSE
+from m2_cad.web import configurar_web
 
 Procesador = Callable[[str, dict | None], dict[str, str]]
+ProcesadorSSE = Callable[[str, ControlGeneracion, dict | None], dict[str, str]]
 
 app = FastAPI(
     title="M2 CAD Assistant API",
     version="0.1.0",
     description="Servicio de generación preliminar de componentes CAD.",
 )
+gestor_trabajos = GestorTrabajos()
 
 
 class SolicitudGenerar(BaseModel):
@@ -83,6 +89,21 @@ def _modelo_configurado() -> bool:
     )
 
 
+def _preparar_medicion(pipeline, medido: dict) -> Callable[[dict], None]:
+    """Anota modelo y versión, y devuelve el receptor del `usage` (HU-16, AC2)."""
+    medido.update(
+        modelo=pipeline.llm.planner_model(),
+        version_modelo=seguimiento.version_modelo(),
+        temperatura=pipeline.TEMPERATURA_LLM,
+    )
+
+    def medir_uso(uso: dict) -> None:
+        medido["tokens_entrada"] = int(uso.get("prompt_tokens") or 0)
+        medido["tokens_salida"] = int(uso.get("completion_tokens") or 0)
+
+    return medir_uso
+
+
 def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str, str]:
     """Genera la pieza con el pipeline CAD (HU-04) y traduce sus errores a HTTP.
 
@@ -95,16 +116,7 @@ def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str,
     # Importación diferida: el núcleo CAD (cadquery/OCP) solo se carga al usarlo.
     from m2_cad import pipeline
 
-    medido.update(
-        modelo=pipeline.llm.planner_model(),
-        version_modelo=seguimiento.version_modelo(),
-        temperatura=pipeline.TEMPERATURA_LLM,
-    )
-
-    def medir_uso(uso: dict) -> None:
-        medido["tokens_entrada"] = int(uso.get("prompt_tokens") or 0)
-        medido["tokens_salida"] = int(uso.get("completion_tokens") or 0)
-
+    medir_uso = _preparar_medicion(pipeline, medido)
     try:
         resultado = pipeline.generar_pieza(texto, medir_uso=medir_uso)
     except pipeline.PiezaDeclinada as exc:
@@ -131,6 +143,50 @@ def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str,
 def obtener_procesador() -> Procesador:
     """Proporciona el procesador CAD utilizado por la API."""
     return procesar_con_pipeline
+
+
+def procesar_con_progreso(
+    texto: str, control: ControlGeneracion, medicion: dict | None = None
+) -> dict[str, str]:
+    """Adaptador SSE: distingue declinaciones sin inferirlas de un código 422.
+
+    Deja en `medicion` los mismos datos de seguimiento que la ruta JSON (HU-16).
+    """
+    medido = medicion if medicion is not None else {}
+    if not _modelo_configurado():
+        control.informar("validando")
+        return procesador_no_disponible(texto)
+
+    from m2_cad import pipeline
+
+    medir_uso = _preparar_medicion(pipeline, medido)
+    try:
+        resultado = pipeline.generar_pieza(texto, control=control, medir_uso=medir_uso)
+    except pipeline.PiezaDeclinada as exc:
+        medido.update(familia="desconocida", artefactos=[exc.programa_json])
+        raise SolicitudDeclinada(exc.motivo) from exc
+    except (pipeline.ErrorGeneracion, pipeline.ErrorVerificacion) as exc:
+        medido["familia"] = "desconocida"
+        raise FalloHTTP(422, str(exc), type(exc).__name__) from exc
+    except pipeline.ModeloNoDisponible as exc:
+        medido["familia"] = "desconocida"
+        raise FalloHTTP(
+            503, "El servicio de generación no está disponible.", "ModeloNoDisponible"
+        ) from exc
+
+    medido.update(
+        familia=resultado.familia,
+        artefactos=[resultado.programa_json, resultado.step, resultado.glb, resultado.bom_csv],
+    )
+    return resultado.a_respuesta()
+
+
+def obtener_procesador_sse() -> ProcesadorSSE:
+    return procesar_con_progreso
+
+
+def obtener_gestor_trabajos() -> GestorTrabajos:
+    return gestor_trabajos
 
 
 def obtener_configuracion_seguimiento() -> seguimiento.Configuracion:
@@ -195,14 +251,87 @@ def medir_solicitud(
     corrida.finalizar(estado=estado, motivo_declinacion=motivo_declinacion, error=error)
 
 
-@app.post("/generar")
+_ESTADOS_CORRIDA_SSE = {
+    "verificado": "entregada",
+    "declinado": "declinada",
+    "cancelado": "cancelada",
+}
+
+
+def _acepta_sse(request: Request) -> bool:
+    tipos = [tipo.split(";")[0].strip() for tipo in request.headers.get("accept", "").split(",")]
+    return "text/event-stream" in tipos
+
+
+def _generar_sse(
+    solicitud: SolicitudGenerar,
+    request: Request,
+    procesador_sse: ProcesadorSSE,
+    gestor: GestorTrabajos,
+    configuracion: seguimiento.Configuracion,
+    inicio: float,
+) -> RespuestaSSE:
+    """Ruta SSE: registro CSV y corrida MLflow al alcanzar el estado terminal (HU-15/16).
+
+    La corrida se abre y se cierra en el hilo del trabajo, porque MLflow guarda la
+    corrida activa por hilo.
+    """
+    ruta_registro = obtener_ruta_registro()
+    medido: dict[str, object] = {}
+
+    def procesar(texto: str, control: ControlGeneracion) -> dict[str, str]:
+        return procesador_sse(texto, control, medido)
+
+    def registrar_terminal(terminal: dict) -> None:
+        latencia_ms = (time.perf_counter() - inicio) * 1000
+        registrar(
+            texto=solicitud.texto,
+            traduccion=SIN_TRADUCCION,
+            resultado=terminal.get("resultado"),
+            latencia_ms=latencia_ms,
+            error=terminal.get("motivo"),
+            version=seguimiento.version_modelo(),
+            ruta=ruta_registro,
+        )
+        estado = _ESTADOS_CORRIDA_SSE.get(terminal["estado"], "error")
+        solicitud_id = terminal["solicitud_id"]
+        corrida = seguimiento.iniciar_corrida(
+            configuracion.experimento_generacion,
+            nombre=solicitud_id,
+            tags={"solicitud_id": solicitud_id, "transporte": "sse"},
+            configuracion=configuracion,
+        )
+        medir_solicitud(
+            corrida,
+            medido,
+            configuracion,
+            estado=estado,
+            latencia_ms=latencia_ms,
+            motivo_declinacion=terminal.get("motivo") if estado == "declinada" else None,
+            error=f"HTTP {terminal.get('codigo_http', 500)}" if estado == "error" else None,
+        )
+
+    trabajo = gestor.crear(solicitud.texto, procesar, registrar_terminal)
+    return RespuestaSSE(trabajo, request)
+
+
+@app.post(
+    "/generar",
+    response_model=dict[str, str],
+    responses={200: {"content": {"text/event-stream": {"schema": {"type": "string"}}}}},
+)
 def generar(
     solicitud: SolicitudGenerar,
+    request: Request,
     procesador: Annotated[Procesador, Depends(obtener_procesador)],
+    procesador_sse: Annotated[ProcesadorSSE, Depends(obtener_procesador_sse)],
+    gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
     configuracion: Annotated[seguimiento.Configuracion, Depends(obtener_configuracion_seguimiento)],
-) -> dict[str, str]:
+) -> dict[str, str] | StreamingResponse:
     """Procesa una solicitud CAD validada, la registra (AC3/AC4) y la mide (HU-16)."""
     inicio = time.perf_counter()
+    if _acepta_sse(request):
+        return _generar_sse(solicitud, request, procesador_sse, gestor, configuracion, inicio)
     solicitud_id = uuid.uuid4().hex
     medido: dict[str, object] = {}
     corrida = seguimiento.iniciar_corrida(
@@ -259,3 +388,71 @@ def generar(
     )
     medir_solicitud(corrida, medido, configuracion, estado="entregada", latencia_ms=latencia_ms)
     return respuesta
+
+
+@app.get("/generaciones/{solicitud_id}")
+def consultar_generacion(
+    solicitud_id: str,
+    gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
+) -> dict:
+    """Consulta la confirmación terminal incluso después de perder la conexión SSE."""
+    return gestor.obtener(solicitud_id).estado()
+
+
+@app.delete("/generaciones/{solicitud_id}")
+def cancelar_generacion(
+    solicitud_id: str,
+    response: Response,
+    gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
+) -> dict:
+    """202 pide detenerse; solo un estado terminal confirma el desenlace real."""
+    estado = gestor.obtener(solicitud_id).cancelar()
+    response.status_code = 200 if estado["terminal"] else 202
+    return estado
+
+
+def obtener_directorio_salidas() -> Path:
+    return Path("outputs").resolve()
+
+
+@app.get("/generaciones/{solicitud_id}/archivos/{formato}")
+@app.head("/generaciones/{solicitud_id}/archivos/{formato}", include_in_schema=False)
+def descargar_archivo(
+    solicitud_id: str,
+    formato: str,
+    gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
+    salidas: Annotated[Path, Depends(obtener_directorio_salidas)],
+) -> FileResponse:
+    """Entrega solo artefactos existentes del resultado verificado de este trabajo."""
+    estado = gestor.obtener(solicitud_id).estado()
+    if estado["estado"] != "verificado" or formato not in {"step", "glb", "csv"}:
+        raise HTTPException(404, "Archivo no disponible.")
+    resultado = estado.get("resultado", {})
+    nombre = (
+        resultado.get("bom_csv") or resultado.get("csv")
+        if formato == "csv"
+        else resultado.get(formato)
+    )
+    if not isinstance(nombre, str) or not nombre:
+        raise HTTPException(404, "Archivo no disponible.")
+    ruta = Path(nombre)
+    if not ruta.is_absolute():
+        ruta = Path.cwd() / ruta if ruta.parts[0] == "outputs" else salidas / ruta
+    ruta = ruta.resolve()
+    if (
+        not ruta.is_relative_to(salidas.resolve())
+        or ruta.suffix.lower() != f".{formato}"
+        or not ruta.is_file()
+    ):
+        raise HTTPException(404, "Archivo no disponible.")
+    tipos = {"step": "application/step", "glb": "model/gltf-binary", "csv": "text/csv"}
+    return FileResponse(
+        ruta,
+        media_type=tipos[formato],
+        filename=f"pieza.{formato}",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+# Rutas estáticas explícitas; las rutas API desconocidas conservan su 404 JSON.
+configurar_web(app)

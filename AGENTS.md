@@ -6,8 +6,8 @@
 ## Proyecto
 
 Asistente CAD para el diseño preliminar de componentes metálicos auxiliares.
-Pipeline: descripción en español → traducción (Gemini) → programa DSL (Gemma 4 12B
-ConstraintKit vía llama.cpp) → verificación geométrica determinista → pieza B-rep
+Pipeline: descripción en español → programa DSL (DeepSeek por API, sin traducción)
+→ verificación geométrica determinista → pieza B-rep
 entregada como STEP, GLB y CSV — o declinación con motivo.
 
 > 📘 La verdad técnica central —propósito, stack, estructura, convenciones, decisiones y
@@ -52,10 +52,10 @@ git push -u origin feature/hu-XX-tema
 make help              # lista todos los objetivos disponibles
 make install           # uv sync --dev (dependencias)
 make vendor            # clona/parchea constraint-kit (necesario antes de uv sync en checkout limpio)
-make check             # lint + pytest (lo que corre la CI)
+make check             # Ruff + Vitest + TypeScript + build + pytest/cobertura (CI)
 make cov               # pytest con cobertura (falla si < 70 %)
 make precommit-install # instala los hooks de pre-commit
-make up / make down    # levanta o detiene llama + FastAPI + Gradio con Docker
+make up / make down    # levanta o detiene Vue/FastAPI con DeepSeek (sin GPU)
 make model-fetch       # descarga y verifica el modelo GGUF (HU-01)
 make kernel-test       # 113 pruebas del kernel dentro del contenedor del autor (AC3)
 ```
@@ -89,7 +89,8 @@ En OpenCode la preferencia se aplica automáticamente mediante la regla
 ## Estructura y convenciones
 
 - `src/m2_cad/` — paquete propio (src-layout): `api.py` (FastAPI), `pipeline.py`,
-  `banco.py` (banco de solicitudes), `registro.py`, `interfaz.py` (Gradio).
+  `banco.py` (banco de solicitudes), `registro.py`, `trabajos.py`/`seguimiento.py` (SSE)
+  y `web.py` (build Vue y CORS). `frontend/` contiene Vue/TypeScript/Vite.
 - `tests/` — pruebas con `pytest` (patrón AAA); sin GPU ni red real.
 - `specs/` — especificaciones Spec Kit (001–007); cada módulo cita su spec y AC.
 - `docs/` — documentación y diagrama de arquitectura (Archify).
