@@ -8,6 +8,18 @@ datos personales. Cobertura objetivo ≥ 80 % del módulo.
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _seguimiento_apagado():
+    """Aísla las pruebas HTTP del seguimiento MLflow (HU-16): sin mlruns/ en el repo."""
+    from m2_cad import api, seguimiento
+
+    api.app.dependency_overrides[api.obtener_configuracion_seguimiento] = lambda: (
+        seguimiento.Configuracion(activo=False)
+    )
+    yield
+    api.app.dependency_overrides.pop(api.obtener_configuracion_seguimiento, None)
+
+
 def test_modulo_api_importable():
     from m2_cad import api
 
@@ -54,7 +66,7 @@ def test_generar_con_procesador_simulado():
     from m2_cad.api import app, obtener_procesador
 
     # Simula una declinación válida del pipeline CAD.
-    def procesador_simulado(texto: str) -> dict[str, str]:
+    def procesador_simulado(texto: str, medicion: dict | None = None) -> dict[str, str]:
         assert texto == "Placa de 120 mm"
         return {
             "resultado": "declinacion",
@@ -107,7 +119,7 @@ def test_generar_archivos_cad_simulados():
     from m2_cad.api import app, obtener_procesador
 
     # Simula el resultado esperado del pipeline.
-    def procesador_simulado(texto: str) -> dict[str, str]:
+    def procesador_simulado(texto: str, medicion: dict | None = None) -> dict[str, str]:
         assert texto == "Placa de 120 mm"
         return {
             "resultado": "generada",
@@ -164,7 +176,7 @@ def test_generar_20_llamadas_sin_campos_vacios(tmp_path, monkeypatch):
 
     ruta = _preparar_registro(monkeypatch, tmp_path)
     api.app.dependency_overrides[api.obtener_procesador] = lambda: (
-        lambda texto: {"resultado": "generada"}
+        lambda texto, medicion=None: {"resultado": "generada"}
     )
 
     try:
@@ -212,7 +224,9 @@ def test_generar_registra_sin_datos_personales(tmp_path, monkeypatch):
 
     ruta = _preparar_registro(monkeypatch, tmp_path)
     app_dependency = api.obtener_procesador
-    api.app.dependency_overrides[app_dependency] = lambda: lambda texto: {"resultado": "generada"}
+    api.app.dependency_overrides[app_dependency] = lambda: (
+        lambda texto, medicion=None: {"resultado": "generada"}
+    )
 
     try:
         with TestClient(api.app) as client:
@@ -237,7 +251,7 @@ def test_generar_conserva_respuesta_con_registro(tmp_path, monkeypatch):
     _preparar_registro(monkeypatch, tmp_path)
     app_dependency = api.obtener_procesador
     api.app.dependency_overrides[app_dependency] = lambda: (
-        lambda texto: {"resultado": "generada", "step": "p.step"}
+        lambda texto, medicion=None: {"resultado": "generada", "step": "p.step"}
     )
 
     try:
@@ -275,7 +289,9 @@ def test_generar_usa_pipeline_cuando_el_modelo_esta_configurado(tmp_path, monkey
 
     ruta = _preparar_registro(monkeypatch, tmp_path)
     monkeypatch.setenv("LLM_BASE_URL", "http://llama:8080")
-    monkeypatch.setattr(pipeline, "generar_pieza", lambda texto: _resultado_pieza(tmp_path))
+    monkeypatch.setattr(
+        pipeline, "generar_pieza", lambda texto, **kwargs: _resultado_pieza(tmp_path)
+    )
 
     with TestClient(api.app) as client:
         respuesta = client.post("/generar", json={"texto": "Espaciador de 14 mm"})
@@ -303,7 +319,9 @@ def test_hu14_con_solo_la_api_key_de_deepseek_usa_el_pipeline(tmp_path, monkeypa
     _preparar_registro(monkeypatch, tmp_path)
     monkeypatch.delenv("LLM_BASE_URL", raising=False)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-prueba")
-    monkeypatch.setattr(pipeline, "generar_pieza", lambda texto: _resultado_pieza(tmp_path))
+    monkeypatch.setattr(
+        pipeline, "generar_pieza", lambda texto, **kwargs: _resultado_pieza(tmp_path)
+    )
 
     with TestClient(api.app) as client:
         respuesta = client.post("/generar", json={"texto": "Espaciador de 14 mm"})
@@ -333,7 +351,7 @@ def test_generar_traduce_errores_del_pipeline(tmp_path, monkeypatch, error, codi
         "modelo": pipeline.ModeloNoDisponible("timeout"),
     }
 
-    def fallar(texto):
+    def fallar(texto, **kwargs):
         raise errores[error]
 
     ruta = _preparar_registro(monkeypatch, tmp_path)
