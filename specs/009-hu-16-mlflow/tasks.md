@@ -6,52 +6,58 @@
 
 ## 1. Módulo de seguimiento
 
-- [ ] `uv add mlflow-skinny` y verificar que `uv.lock` queda actualizado.
-- [ ] Crear `src/m2_cad/seguimiento.py` con `iniciar_corrida`, `registrar_params`,
+- [x] `uv add mlflow-skinny` y verificar que `uv.lock` queda actualizado.
+- [x] Crear `src/m2_cad/seguimiento.py` con `iniciar_corrida`, `registrar_params`,
       `registrar_metricas`, `registrar_tags`, `registrar_artefactos` y `finalizar`.
-- [ ] Implementar el modo no-op para `MLFLOW_TRACKING_ENABLED=0` y para URI inválida.
-- [ ] Reutilizar `_sanitizar` de `registro.py` en todo texto registrado (AC5).
-- [ ] Escribir pruebas del módulo contra `tmp_path/mlruns` (sin red).
+- [x] Implementar el modo no-op para `MLFLOW_TRACKING_ENABLED=0` y para URI inválida.
+- [x] Reutilizar `_sanitizar` de `registro.py` en todo texto registrado (AC5).
+- [x] Sanitizar también los artefactos: `programa.json` pasa por `_sanitizar` antes de
+      escribirse (AC5, hueco detectado en la validación externa).
+- [x] Escribir pruebas del módulo contra `tmp_path/mlruns` (sin red).
 
 ## 2. Instrumentación del pipeline y la API (AC2, AC3)
 
-- [ ] Añadir contexto de seguimiento opcional a `pipeline.generar_pieza` sin cambiar su
+- [x] Añadir contexto de seguimiento opcional a `pipeline.generar_pieza` sin cambiar su
       firma pública usada por las pruebas existentes.
-- [ ] Medir latencia extremo a extremo en `api.procesar_con_pipeline`.
-- [ ] Registrar `programa.json`, `step`, `glb` y `bom_csv` desde `outputs/<uuid>/`.
-- [ ] Cerrar con `estado=entregada` en éxito, `declinada` con `motivo_declinacion`, y
+- [x] Medir latencia extremo a extremo en `api.procesar_con_pipeline`.
+- [x] Registrar `programa.json`, `step`, `glb` y `bom_csv` desde `outputs/<uuid>/`.
+- [x] Cerrar con `estado=entregada` en éxito, `declinada` con `motivo_declinacion`, y
       `error` con la clase de la excepción.
-- [ ] Garantizar que ninguna corrida queda en `RUNNING` (prueba explícita).
+- [x] Garantizar que ninguna corrida queda en `RUNNING` (prueba explícita).
 
 ## 3. Banco comparativo (AC4, AC7)
 
-- [ ] Registrar la versión de modelo servida (`deepseek-v4-pro`, GGUF heredado) como
+- [x] Registrar la versión de modelo servida (`deepseek-v4-pro`, GGUF heredado) como
       parámetro y versión de modelo.
-- [ ] Abrir corrida padre por modelo en `m2-cad-banco` con los precios de entrada/salida.
-- [ ] Registrar una corrida hija por caso con `acierto`, `dsl_check_ok` y
+- [x] Registrar esa versión también en la ruta de generación (`/generar`) y dejar el tag
+      `modelo_registrado` en la corrida (AC7).
+- [x] Abrir corrida padre por modelo en `m2-cad-banco` con los precios de entrada/salida.
+- [x] Registrar una corrida hija por caso con `acierto`, `dsl_check_ok` y
       `error_relativo_pct`.
-- [ ] Volcar el resumen de `resumir` como métricas de la corrida padre.
-- [ ] Eliminar el marcador `version="desconocida"` del registro (AC7).
+- [x] Volcar el resumen de `resumir` como métricas de la corrida padre.
+- [x] Eliminar el marcador `version="desconocida"` del registro (AC7).
 
 ## 4. Degradación segura (AC6)
 
-- [ ] Capturar excepciones del cliente MLflow y emitir advertencia, nunca propagar.
-- [ ] Prueba con URI inalcanzable: la generación concluye igual.
-- [ ] Medir sobrecarga con backend local y documentar el valor obtenido (≤ 50 ms p95).
+- [x] Capturar excepciones del cliente MLflow y emitir advertencia, nunca propagar.
+- [x] Prueba con URI inalcanzable: la generación concluye igual.
+- [x] Medir sobrecarga con backend local y documentar el valor obtenido (≤ 50 ms p95).
+- [x] Gate automatizado de sobrecarga: 10 muestras y p95 ≤ 50 ms en
+      `test_sobrecarga_del_seguimiento_local_es_menor_a_50_ms`.
 
 ## 5. Despliegue (AC1)
 
-- [ ] Añadir servicio `mlflow` a `docker-compose.yml` con imagen fija y volumen `/mlflow`.
-- [ ] Conectar `m2-cad` con `MLFLOW_TRACKING_URI=http://mlflow:5000`.
-- [ ] Añadir objetivo `make mlflow` al Makefile.
-- [ ] Publicar el puerto solo en `127.0.0.1:5000`.
-- [ ] Ignorar `mlruns/`, `mlflow.db` y los artefactos volcados en `.gitignore`.
-- [ ] Verificar `docker compose config --quiet` y `curl -I http://127.0.0.1:5000`.
+- [x] Añadir servicio `mlflow` a `docker-compose.yml` con imagen fija y volumen `/mlflow`.
+- [x] Conectar `m2-cad` con `MLFLOW_TRACKING_URI=http://mlflow:5000`.
+- [x] Añadir objetivo `make mlflow` al Makefile.
+- [x] Publicar el puerto solo en `127.0.0.1:5000`.
+- [x] Ignorar `mlruns/`, `mlflow.db` y los artefactos volcados en `.gitignore`.
+- [x] Verificar `docker compose config --quiet` y `curl -I http://127.0.0.1:5000`.
 
 ## 6. Documentación
 
-- [ ] Documentar las variables nuevas en el README y en `.env.example`.
-- [ ] Actualizar `CONSTITUTION.md` en el mismo commit: §0 estado, §3 stack, §4 estructura
+- [x] Documentar las variables nuevas en el README y en `.env.example`.
+- [x] Actualizar `CONSTITUTION.md` en el mismo commit: §0 estado, §3 stack, §4 estructura
       (módulo `seguimiento.py`), §9 historial de decisiones.
 - [ ] Crear `evidence.md` con las capturas de las dos corridas comparadas.
 

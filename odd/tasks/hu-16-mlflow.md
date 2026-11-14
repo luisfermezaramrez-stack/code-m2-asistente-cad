@@ -1,0 +1,29 @@
+# HU-16 — Seguimiento de experimentos con MLflow (feature/hu-16-mlflow, issue #45)
+
+Fuente de requisitos: `specs/009-hu-16-mlflow/spec.md` (AC1–AC8, plan en `plan.md`).
+
+## Specs
+
+- **S1 (AC1)** — «`docker compose up` levanta un servicio `mlflow` con la UI accesible en `http://127.0.0.1:5000`, backend `sqlite:///mlflow.db` y los artefactos en un volumen persistente. Se puede levantar solo con `make mlflow`. Sin GPU ni red externa.»
+- **S2 (AC2)** — «Cada solicitud procesada crea exactamente **una** corrida en el experimento `m2-cad-generacion`» con **params**: `modelo`, `version_modelo`, `familia`, `temperatura`; **metrics**: `latencia_ms`, `tokens_entrada`, `tokens_salida`, `costo_usd`, `verificacion_ok` (0/1); **tags**: `solicitud_id`, `estado` (`entregada` | `declinada` | `error`); **artifacts**: `programa.json` siempre; `step`, `glb` y `bom_csv` cuando la pieza se construye.
+- **S3 (AC3)** — «Una pieza declinada cierra su corrida con `estado=declinada` y el motivo en el tag `motivo_declinacion`. Un fallo técnico la cierra con `estado=error` y la clase de la excepción en el tag `error`. Ninguna corrida queda en `RUNNING` al responder la solicitud.»
+- **S4 (AC4)** — «`make bench` abre una corrida padre por modelo y una corrida hija por caso, con `acierto` (0/1), `dsl_check_ok` (0/1) y `error_relativo_pct`. El resumen del banco —acierto, latencia media, tokens y costo— queda como métricas de la corrida padre, de modo que dos modelos se comparan en la UI de MLflow sin abrir el CSV.»
+- **S5 (AC5)** — «Todo texto que se registre como parámetro, tag o artefacto pasa por la misma sanitización de `src/m2_cad/registro.py`. Ninguna corrida contiene correos ni nombres declarados por el usuario; se verifica con el mismo corpus del AC4 de HU-06.»
+- **S6 (AC6)** — «Si el servidor de MLflow no responde o si `MLFLOW_TRACKING_ENABLED=0`, la generación concluye igual y el fallo del seguimiento se emite como advertencia en el log. No hay reintentos bloqueantes ni excepción propagada al usuario, y la sobrecarga del seguimiento es ≤ 50 ms p95 con backend local.»
+- **S7 (AC7)** — «Cada configuración servida (`deepseek-v4-pro` y, en la línea base heredada, `gemma-4-12b-constraintkit` Q6_K) se registra como versión de modelo con sus parámetros, y cada corrida queda ligada a esa versión. Desaparece el marcador `version="desconocida"` del registro.»
+- **S8 (AC8)** — «Las pruebas corren **offline** contra un file store temporal (`tmp_path/mlruns`), sin red ni GPU, y la cobertura de `src/m2_cad` sigue siendo ≥ 70 %. `mlruns/` y `mlflow.db` quedan en `.gitignore`, las variables nuevas se documentan en el README, y `specs/009-hu-16-mlflow/evidence.md` muestra la UI con dos corridas comparadas.»
+
+## Tasks
+
+- T1 — S6, S8: dependencia `mlflow-skinny` por `uv add`; módulo `src/m2_cad/seguimiento.py` (contexto de corrida, params/métricas/tags/artefactos, no-op, degradación con advertencia) + sanitización de S5; pruebas offline contra `tmp_path/mlruns`. Route: inline-first, writer if heavy. Commit: unit 1.
+- T2 — S2, S3: instrumentación de `api.procesar_con_pipeline` y `pipeline.generar_pieza` (latencia, tokens, costo, estado, motivo, error, artefactos desde `outputs/<uuid>/`) + pruebas de corrida entregada/declinada/error y ninguna en RUNNING. Route: inline. Commit: unit 2.
+- T3 — S4, S7: corrida padre/hija en `banco.py`, métricas del resumen, versión de modelo registrada y fin de `version="desconocida"` + pruebas. Route: inline. Commit: unit 3.
+- T4 — S1: servicio `mlflow` en `docker-compose.yml`, volume, `make mlflow`, `.gitignore`, `.env.example`, README. Route: inline. Commit: unit 4.
+- T5 — S8: `CONSTITUTION.md` (§0, §3, §4, §9), `evidence.md`, `make check`/`make cov`, verificación de AC5 con el corpus de HU-06. Route: inline + verify. Commit: unit 5 (cierre).
+
+## Log
+
+- L1 — Pedido del usuario (sesión previa, recuperado de Engram): «Agregar la HU de implementación de MLflow en M2 Asistente CAD, asignada a Luis Meza, y dejarla commiteada y revisada»; specs creadas en `specs/009-hu-16-mlflow/` y commit `19908d9`.
+- L2 — «continuemos»: retomar la implementación de HU-16 en la rama `feature/hu-16-mlflow`.
+- L3 — 2026-11-13, validación externa: «arreglalo». S3 fallaba: una excepción no HTTP en `/generar` (o una interrupción del banco) dejaba la corrida en `RUNNING` y, por la pila thread-local de MLflow 3.18, el hilo no podía abrir la corrida de la solicitud siguiente. Arreglo: `except BaseException` que cierra con `estado=error` y la clase en `api.generar` y `banco.main`. RED→GREEN con `test_excepcion_inesperada_cierra_la_corrida_y_no_bloquea_la_siguiente` y `test_banco_interrumpido_no_deja_la_corrida_padre_en_running`; `make check` 229 passed. Pendientes de la validación: S5 (artefactos sin sanitizar), S6 (sin medición p95), S7 en `/generar`, S1/S8 (`.env.example`, captura UI).
+- L4 — 2026-11-13, cierre de los gaps que validó w3:t2: **S5** `programa.json` pasa ahora por `_sanitizar` de `registro.py` antes de escribirse (RED→GREEN con `test_programa_json_escrito_pasa_por_la_sanitizacion`); **S7** `/generar` llama `seguimiento.registrar_version_modelo` y deja el tag `modelo_registrado` (cache por `(uri, modelo, versión)` en `seguimiento.py` para no pagar la búsqueda en cada solicitud), y el banco padre también lo registra; **S6** gate automatizado `test_sobrecarga_del_seguimiento_local_es_menor_a_50_ms` (10 muestras, p95 ≤ 50 ms). Pendientes que siguen abiertos: `.env.example` (bloqueado por la política de rutas) y la captura de UI + bench de dos modelos reales (gastan tokens).
