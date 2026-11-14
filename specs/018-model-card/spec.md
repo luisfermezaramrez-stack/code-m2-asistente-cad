@@ -1,7 +1,7 @@
 # SPEC-018 — Model Card del modelo servido
 
 - **ID**: SPEC-018
-- **Historia**: pendiente de crear en el tablero (etiqueta `documentation`)
+- **Historia**: #59 (HU-17)
 - **Responsable**: Luis Fernando Meza
 - **Rama**: `docs/model-card`
 - **Estado**: Implementada, PR pendiente
