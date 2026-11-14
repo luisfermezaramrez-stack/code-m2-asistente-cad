@@ -95,7 +95,7 @@ licencia.
     ├── tests/               test_dataset.py · test_pipeline.py · test_banco.py ·
     │                        test_api.py · test_registro.py · test_sse.py · test_web.py
     ├── data/test_cases.csv  banco de 40 solicitudes
-    ├── specs/               especificaciones Spec Kit (001–007): spec · plan · tasks
+    ├── specs/               especificaciones SDD (001–017, índice en specs/README.md)
     ├── scripts/             fetch-model · verify-serve · vendor · cloud (Lambda/Vast.ai)
     ├── docs/                arquitectura.{html,json} y documentación
     ├── Dockerfile · docker-compose.yml · docker-compose.gemma.yml ·
