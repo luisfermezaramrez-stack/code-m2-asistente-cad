@@ -28,6 +28,7 @@ construirlo.
 - [Instalación y uso](#instalación-y-uso)
 - [Entorno en la nube (Lambda)](#entorno-en-la-nube-lambda)
 - [Metas (objetivos 1–4)](#metas-objetivos-14)
+- [Informe final](docs/informe-final.md)
 - [Flujo de ramas e integración continua](#flujo-de-ramas-e-integración-continua)
 - [Contribución](#contribución)
 - [Licencias](#licencias)
@@ -330,6 +331,9 @@ construye el contenedor del autor y ejecuta su suite dentro.
 | Latencia p90 (solicitud → STEP) | ≤ 60 s |
 | Autonomía de usuarios (tareas sin ayuda) | ≥ 7/9 |
 | Reproducibilidad | 1 comando, CI en verde |
+
+El [informe final](docs/informe-final.md) consolida la meta, el valor medido, el
+estado y la evidencia de cada objetivo (HU-13).
 
 ## Flujo de ramas e integración continua
 
