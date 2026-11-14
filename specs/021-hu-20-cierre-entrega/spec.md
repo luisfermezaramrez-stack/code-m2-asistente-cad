@@ -6,7 +6,7 @@
 - **Responsable**: Luis Fernando Meza
 - **Rama**: `docs/hu-20-cierre-entrega` (spec); la promoción se hace con una PR
   `develop → main`
-- **Estado**: Especificada, pendiente de implementación
+- **Estado**: Implementada (PR #75 y etiqueta `v1.0`, 2026-11-14)
 - **Depende de**: SPEC-022 (HU-21, #73) — informe y trazabilidad de la HU-13 actualizados
 - **Relacionada**: SPEC-017 (HU-13, #13)
 - **Plan**: [`plan.md`](./plan.md) · **Tareas**: [`tasks.md`](./tasks.md)

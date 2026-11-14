@@ -72,11 +72,12 @@ refactor de este informe. Conteo sobre los 22 ítems del
 
 | Issue | Historia | Causa de la brecha |
 | --- | --- | --- |
-| [#73](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/73) | HU-21 · Refactor del informe final y la trazabilidad de la HU-13 | Esta actualización; se cierra al fusionar su PR |
+| [#72](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/72) | HU-20 · Publicación de la entrega en main con la etiqueta v1.0 | Se cierra al fusionar la PR que registra la etiqueta |
 
-La etiqueta `v1.0` y la promoción a `main` (AC4 y AC5 de la HU-13) se gestionan en la
-HU-20 ([#72](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/72));
-a la fecha de esta actualización la etiqueta **todavía no existe** en el remoto.
+La promoción a `main` y la etiqueta `v1.0` (AC4 y AC5 de la HU-13) se completaron en la
+HU-20 ([#72](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/72)): PR [#75](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/75) (`develop → main`) fusionada el
+2026-11-14 y etiqueta anotada [`v1.0`](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/releases/tag/v1.0) publicada sobre el commit
+`0caa8ee` de `main`.
 
 Gaps técnicos documentados en `specs/*/tasks.md` (tasks sin marcar con su causa):
 
@@ -101,5 +102,5 @@ Gaps técnicos documentados en `specs/*/tasks.md` (tasks sin marcar con su causa
 
 Comando de despliegue: `docker compose up --build -d` (UI en `http://localhost:8000`,
 `/health` y MLflow en `127.0.0.1:5000`). Evaluación del banco: `make bench-report`
-(gasta tokens). Etiqueta `v1.0`: se creará sobre `main` tras promover este informe (HU-20,
+(gasta tokens). Versión entregada: etiqueta anotada `v1.0` sobre `main` (`git checkout v1.0`; HU-20,
 [#72](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/72)).
