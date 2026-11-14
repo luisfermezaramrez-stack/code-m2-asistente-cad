@@ -21,7 +21,7 @@
 | **Licencia** | MIT (código propio); ver §12 para terceros |
 | **Rama de integración** | `develop` (toda rama de trabajo sale de aquí y vuelve por PR) |
 | **Rama de entregas** | `main` (solo recibe entregas) |
-| **Estado** | En construcción 🚧 — HU-01, 03, 04, 06, 08, 09 y 14 implementadas; HU-16 (seguimiento MLflow) implementada en `feature/hu-16-mlflow`; 05, 07, 10–13 y 15 pendientes |
+| **Estado** | Entregada ✅ — `v1.0` publicada en `main` (`0caa8ee`, 2026-11-14); HU-01 a HU-21 cerradas (HU-03 retirada por HU-14 y HU-08 reemplazada por HU-15). Refactors posteriores entran por `develop` |
 
 ## 1. Propósito y no-propósito
 
@@ -114,7 +114,7 @@ code-m2-asistente-cad/
 │   └── registro.csv            # registro de solicitudes (ignorado en git)
 ├── outputs/                    # entregables por solicitud (uuid/; ignorado en git)
 ├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
-├── specs/                      # especificaciones Spec Kit (001–009): spec, plan, tasks
+├── specs/                      # specs SDD 001–023 (Spec Kit, Retroactiva, Spec-first); índice en specs/README.md
 ├── scripts/                    # fetch-model, verify-serve, vendor, cloud (Lambda/Vast.ai)
 ├── docs/                       # documentación y diagrama de arquitectura
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
@@ -278,6 +278,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-13 | Validación Docker aislada y smoke con modelo simulado, geometría/exportación reales | Evidencia reproducible sin servicios de pago; ver `docs/hu15-integracion-hu14.md` |
 | 2026-11-13 | Seguimiento de experimentos con MLflow (`seguimiento.py`, servicio `mlflow`, `make mlflow`); versión de modelo registrada y fin de `version="desconocida"` (HU-16) | Comparar DeepSeek contra la línea base Gemma sin revisar casos a mano y ligar cada evidencia al modelo que la produjo; el seguimiento es best-effort y nunca bloquea la respuesta |
 | 2026-11-14 | Integrar HU-16 en HU-15: el control de cancelación pasa a `control.py` y `seguimiento.py` queda para MLflow; la ruta SSE abre y cierra su corrida en el hilo del trabajo | Evitar el choque de nombres entre ambas HU y medir también las solicitudes SSE; MLflow guarda la corrida activa por hilo |
+| 2026-11-14 | Refactor de esta CONSTITUTION al estado real tras `v1.0` como historia propia (HU-22, SPEC-023), sin mover la etiqueta | La fuente única de verdad contradecía el tablero y las specs; una etiqueta publicada es inmutable, así que la corrección entra por `develop` |
 
 ## 10. Notas y tareas pendientes
 
@@ -286,10 +287,10 @@ git push -u origin feature/hu-XX-tema
 - [x] HU-16 (seguimiento con MLflow, responsable Luis Meza) implementada en
   `specs/009-hu-16-mlflow/`.
 - [x] Sustituir el marcador `version="desconocida"` del registro por la versión real del modelo servido.
-- [ ] HU-05, 07, 10–13 y 15 pendientes (ver `specs/`).
+- [x] HU-05, 07, 10–13 y 15 cerradas; entrega `v1.0` publicada en `main` (HU-20, ver `specs/`).
 - [x] Inyectar la configuración del modelo en el contenedor `m2-cad` (`DEEPSEEK_API_KEY`, `LLM_MODEL`; HU-14).
 - [ ] Mantener la cobertura ≥ 70 % al añadir módulos.
-- [ ] Regenerar el diagrama de arquitectura (`docs/arquitectura.*`) con Archify: todavía muestra la API Gemini y llama.cpp (HU-14).
+- [x] Regenerar el diagrama de arquitectura (`docs/arquitectura.*`) con Archify sin la API Gemini ni llama.cpp (HU-19, PR #69).
 
 ## 11. Configuración local (no trackear)
 
