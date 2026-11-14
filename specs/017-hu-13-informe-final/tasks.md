@@ -23,6 +23,7 @@ Cada tarea se marca `[x]` al cerrarse, con su evidencia.
 - [x] T06 — Enlazar el informe desde el README. · Depende de: T05 · Evidencia: PR #70.
 - [x] T07 — PR hacia `develop` con `Closes #13`, enlace a esta spec y revisión cruzada.
       · Depende de: T06 · Evidencia: PR #70 fusionada.
-- [ ] T08 — Tras promover a `main`, crear y publicar la etiqueta anotada `v1.0`. ·
+- [x] T08 — Tras promover a `main`, crear y publicar la etiqueta anotada `v1.0`. ·
       Hecho cuando: `git tag -l v1.0` la muestra en el remoto. · Depende de: T07
-      · Pendiente: SPEC-021 (HU-20, #72).
+      · Evidencia: SPEC-021 (HU-20, #72), PR #75 fusionada y `git ls-remote --tags
+      origin v1.0` → `0caa8ee` (2026-11-14).

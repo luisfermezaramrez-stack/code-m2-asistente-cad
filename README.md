@@ -191,7 +191,10 @@ artefactos paso a paso), así dos modelos se comparan en la UI sin revisar casos
 ```bash
 make mlflow                         # solo el servidor (UI en http://127.0.0.1:5000)
 docker compose up --build           # m2-cad apunta a http://mlflow:5000
-make bench IDS=HU02-P01,HU02-P06,HU02-P11,HU02-P21,HU02-P26 --precio-entrada 0.1 --precio-salida 0.4
+# El banco corre en el host: sin MLFLOW_TRACKING_URI escribe en ./mlruns y no aparece en la UI.
+# Los precios (USD por 1M tokens) solo se leen de las opciones; make bench no las reenvía.
+MLFLOW_TRACKING_URI=http://127.0.0.1:5000 uv run python -m m2_cad.banco \
+  --ids HU02-P01,HU02-P06,HU02-P11,HU02-P21,HU02-P26 --precio-entrada 0.1 --precio-salida 0.4
 ```
 
 - `m2-cad-generacion`: una corrida por solicitud con `modelo`, `version_modelo`,
