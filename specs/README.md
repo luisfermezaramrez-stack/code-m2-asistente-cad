@@ -37,3 +37,4 @@ Cada spec se vincula a su historia del tablero y a la PR que la implementa.
 | [018](018-model-card/) | HU-17 · Model Card del modelo servido | #59 | #60 | Spec-first | Fusionada |
 | [019](019-visor-3d-contraste/) | HU-18 · Contraste del fondo del visor 3D (refactor) | #63 | — | Spec-first | En revisión |
 | [020](020-diagrama-arquitectura/) | HU-19 · Diagrama de arquitectura actualizado y enlace al tablero (refactor) | #68 | — | Spec-first | En revisión |
+| [021](021-hu-20-cierre-entrega/) | HU-20 · Cierre de la entrega: informe final actualizado y `v1.0` | #72 | — | Spec-first | Pendiente |
