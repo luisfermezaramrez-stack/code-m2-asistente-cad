@@ -2,7 +2,7 @@
 
 - **ID**: SPEC-020
 - **Tipo**: refactor (documentación viva; sin cambio de comportamiento)
-- **Historia**: pendiente de crear en el tablero (etiqueta `documentation`)
+- **Historia**: #68 (HU-19)
 - **Responsable**: Luis Fernando Meza
 - **Rama**: `docs/arquitectura-archify`
 - **Estado**: Implementada, PR pendiente
