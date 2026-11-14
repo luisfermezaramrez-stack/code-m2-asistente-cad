@@ -3,8 +3,8 @@
 - **ID**: SPEC-016
 - **Historia**: #7 · 2 SP · Etiquetas: Testing, ML · CPM: I (días 8–9)
 - **Responsable**: Carlos Eduardo Trujillo (I3 · Pruebas y documentación)
-- **Rama**: `feature/hu-07-corrida-banco`
-- **Estado**: Especificada, pendiente de implementación
+- **Rama**: `feature/hu-07-evaluacion-banco`
+- **Estado**: Implementada y evaluada; pendiente de revisión humana
 - **Plan**: [`plan.md`](./plan.md) · **Tareas**: [`tasks.md`](./tasks.md)
 
 ## Problema y contexto

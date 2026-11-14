@@ -170,7 +170,12 @@ make bench IDS=HU02-P01,HU02-P06,HU02-P11,HU02-P21,HU02-P26   # AC6: 5 solicitud
 make bench                                                      # AC7: las 40
 ```
 
-Deja en `outputs/banco/` un CSV por caso y un resumen JSON con acierto, tasa de
+HU-07 añade `make bench-report`: evaluación HTTP de las 40 solicitudes con reporte
+por familia y enlaces de trazabilidad, sin cambiar `make bench`. Ambos consumen
+tokens si apuntan al modelo real. La [evidencia auditada HU-07](docs/hu07/README.md)
+registra 30/30 conformes y 10/10 declinaciones; la revisión humana de forma sigue pendiente.
+
+`make bench` deja en `outputs/banco/` un CSV por caso y un resumen JSON con acierto, tasa de
 `/dsl/check`, latencia media y tokens. Con `--precio-entrada` y `--precio-salida`
 (USD por millón de tokens) también calcula el costo estimado.
 

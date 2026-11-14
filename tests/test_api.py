@@ -20,6 +20,14 @@ def _seguimiento_apagado():
     api.app.dependency_overrides.pop(api.obtener_configuracion_seguimiento, None)
 
 
+@pytest.fixture(autouse=True)
+def aislar_registros_api(tmp_path, monkeypatch):
+    """Ninguna respuesta simulada se añade al registro de una corrida real."""
+    from m2_cad import api
+
+    monkeypatch.setattr(api, "RUTA_DEFAULT", tmp_path / "registro.csv")
+
+
 def test_modulo_api_importable():
     from m2_cad import api
 
@@ -307,6 +315,7 @@ def test_generar_usa_pipeline_cuando_el_modelo_esta_configurado(tmp_path, monkey
     filas = leer_registro_csv(ruta)
     assert "tiempo_construccion_s" in filas[0]["resultado"]
     assert filas[0]["traduccion"] == "no aplica"
+    assert respuesta.headers["X-Registro-ID"] == filas[0]["id"]
 
 
 def test_hu14_con_solo_la_api_key_de_deepseek_usa_el_pipeline(tmp_path, monkeypatch):
@@ -365,3 +374,94 @@ def test_generar_traduce_errores_del_pipeline(tmp_path, monkeypatch, error, codi
     fila = leer_registro_csv(ruta)[0]
     assert fila["error"] != "ninguno"
     assert fila["traduccion"] == "no aplica"
+    assert (respuesta.headers.get("X-Resultado-Tipo") == "declinacion_explicita") == (
+        error == "declinada"
+    )
+
+
+def test_correlacion_version_consulta_y_step(tmp_path, monkeypatch):
+    """La correlación enlaza una fila concreta y conserva el cuerpo anterior."""
+    import uuid
+
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api
+
+    monkeypatch.chdir(tmp_path)
+    step = tmp_path / "outputs" / "pieza.step"
+    step.parent.mkdir()
+    step.write_text("STEP SIMULADO", encoding="utf-8")
+    identificador = uuid.uuid4().hex
+    monkeypatch.setenv("LLM_MODEL_VERSION", "modelo-revision-simulada")
+    cuerpo = {
+        "step": str(step),
+    }
+    api.app.dependency_overrides[api.obtener_procesador] = lambda: (
+        lambda texto, medicion=None: cuerpo
+    )
+    try:
+        with TestClient(api.app) as client:
+            respuesta = client.post(
+                "/generar", json={"texto": "placa"}, headers={"X-Request-ID": identificador}
+            )
+            assert respuesta.json() == cuerpo
+            assert respuesta.headers["X-Registro-ID"] == identificador
+            fila = client.get(respuesta.headers["X-Registro-URL"]).json()
+            assert fila["id"] == identificador
+            assert fila["traduccion"] == "no aplica"
+            assert fila["version"] == "modelo-revision-simulada"
+            assert client.get(respuesta.headers["X-Step-URL"]).text == "STEP SIMULADO"
+            assert client.get("/registros/inexistente").status_code == 404
+            assert len(leer_registro_csv(api.obtener_ruta_registro())) == 1
+    finally:
+        api.app.dependency_overrides.pop(api.obtener_procesador, None)
+
+
+def test_fallo_inesperado_y_contexto_quedan_registrados(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api
+
+    ruta = _preparar_registro(monkeypatch, tmp_path)
+    monkeypatch.setenv("LLM_MODEL_VERSION", "modelo-simulado")
+
+    def fallar(texto, medicion=None):
+        error = RuntimeError("exportación falló")
+        raise error from ValueError("causa inferior sin metadatos")
+
+    api.app.dependency_overrides[api.obtener_procesador] = lambda: fallar
+    try:
+        with TestClient(api.app) as client:
+            respuesta = client.post("/generar", json={"texto": "placa"})
+            assert respuesta.status_code == 500
+            assert respuesta.json() == {"detail": "Fallo técnico del pipeline."}
+            fila = client.get(respuesta.headers["X-Registro-URL"]).json()
+    finally:
+        api.app.dependency_overrides.pop(api.obtener_procesador, None)
+    assert len(leer_registro_csv(ruta)) == 1
+    assert fila["traduccion"] == "no aplica"
+    assert fila["version"] == "modelo-simulado"
+    assert fila["error"] == "RuntimeError"
+
+
+def test_entrada_invalida_tiene_registro_y_step_fuera_de_outputs_no_se_expone(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api
+
+    with TestClient(api.app) as client:
+        respuesta = client.post("/generar", json={"texto": " "})
+        assert respuesta.status_code == 422
+        assert "X-Resultado-Tipo" not in respuesta.headers
+        assert client.get(respuesta.headers["X-Registro-URL"]).status_code == 200
+        assert client.get(respuesta.headers["X-Registro-URL"] + "/step").status_code == 404
+        secreto = tmp_path / "fuera.step"
+        secreto.write_text("no exponer", encoding="utf-8")
+        api.app.dependency_overrides[api.obtener_procesador] = lambda: (
+            lambda t, medicion=None: {"step": str(secreto)}
+        )
+        try:
+            respuesta = client.post("/generar", json={"texto": "placa"})
+            assert client.get(respuesta.headers["X-Step-URL"]).status_code == 404
+        finally:
+            api.app.dependency_overrides.pop(api.obtener_procesador, None)

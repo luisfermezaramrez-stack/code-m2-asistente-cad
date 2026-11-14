@@ -398,6 +398,61 @@ def test_hu14_tiempo_de_espera_en_espanol(monkeypatch):
         pipeline.planificar_con_llm("un espaciador")
 
 
+def test_identidad_servida_y_contexto_de_declinacion(monkeypatch, tmp_path):
+    """La versión es la informada por el servidor simulado, no una métrica real."""
+    monkeypatch.setenv("LLM_BASE_URL", "http://simulado")
+    monkeypatch.setenv("LLM_MODEL", "modelo-solicitado")
+    monkeypatch.setattr(
+        pipeline.llm,
+        "chat",
+        lambda *a, **k: {
+            "model": "modelo-servido-revision",
+            "choices": [{"message": {"content": '{"unsupported":"fuera de alcance"}'}}],
+        },
+    )
+    with pytest.raises(pipeline.PiezaDeclinada) as exc:
+        pipeline.generar_pieza(
+            "solicitud",
+            directorio=tmp_path,
+        )
+    assert not hasattr(exc.value, "traduccion")
+    assert exc.value.version_modelo == "modelo-servido-revision"
+    assert exc.value.programa_json.is_file()
+    assert list(tmp_path.rglob("*.step")) == []
+    assert list(tmp_path.rglob("*.glb")) == []
+
+
+def test_fallo_planificacion_conserva_contexto_disponible(monkeypatch):
+    monkeypatch.setenv("MODEL_PLANNER", "modelo-configurado")
+
+    def fallar(texto):
+        assert texto == "solicitud en español"
+        raise RuntimeError("planificación no disponible")
+
+    with pytest.raises(RuntimeError) as exc:
+        pipeline.generar_pieza("solicitud en español", planificar=fallar)
+    assert not hasattr(exc.value, "traduccion")
+    assert exc.value.version_modelo == "modelo-configurado"
+
+
+@pytest.mark.parametrize("contenido", ["salida sin JSON", None])
+def test_generacion_invalida_conserva_version_reportada(monkeypatch, tmp_path, contenido):
+    monkeypatch.setenv("LLM_BASE_URL", "http://simulado")
+    monkeypatch.setattr(
+        pipeline.llm,
+        "chat",
+        lambda *a, **k: {
+            "model": "revision-servida",
+            "choices": [{"message": {"content": contenido}}],
+        },
+    )
+    with pytest.raises(pipeline.ErrorGeneracion) as exc:
+        pipeline.generar_pieza("placa", directorio=tmp_path)
+    assert exc.value.version_modelo == "revision-servida"
+    assert not hasattr(exc.value, "traduccion")
+    assert list(tmp_path.iterdir()) == []
+
+
 @pytest.mark.parametrize(
     ("salida", "esperado"),
     [
