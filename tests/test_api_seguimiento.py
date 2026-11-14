@@ -97,6 +97,13 @@ def test_solicitud_entregada_registra_params_metricas_tags_y_artefactos(tmp_path
     assert corrida.data.metrics["latencia_ms"] > 0
     assert corrida.data.tags["estado"] == "entregada"
     assert corrida.data.tags["solicitud_id"]
+    import csv
+
+    with (tmp_path / "registro.csv").open(newline="", encoding="utf-8") as archivo:
+        filas = list(csv.DictReader(archivo))
+    assert len(filas) == 1
+    assert filas[0]["id"] == respuesta.headers["X-Registro-ID"]
+    assert filas[0]["id"] == corrida.data.tags["solicitud_id"]
 
     from mlflow.tracking import MlflowClient
 
@@ -289,6 +296,15 @@ def test_solicitud_sse_entregada_registra_su_corrida(tmp_path, monkeypatch):
     assert corrida.data.params["familia"] == "spacer"
     assert corrida.data.metrics["tokens_entrada"] == pytest.approx(90.0)
     assert corrida.data.metrics["verificacion_ok"] == pytest.approx(1.0)
+
+    import csv
+
+    with (tmp_path / "registro.csv").open(newline="", encoding="utf-8") as archivo:
+        filas = list(csv.DictReader(archivo))
+    assert len(filas) == 1
+    assert filas[0]["id"] == respuesta.headers["X-Solicitud-ID"]
+    assert filas[0]["id"] == respuesta.headers["X-Registro-ID"]
+    assert filas[0]["id"] == corrida.data.tags["solicitud_id"]
 
 
 def test_solicitud_sse_declinada_cierra_la_corrida_con_su_motivo(tmp_path, monkeypatch):

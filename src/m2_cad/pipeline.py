@@ -136,6 +136,12 @@ def _declinar(explicacion: str, detalle: str | None = None) -> PiezaDeclinada:
     )
 
 
+class ProgramaLLM(dict):
+    """Programa compatible con dict que conserva la identidad reportada por el servidor."""
+
+    version_modelo: str = "desconocida"
+
+
 @dataclass(frozen=True)
 class ResultadoPieza:
     """Entregables y métricas de una pieza construida (AC4 y AC5)."""
@@ -150,6 +156,7 @@ class ResultadoPieza:
     tiempo_generacion_s: float = 0.0
     familia: str = ""
     programa_json: Path | None = None
+    version_modelo: str = "desconocida"
 
     def a_respuesta(self) -> dict[str, str]:
         """Serializa el resultado para la API (todos los valores como texto)."""
@@ -341,11 +348,22 @@ def _planificador_con_uso(medir_uso: Callable[[dict], None] | None) -> Callable[
 
 def _programa_de(respuesta: dict) -> dict:
     """Extrae el programa del cuerpo de respuesta del proveedor."""
+    version = respuesta.get("model") or llm.planner_model()
     try:
         contenido = respuesta["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
-        raise ErrorGeneracion("Respuesta del modelo sin contenido.") from exc
-    return extraer_programa(contenido)
+        error = ErrorGeneracion("Respuesta del modelo sin contenido.")
+        error.version_modelo = version
+        raise error from exc
+    try:
+        if not isinstance(contenido, str):
+            raise ErrorGeneracion("Respuesta del modelo sin contenido de texto.")
+        programa = ProgramaLLM(extraer_programa(contenido))
+    except Exception as exc:
+        exc.version_modelo = version
+        raise
+    programa.version_modelo = version
+    return programa
 
 
 def _respuesta_modelo(texto: str) -> dict:
@@ -402,7 +420,13 @@ def generar_pieza(
         control.informar("generando")
     if planificar is None:
         planificar = _planificador_con_uso(medir_uso)
-    programa = planificar(texto)
+    try:
+        programa = planificar(texto)
+    except Exception as exc:
+        if not hasattr(exc, "version_modelo"):
+            exc.version_modelo = os.getenv("LLM_MODEL_VERSION") or llm.planner_model()
+        raise
+    version = getattr(programa, "version_modelo", None) or llm.planner_model()
     if control is not None:
         control.comprobar_cancelacion()
     tiempo_generacion = time.perf_counter() - inicio
@@ -420,12 +444,19 @@ def generar_pieza(
         validar_catalogo(programa)
     except PiezaDeclinada as exc:
         exc.programa_json = programa_json
+        exc.version_modelo = version
         raise
 
     if control is not None:
         control.comprobar_cancelacion()
 
-    resultado = construir_pieza(programa, salida)
+    try:
+        resultado = construir_pieza(programa, salida)
+    except Exception as exc:
+        exc.version_modelo = version
+        if isinstance(exc, PiezaDeclinada):
+            exc.programa_json = programa_json
+        raise
     if control is not None:
         control.comprobar_cancelacion()
     return ResultadoPieza(
@@ -439,4 +470,5 @@ def generar_pieza(
         tiempo_generacion_s=tiempo_generacion,
         familia=resultado.familia,
         programa_json=programa_json,
+        version_modelo=version,
     )

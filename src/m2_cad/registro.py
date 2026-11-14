@@ -63,6 +63,8 @@ def registrar(
     error: str | None = None,
     version: str | None = None,
     ruta: Path = RUTA_DEFAULT,
+    *,
+    identificador: str | None = None,
 ) -> dict[str, str]:
     """Registra una solicitud con los 8 campos de la especificación.
 
@@ -70,7 +72,7 @@ def registrar(
     marcador explícito ('ninguno', 'desconocida', '0'), nunca vacíos (AC3).
     """
     fila = {
-        "id": uuid.uuid4().hex,
+        "id": identificador or uuid.uuid4().hex,
         "hora": datetime.now(UTC).isoformat(),
         "texto": _sanitizar(_a_valor_conocido(texto, "sin texto")),
         "traduccion": _sanitizar(_a_valor_conocido(traduccion, "sin traduccion")),
