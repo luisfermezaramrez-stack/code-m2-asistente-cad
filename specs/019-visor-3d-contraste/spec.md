@@ -2,7 +2,7 @@
 
 - **ID**: SPEC-019
 - **Tipo**: refactor (estilo del visor; sin cambio de comportamiento)
-- **Historia**: HU-15 (#39), criterio AC4 — Diseño
+- **Historia**: #63 (HU-18), derivada de HU-15 (#39) AC4 — Diseño
 - **Responsable**: Luis Fernando Meza
 - **Rama**: `refactor/visor-3d-contraste`
 - **Estado**: Implementada, PR pendiente
