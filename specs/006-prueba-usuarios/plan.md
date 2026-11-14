@@ -1,4 +1,4 @@
-# Implementation Plan: Prueba con usuarios externos (HU-11)
+# Implementation Plan: Prueba de uso simulada (HU-11)
 
 **Branch**: `006-prueba-usuarios` | **Date**: 2026-11-03 | **Spec**: `specs/006-prueba-usuarios/spec.md`
 
@@ -6,19 +6,19 @@
 
 ## Summary
 
-Ejecutar la prueba de usabilidad con 3 usuarios externos con experiencia en CAD sobre 3 tareas (placa, escuadra, pieza fuera del catálogo), registrando tiempo, consolidando problemas por gravedad y entregando un informe sin datos personales con consentimiento registrado.
+Simular la prueba de uso con los 3 integrantes del grupo sobre 3 tareas (placa, escuadra, pieza fuera del catálogo), registrando tiempo, consolidando problemas por gravedad y entregando un informe marcado como SIMULADO y sin datos personales.
 
 ## Technical Context
 
 **Language/Version**: N/A (tarea de validación, no de código)
 
-**Primary Dependencies**: producto desplegado (HU-10), interfaz Gradio (HU-08)
+**Primary Dependencies**: producto desplegado (HU-10), interfaz Vue (HU-08)
 
 **Storage**: informe en `docs/` (entregable); consentimiento y datos de prueba sin datos personales
 
 **Testing**: prueba de usabilidad con usuarios reales (objetivo 4)
 
-**Target Platform**: navegador (interfaz Gradio) + videollamada opcional
+**Target Platform**: navegador (interfaz Vue) + videollamada opcional
 
 **Project Type**: validación de producto
 
