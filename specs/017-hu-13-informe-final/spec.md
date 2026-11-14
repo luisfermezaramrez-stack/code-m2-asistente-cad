@@ -4,7 +4,8 @@
 - **Historia**: #13 · 1 SP · Etiquetas: Testing · CPM: Q (día 15)
 - **Responsable**: compartida (Juan Camilo Pérez, Carlos Eduardo Trujillo, Luis Fernando Meza)
 - **Rama**: `feature/hu-13-informe-final`
-- **Estado**: Especificada, pendiente de implementación
+- **Estado**: Implementada (PR #70); contenido actualizado por SPEC-022 (HU-21, #73);
+  publicación en `main` con `v1.0` en SPEC-021 (HU-20, #72)
 - **Plan**: [`plan.md`](./plan.md) · **Tareas**: [`tasks.md`](./tasks.md)
 
 ## Problema y contexto
@@ -49,7 +50,7 @@ propuesta del M2:* la correspondencia objetivo ↔ indicador es la siguiente.
 | 1 | Construcción conforme (±2 % volumen / caja) | ≥ 26/30 | SPEC-016 |
 | 2 | Declinación correcta | ≥ 8/10 | SPEC-016 |
 | 3 | Latencia p90 (solicitud → STEP) | ≤ 60 s | SPEC-010 |
-| 4 | Autonomía de usuarios (tareas sin ayuda) | ≥ 7/9 | SPEC-006 |
+| 4 | Autonomía de usuarios (tareas sin ayuda) | ≥ 7/9 | SPEC-006 (prueba simulada con los integrantes del grupo) |
 | — | Reproducibilidad | 1 comando, CI en verde | CI de `develop` |
 
 ## Criterios de aceptación

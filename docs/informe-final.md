@@ -13,8 +13,9 @@ auxiliares en piezas preliminares verificadas (STEP/GLB/CSV) o declina con motiv
 En la corrida real del 2026-11-14 con `deepseek-v4-pro`, las 40 solicitudes del
 banco versionado obtuvieron **30/30 construcciones conformes** y **10/10
 declinaciones correctas**, con latencia p90 de **4,497 s** (meta ≤ 60 s) y CI en
-verde sobre `develop`. El único objetivo sin medir es la autonomía de usuarios
-externos (HU-11), por prueba pendiente.
+verde sobre `develop`. La autonomía de usuarios (HU-11) dio **8/9 tareas sin
+ayuda** (meta ≥ 7/9) en una prueba de uso **simulada** con los tres integrantes del
+grupo, no con usuarios externos.
 
 ## Objetivos (metas 1–4 del README)
 
@@ -23,7 +24,7 @@ externos (HU-11), por prueba pendiente.
 | 1 | Construcción conforme (±2 % volumen / caja) | ≥ 26/30 | **30/30** | ✅ Cumplido | [`docs/hu07/banco-real-…/auditoria.md`](hu07/banco-real-20261114T042139Z-85855d97/auditoria.md) |
 | 2 | Declinación correcta | ≥ 8/10 | **10/10** | ✅ Cumplido | [`docs/hu07/banco-real-…/auditoria.md`](hu07/banco-real-20261114T042139Z-85855d97/auditoria.md) |
 | 3 | Latencia p90 (solicitud → STEP) | ≤ 60 s | **4,497 s** (n=40: 30 piezas, 9 declinadas) | ✅ Cumplido | [`specs/010-hu-10-despliegue-local/evidencia/latencia.json`](../specs/010-hu-10-despliegue-local/evidencia/latencia.json) |
-| 4 | Autonomía de usuarios (tareas sin ayuda) | ≥ 7/9 | **No medido** | ⏳ Pendiente | [`specs/006-prueba-usuarios/spec.md`](../specs/006-prueba-usuarios/spec.md) — causa: prueba con 3 usuarios externos aún no ejecutada ([#11](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/11)) |
+| 4 | Autonomía de usuarios (tareas sin ayuda) | ≥ 7/9 | **8/9** (simulado, 3 integrantes del grupo) | ✅ Cumplido (simulado) | [`docs/prueba-usuarios.md`](prueba-usuarios.md) · [`specs/006-prueba-usuarios/spec.md`](../specs/006-prueba-usuarios/spec.md) ([#11](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/11)) |
 | — | Reproducibilidad | 1 comando, CI en verde | `make up` / `docker compose up --build`; CI ✅ | ✅ Cumplido | [CI de `develop`](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/workflows/ci.yml) |
 
 **Correspondencia objetivo ↔ indicador (SPEC-017 T01):** la tabla de
@@ -62,13 +63,20 @@ la corrida real publicada en:
 
 ## Estado del tablero
 
-**16/19 historias en Done.** Brechas abiertas:
+Actualizado el 2026-11-14 por la HU-21 ([#73](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/73)),
+refactor de este informe. Conteo sobre los 22 ítems del
+[tablero](https://github.com/users/luisfermezaramrez-stack/projects/1/views/1)
+(HU-01 a HU-21, más las tarjetas #38 y #61 de HU-14 y HU-16):
+
+**21/22 en Done.** Brecha:
 
 | Issue | Historia | Causa de la brecha |
 | --- | --- | --- |
-| [#11](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/11) | HU-11 · Prueba con 3 usuarios externos | No ejecutada; único objetivo 4 sin medir |
-| [#13](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/13) | HU-13 · Informe final | Esta PR; se cierra al fusionar |
-| [#68](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/68) | HU-19 · Diagrama de arquitectura (Archify) | PR [#69](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/69) fusionada en `develop`, issue aún abierto al cierre de este informe |
+| [#73](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/73) | HU-21 · Refactor del informe final y la trazabilidad de la HU-13 | Esta actualización; se cierra al fusionar su PR |
+
+La etiqueta `v1.0` y la promoción a `main` (AC4 y AC5 de la HU-13) se gestionan en la
+HU-20 ([#72](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/72));
+a la fecha de esta actualización la etiqueta **todavía no existe** en el remoto.
 
 Gaps técnicos documentados en `specs/*/tasks.md` (tasks sin marcar con su causa):
 
@@ -85,7 +93,7 @@ Gaps técnicos documentados en `specs/*/tasks.md` (tasks sin marcar con su causa
 | Recurso | Enlace |
 | --- | --- |
 | Repositorio | <https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad> |
-| Tablero (GitHub Projects del dueño del repo) | <https://github.com/luisfermezaramrez-stack?tab=projects> |
+| Tablero (GitHub Projects) | <https://github.com/users/luisfermezaramrez-stack/projects/1/views/1> |
 | CI de `develop` | <https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/workflows/ci.yml> |
 | Model Card del modelo servido | [`docs/model-card.md`](model-card.md) |
 | Evidencia HU-07 | [`docs/hu07/README.md`](hu07/README.md) |
@@ -93,4 +101,5 @@ Gaps técnicos documentados en `specs/*/tasks.md` (tasks sin marcar con su causa
 
 Comando de despliegue: `docker compose up --build -d` (UI en `http://localhost:8000`,
 `/health` y MLflow en `127.0.0.1:5000`). Evaluación del banco: `make bench-report`
-(gasta tokens). Etiqueta `v1.0`: se creará sobre `main` tras promover este informe (AC4).
+(gasta tokens). Etiqueta `v1.0`: se creará sobre `main` tras promover este informe (HU-20,
+[#72](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/72)).
