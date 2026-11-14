@@ -122,6 +122,7 @@ def test_sse_sin_modelo_informa_validacion_y_error(entorno, monkeypatch):
     eventos = leer_eventos(respuesta.text)
     assert [e["estado"] for e in eventos] == ["validando", "error"]
     assert eventos[-1]["codigo_http"] == 503
+    assert eventos[-1]["motivo"] == "El modelo no está configurado: falta DEEPSEEK_API_KEY."
 
 
 @pytest.mark.parametrize("variable_clave", ["DEEPSEEK_API_KEY", "LLM_API_KEY"])

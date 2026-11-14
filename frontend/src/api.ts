@@ -38,6 +38,8 @@ export function artifactUrl(id: string, format: Format): string { return `${jobU
 
 export function publicMessage(text: unknown, fallback: string): string {
   if (typeof text !== 'string' || !text.trim()) return fallback
+  // Excepción exacta del contrato público: solo el nombre de la variable, nunca su valor.
+  if (text === 'El modelo no está configurado: falta DEEPSEEK_API_KEY.') return text
   // No mostrar URLs, direcciones del modelo, claves o trazas devueltas por servicios.
   if (/https?:|localhost|127\.|(?:\d{1,3}\.){3}\d{1,3}|api[_ -]?key|bearer|traceback|LLM_BASE_URL|GEMINI_API_KEY/i.test(text)) return fallback
   return text.slice(0, 600)

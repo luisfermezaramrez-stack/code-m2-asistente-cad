@@ -52,7 +52,7 @@ async function submit() {
           <details class="settings"><summary>Opciones de espera</summary>
             <label for="timeout">Tiempo máximo de espera (segundos)</label>
             <input id="timeout" v-model.number="timeoutSeconds" type="number" min="5" max="600" step="1" :disabled="busy" aria-describedby="timeout-help">
-            <p id="timeout-help" class="help">De 5 a 600 segundos. Interrumpir la espera no garantiza detener el procesamiento.</p>
+            <p id="timeout-help" class="help">De 5 a 600 segundos. Interrumpir la espera desconecta y solicita cancelación local; consulta el estado para confirmar la detención. No se confirma la detención de servicios remotos.</p>
           </details>
           <div class="actions">
             <button class="primary" type="submit" :disabled="busy">Generar pieza</button>

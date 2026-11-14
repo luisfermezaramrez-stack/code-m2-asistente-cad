@@ -152,6 +152,12 @@ describe('SPA conectada a FastAPI simulado', () => {
     await button('Interrumpir espera').trigger('click'); await flushPromises()
     expect(service.posts[0]?.signal.aborted).toBe(true)
     expect(wrapper.text()).toContain('No se ha confirmado que el procesamiento se detuviera')
+    expect(wrapper.text()).toContain('La desconexión solicita cancelación local')
+    expect(wrapper.text()).toContain('falta confirmar su recepción y detención')
+    expect(wrapper.text()).not.toContain('Procesamiento local detenido')
+    service.current = event('generando', 2, { cancelacion_solicitada: true })
+    await button('Actualizar estado').trigger('click'); await flushPromises()
+    expect(wrapper.text()).toContain('Cancelación solicitada')
     expect(wrapper.text()).not.toContain('Procesamiento local detenido')
     service.current = event('cancelado', 3, { cancelacion_solicitada: true, pipeline_detenido: true })
     await button('Actualizar estado').trigger('click'); await flushPromises()
@@ -161,6 +167,8 @@ describe('SPA conectada a FastAPI simulado', () => {
   it('EOF sin terminal se declara como desconexión y consulta por ID', async () => {
     await start(); await sendStages(); service.close(); await flushPromises()
     expect(wrapper.text()).toContain('Se interrumpió la conexión antes del resultado')
+    expect(wrapper.text()).toContain('La desconexión solicita cancelación local')
+    expect(wrapper.text()).not.toContain('podría continuar en el servidor')
     expect(service.fetch).toHaveBeenCalledWith('/generaciones/job1', expect.objectContaining({ method: 'GET' }))
     expect(wrapper.text()).not.toContain('Pieza verificada')
   })
@@ -172,6 +180,9 @@ describe('SPA conectada a FastAPI simulado', () => {
     await vi.advanceTimersByTimeAsync(5000); await flushPromises()
     expect(service.posts[0]?.signal.aborted).toBe(true)
     expect(wrapper.text()).toContain('Se agotó el tiempo de espera')
+    expect(wrapper.text()).toContain('La desconexión solicita cancelación local')
+    expect(wrapper.text()).not.toContain('podría continuar en el servidor')
+    expect(wrapper.text()).not.toContain('Procesamiento local detenido')
     expect(wrapper.findAll('.steps li')).toHaveLength(0)
   })
 
@@ -190,6 +201,34 @@ describe('SPA conectada a FastAPI simulado', () => {
     expect(wrapper.text()).toContain('No se pudo completar')
     expect(wrapper.text()).not.toMatch(/10\.0\.0\.5|secreto|api_key/)
     expect(wrapper.findAll('a[download]')).toHaveLength(0)
+  })
+
+  it('un corte de red solicita cancelación local sin afirmar recepción ni detención', async () => {
+    await start(); await sendStages()
+    service.posts[0]!.controller.error(new TypeError('Failed to fetch'))
+    await flushPromises()
+    expect(wrapper.text()).toContain('La desconexión solicita cancelación local')
+    expect(wrapper.text()).toContain('falta confirmar su recepción y detención')
+    expect(wrapper.text()).toContain('No se confirma la detención de servicios remotos')
+    expect(wrapper.text()).not.toContain('Procesamiento local detenido')
+    expect(service.fetch).toHaveBeenCalledWith('/generaciones/job1', expect.objectContaining({ method: 'GET' }))
+  })
+
+  it('muestra la configuración ausente en un error terminal SSE sin ofrecer descargas', async () => {
+    await start()
+    service.send(event('validando', 1))
+    service.send(event('error', 2, { motivo: 'El modelo no está configurado: falta DEEPSEEK_API_KEY.', codigo_http: 503 }))
+    await flushPromises()
+    expect(wrapper.text()).toContain('El modelo no está configurado: falta DEEPSEEK_API_KEY.')
+    expect(wrapper.findAll('a[download]')).toHaveLength(0)
+  })
+
+  it('muestra el mismo diagnóstico seguro si llega como error HTTP', async () => {
+    service.postStatus = 503
+    service.postDetail = 'El modelo no está configurado: falta DEEPSEEK_API_KEY.'
+    await start()
+    expect(wrapper.text()).toContain('El modelo no está configurado: falta DEEPSEEK_API_KEY.')
+    expect(wrapper.text()).not.toContain('La desconexión solicita cancelación local')
   })
 
   it('declara falta de progreso si el servicio no devuelve SSE', async () => {

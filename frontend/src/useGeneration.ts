@@ -130,6 +130,7 @@ export function useGeneration() {
     const control = controller()
     streamController = control
     let timedOut = false
+    let streamOpened = false
     const timer = setTimeout(() => { timedOut = true; control.abort() }, timeoutSeconds.value * 1000)
     try {
       const response = await fetch('/generar', {
@@ -152,6 +153,7 @@ export function useGeneration() {
         throw new Error('El servicio no informa progreso para esta solicitud.')
       }
       let sequence = 0
+      streamOpened = true
       let previous: Stage | undefined
       for await (const frame of readSSE(response.body)) {
         if (current !== epoch) break
@@ -171,12 +173,13 @@ export function useGeneration() {
       if (current !== epoch || isFinished()) return
       disconnected.value = true
       message.value = timedOut
-        ? 'Se agotó el tiempo de espera. El procesamiento podría continuar en el servidor.'
+        ? 'Se agotó el tiempo de espera. No se ha confirmado que el procesamiento se detuviera.'
         : control.signal.aborted
           ? 'Se interrumpió la espera. No se ha confirmado que el procesamiento se detuviera.'
           : error instanceof SyntaxError
             ? 'No se pudo interpretar la respuesta del servicio.'
-            : publicMessage(error instanceof Error ? error.message : '', 'Se perdió la conexión. El procesamiento podría continuar en el servidor.')
+            : publicMessage(error instanceof Error ? error.message : '', 'Se perdió la conexión.')
+      if (streamOpened) message.value += ' La desconexión solicita cancelación local al servidor; falta confirmar su recepción y detención en un punto seguro. No se confirma la detención de servicios remotos. Consulta el estado.'
       if (requestId.value) await refresh()
     } finally {
       clearTimeout(timer)
