@@ -8,6 +8,12 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
+    # TypeScript 7 (reescritura en Go) ya no expone typescript/lib/tsc, que vue-tsc
+    # necesita para el chequeo de tipos de Vue (vue-tsc 3.3.14 falla con
+    # ERR_PACKAGE_PATH_NOT_EXPORTED; ver PR #51). Quitar cuando vue-tsc soporte TS 7.
+    ignore:
+      - dependency-name: "typescript"
+        versions: [">=7"]
     labels: [chore, infra]
     commit-message:
       prefix: "chore"
