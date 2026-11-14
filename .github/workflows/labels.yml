@@ -24,6 +24,6 @@ jobs:
       - name: Apply labels
         uses: crazy-max/ghaction-github-labeler@v6
         with:
-          yaml: .github/labels.yml
+          yaml-file: .github/labels.yml
           # No borra etiquetas que no estén en el archivo (evita sorpresas).
           skip-delete: true
