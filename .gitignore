@@ -83,3 +83,8 @@ frontend/coverage/
 mlruns/
 mlflow.db
 mlflow-artifacts/
+# HU-07 (SPEC-016 RNF-2): conservar evidencia cruda local; versionar solo Markdown.
+docs/hu07/smoke/
+docs/hu07/banco-real-*/**
+!docs/hu07/banco-real-*/**/
+!docs/hu07/banco-real-*/**/*.md
