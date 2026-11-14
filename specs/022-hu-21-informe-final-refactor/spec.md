@@ -5,7 +5,7 @@
 - **Historia**: #73 (HU-21) · 2 SP · Etiquetas: documentation, refactor · Hito: M3
 - **Responsable**: Luis Fernando Meza
 - **Rama**: `docs/hu-21-informe-final-refactor`
-- **Estado**: Especificada, pendiente de implementación
+- **Estado**: Implementada, PR pendiente de revisión
 - **Relacionada**: SPEC-017 (HU-13, #13), SPEC-006 (HU-11, #11), SPEC-021 (HU-20, #72,
   depende de esta)
 - **Plan**: [`plan.md`](./plan.md) · **Tareas**: [`tasks.md`](./tasks.md)
