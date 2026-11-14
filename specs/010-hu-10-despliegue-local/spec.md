@@ -4,7 +4,7 @@
 - **Historia**: #10 · 2 SP · Etiquetas: Backend · CPM: M (día 12) y N (día 13)
 - **Responsable**: Juan Camilo Pérez (I2 · Servicio e interfaz)
 - **Rama**: `feature/hu-10-despliegue-local`
-- **Estado**: Especificada, pendiente de implementación
+- **Estado**: Implementada; evidencia en [`evidence.md`](./evidence.md)
 - **Plan**: [`plan.md`](./plan.md) · **Tareas**: [`tasks.md`](./tasks.md)
 
 ## Problema y contexto

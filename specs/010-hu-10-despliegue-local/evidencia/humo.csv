@@ -1,0 +1,6 @@
+id,familia,estado_http,resultado,latencia_s,detalle
+HU02-P01,plate,200,pieza,12.974,
+HU02-P06,sheet_bracket,200,pieza,3.939,
+HU02-P11,adapter,200,pieza,3.443,
+HU02-P16,flange,200,pieza,10.842,
+HU02-P21,spacer,200,pieza,3.547,

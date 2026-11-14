@@ -203,14 +203,44 @@ del seguimiento se emite como advertencia en el log: es observabilidad, no crite
 aceptación de la pieza. `mlruns/`, `mlflow.db` y `mlflow-artifacts/` están en `.gitignore`.
 
 
-Con Docker, sin compilar Vue ni preparar el vendor manualmente en el host,
-definir `DEEPSEEK_API_KEY` en el entorno o `.env` ignorado por Git:
+### Despliegue local con Docker Compose (HU-10)
+
+Requisitos: **Docker** con Compose v2 y `DEEPSEEK_API_KEY` en `.env` (ignorado por Git).
+No hace falta GPU, pesos, Node ni preparar el vendor en el host: la imagen lo resuelve.
 
 ```bash
-docker compose up --build
+echo "DEEPSEEK_API_KEY=sk-..." > .env
+make up            # docker compose up: m2-cad (API + SPA) y MLflow, en primer plano
+make down          # en otra terminal: detiene y elimina todos los contenedores
 ```
 
-API/UI publicadas en **8000**, sin GPU ni pesos. Gradio y su puerto se retiraron.
+La primera vez usar `docker compose up --build` para construir la imagen (requiere
+memoria holgada: el build compila dependencias CAD).
+
+| URL | Servicio |
+| --- | --- |
+| http://localhost:8000 | SPA en Vue (mismo origen que la API) |
+| http://localhost:8000/health | Salud de la API (`{"status": "ok"}`) |
+| http://localhost:8000/docs | Contrato OpenAPI |
+| http://127.0.0.1:5000 | UI de MLflow |
+
+Ambos puertos se publican solo en `127.0.0.1`; nada queda expuesto en la red.
+Si un puerto está ocupado, liberarlo o cambiar el lado izquierdo del mapeo en
+`docker-compose.yml` (por ejemplo `127.0.0.1:8001:8000`).
+
+Prueba de humo y latencia contra el servicio levantado (gasta tokens de DeepSeek):
+
+```bash
+uv run python scripts/smoke_deploy.py --n 5     # AC4: una solicitud por familia
+uv run python scripts/smoke_deploy.py --n 40    # AC3: p50/p90 sobre el banco completo
+```
+
+Escribe `smoke.csv` (id, familia, estado HTTP, resultado y latencia) y `smoke.json`
+(p50/p90) en `outputs/smoke/` (`--salida` para cambiarlo) y termina con código 1 si
+alguna solicitud no devuelve pieza ni declinación con motivo. Evidencia de HU-10:
+[evidence.md](specs/010-hu-10-despliegue-local/evidence.md).
+
+Gradio y su puerto `7860` se retiraron con HU-15.
 El volumen `outputs/` conserva los archivos generados. La línea base Gemma y el
 archivo independiente `docker-compose.gpu-remote.yml` son opciones heredadas;
 no se activan en el arranque normal.
