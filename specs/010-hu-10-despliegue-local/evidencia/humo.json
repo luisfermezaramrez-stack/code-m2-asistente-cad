@@ -1,0 +1,10 @@
+{
+  "base_url": "http://localhost:8000",
+  "n": 5,
+  "validas": 5,
+  "piezas": 5,
+  "declinadas": 0,
+  "p50_s": 3.939,
+  "p90_s": 12.974,
+  "max_s": 12.974
+}

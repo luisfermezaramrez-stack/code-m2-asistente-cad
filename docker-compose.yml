@@ -28,7 +28,7 @@ services:
   m2-cad:
     build: .
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"   # API + SPA, solo en local (HU-10 RNF-3)
     environment:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-deepseek-v4-pro}
