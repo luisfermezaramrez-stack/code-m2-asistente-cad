@@ -34,3 +34,5 @@ Cada spec se vincula a su historia del tablero y a la PR que la implementa.
 | [015](015-hu-15-vue-sse/) | HU-15 · Interfaz Vue con SSE | #39 | #46 | Retroactiva | Fusionada |
 | [016](016-hu-07-corrida-banco/) | HU-07 · Corrida del banco con reporte por familia | #7 | — | Spec-first | Pendiente |
 | [017](017-hu-13-informe-final/) | HU-13 · Informe final | #13 | — | Spec-first | Pendiente |
+| [018](018-model-card/) | HU-17 · Model Card del modelo servido | #59 | #60 | Spec-first | Fusionada |
+| [019](019-visor-3d-contraste/) | HU-15 · Contraste del fondo del visor 3D (refactor) | — | — | Spec-first | En revisión |

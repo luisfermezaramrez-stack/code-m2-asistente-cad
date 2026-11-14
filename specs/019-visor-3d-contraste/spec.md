@@ -5,7 +5,7 @@
 - **Historia**: HU-15 (#39), criterio AC4 — Diseño
 - **Responsable**: Luis Fernando Meza
 - **Rama**: `refactor/visor-3d-contraste`
-- **Estado**: Especificada, pendiente de implementación
+- **Estado**: Implementada, PR pendiente
 - **Plan**: [`plan.md`](./plan.md) · **Tareas**: [`tasks.md`](./tasks.md)
 
 > **Origen.** El problema se detectó en el ensayo de la demo del 2026-11-13 y el cambio se
