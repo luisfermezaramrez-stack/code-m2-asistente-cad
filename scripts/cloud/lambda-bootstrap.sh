@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# HEREDADO (HU-01): desde HU-14 el modelo es la API de DeepSeek. Este script solo
+# sirve para reproducir la línea base con Gemma 4 12B ConstraintKit.
 # Prepara una instancia de Lambda (Ubuntu + GPU NVIDIA) para correr la HU-01.
 # Deja driver -> Docker -> NVIDIA Container Toolkit listos y valida la GPU dentro
 # de un contenedor. Es idempotente: se puede correr más de una vez.

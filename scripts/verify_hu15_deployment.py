@@ -1,6 +1,7 @@
-"""Arranque HTTP integrado; traductor/modelo SIMULADOS, API/SSE/CAD/archivos reales.
+"""Arranque HTTP integrado; modelo SIMULADO, API/SSE/CAD/archivos reales.
 
-No prueba Docker ni inferencia. Requiere build Vue y el entorno CAD instalado.
+Por sí solo no construye Docker ni prueba inferencia. Puede ejecutarse en la
+imagen de validación; requiere build Vue y el entorno CAD instalado.
 Uso desde la raíz: python scripts/verify_hu15_deployment.py --simulate-model
 """
 
@@ -22,7 +23,8 @@ def servir(salidas: Path, puerto: int) -> None:
     import uvicorn
 
     os.environ["LLM_BASE_URL"] = "http://modelo-simulado-no-contactado"
-    os.environ.pop("GEMINI_API_KEY", None)
+    os.environ.pop("DEEPSEEK_API_KEY", None)
+    os.environ.pop("LLM_API_KEY", None)
     os.environ["M2_CORS_ORIGINS"] = f"http://127.0.0.1:{puerto}"
     from m2_cad import api, pipeline
 
@@ -44,7 +46,6 @@ def servir(salidas: Path, puerto: int) -> None:
         return generar_real(
             texto,
             control=control,
-            traducir=lambda _: "spacer",
             planificar=planificar,
             directorio=salidas,
         )
@@ -123,7 +124,7 @@ def comprobar(client: httpx.Client, origen: str) -> dict:
     else:
         raise AssertionError("La desconexión no alcanzó cancelación cooperativa confirmada")
     return {
-        "servicios": "traductor y modelo SIMULADOS",
+        "servicios": "modelo SIMULADO; sin traducción (HU-14)",
         "archivos_bytes": tamanos,
         "arranque_nativo": "OK",
         "sse_incremental": "OK",

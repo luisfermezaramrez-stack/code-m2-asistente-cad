@@ -1,5 +1,12 @@
 # m2-asistente-cad
 
+[![CI](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/workflows/ci.yml)
+[![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-blue.svg)](LICENSE)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](.python-version)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v1.json)](https://docs.astral.sh/ruff/)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v1.json)](https://docs.astral.sh/uv/)
+[![Cobertura mínima: 70 %](https://img.shields.io/badge/Cobertura-%E2%89%A5%2070%25-green.svg)](pyproject.toml)
+
 Asistente CAD que convierte la descripción **en español** de un componente
 metálico auxiliar en un modelo CAD **preliminar verificado** (STEP, GLB y lista
 de materiales) en minutos — o que **declina con un motivo** cuando no puede
@@ -8,6 +15,23 @@ construirlo.
 > ⚠️ **Toda salida es preliminar.** La verificación es solo geométrica; la
 > resistencia y el cumplimiento de normas (NSR-10, RETIE) exigen revisión de un
 > profesional responsable.
+
+## Tabla de contenidos
+
+- [Qué resuelve](#qué-resuelve)
+- [Alcance](#alcance)
+- [Arquitectura](#arquitectura)
+- [Cómo funciona](#cómo-funciona)
+- [Estructura](#estructura)
+- [Requisitos](#requisitos)
+- [Versiones](#versiones)
+- [Instalación y uso](#instalación-y-uso)
+- [Entorno en la nube (Lambda)](#entorno-en-la-nube-lambda)
+- [Metas (objetivos 1–4)](#metas-objetivos-14)
+- [Flujo de ramas e integración continua](#flujo-de-ramas-e-integración-continua)
+- [Contribución](#contribución)
+- [Licencias](#licencias)
+- [Referencias](#referencias)
 
 ## Qué resuelve
 
@@ -35,53 +59,78 @@ Catálogo cerrado de 8 familias: `plate`, `sheet_bracket`, `adapter`, `flange`,
 Fuera de alcance: cálculo estructural, verificación NSR-10/RETIE, Revit/BIM,
 reentrenamiento, entrada por imagen, ensamblajes, autenticación y concurrencia.
 
+## Arquitectura
+
+El diagrama interactivo de arquitectura de runtime vive en
+[`docs/arquitectura.html`](docs/arquitectura.html) (fuente versionada:
+[`docs/arquitectura.json`](docs/arquitectura.json)). Muestra el camino principal
+de una solicitud — del diseñador CAD a los entregables STEP/GLB/CSV — los tres
+contenedores de Docker Compose y los dos servicios externos (API Gemini y
+llama.cpp con GPU).
+
+> **Pendiente (HU-14):** el diagrama todavía muestra la API Gemini y llama.cpp.
+> El runtime actual usa DeepSeek por API y un único servicio Compose
+> (`m2-cad`, Vue/FastAPI); falta regenerarlo con Archify.
+
 ## Cómo funciona
 
-1. **Traducción** ES→EN conservando números y unidades.
-2. **Generación** condicionada con Gemma 4 12B ConstraintKit (GGUF Q6_K sobre
-   llama.cpp).
-3. **Verificación** geométrica determinista (constraint-kit / CadQuery /
+1. **Generación** condicionada a partir de la solicitud en español, sin
+   traducción previa (HU-14), con DeepSeek (`deepseek-v4-pro`) por API.
+   Gemma 4 12B ConstraintKit sobre llama.cpp queda como línea base heredada.
+2. **Verificación** geométrica determinista (constraint-kit / CadQuery /
    build123d / OpenCascade): aprueba o declina cada pieza.
-4. **Entrega** por Vue 3 + FastAPI, con etapas reales mediante SSE y registro trazable (texto, resultado,
-   latencia y versión del modelo). Plan B: DeepSeek por API.
+3. **Entrega** por Vue 3 + FastAPI, con etapas reales mediante SSE y registro
+   trazable (texto, resultado, latencia y versión del modelo).
 
 ## Estructura
 
     m2-asistente-cad/
-    ├── src/m2_cad/          traduccion.py · pipeline.py · api.py · trabajos.py · web.py · registro.py
+    ├── src/m2_cad/          pipeline.py · banco.py · api.py · trabajos.py · web.py · registro.py
     ├── frontend/            Vue 3 · Composition API · TypeScript · Vite · Vitest
     ├── design/              referencia validada y tokens únicos
-    ├── tests/               test_dataset.py · test_translate.py · test_pipeline.py · test_api.py
+    ├── tests/               test_dataset.py · test_pipeline.py · test_banco.py ·
+    │                        test_api.py · test_registro.py · test_sse.py · test_web.py
     ├── data/test_cases.csv  banco de 40 solicitudes
-    ├── docs/                manuales y reporte del banco
-    ├── Dockerfile · docker-compose.yml
-    ├── pyproject.toml · uv.lock
-    └── .pre-commit-config.yaml · .github/workflows/ci.yml
+    ├── specs/               especificaciones Spec Kit (001–007): spec · plan · tasks
+    ├── scripts/             fetch-model · verify-serve · vendor · cloud (Lambda/Vast.ai)
+    ├── docs/                arquitectura.{html,json} y documentación
+    ├── Dockerfile · docker-compose.yml · docker-compose.gemma.yml ·
+    │                        docker-compose.gpu-remote.yml
+    ├── pyproject.toml · uv.lock · .python-version
+    ├── Makefile · .pre-commit-config.yaml · .editorconfig
+    ├── CONSTITUTION.md      fuente única de verdad del proyecto
+    ├── AGENTS.md · CONTRIBUTING.md · CODE_OF_CONDUCT.md
+    └── .github/             ci.yml · labels · Dependabot · plantillas de PR e issues
 
 ## Requisitos
 
 - **Python 3.11+** (contenedor en 3.12) con `uv`.
 - **Node 24** para desarrollar/compilar localmente; Docker lo usa solo durante el build.
-- **GPU**: 16 GB de VRAM mín. (recomendado 24 GB); el modelo ocupa ~12 GB.
-- **Modelo**: `gemma-4-12b-constraintkit-GGUF` (Q6_K, ~9,8 GB), no versionado.
-- **Docker** + NVIDIA Container Toolkit para el despliegue.
+- **API key de DeepSeek** en `DEEPSEEK_API_KEY` (entorno o `.env`, ignorado por git).
+  No hace falta GPU.
+- **Docker** para el despliegue.
+- Solo para la línea base heredada (HU-01): GPU con 16 GB de VRAM, NVIDIA Container
+  Toolkit y el GGUF `gemma-4-12b-constraintkit` (Q6_K, ~9,8 GB, no versionado).
 
-> La evidencia HU-15 distingue pruebas nativas, servicios simulados e inferencia
-> real. Docker no pudo arrancar en la validación local más reciente; véase
-> [evidencia de despliegue](docs/hu15-despliegue.md).
+> El entorno de referencia es el contenedor Docker. La evidencia distingue
+> modelo simulado e inferencia real: [integración HU-14/HU-15](docs/hu15-integracion-hu14.md).
+> En **macOS
+> Intel** la sincronización completa no concluye: `nlopt` no publica wheel para
+> `x86_64` de macOS — usa Docker o la CI.
 
 ## Versiones
 
 | Componente | Versión |
 | --- | --- |
-| Modelo | `gemma-4-12b-constraintkit-GGUF` (Q6_K, ~9,8 GB) |
+| Modelo | DeepSeek `deepseek-v4-pro` por API (HU-14) |
+| Modelo heredado | `gemma-4-12b-constraintkit-GGUF` (Q6_K, ~9,8 GB) |
 | Python | 3.12 (contenedor Docker) |
 | cadquery | 2.7.0 |
 | build123d | 0.10.0 |
 | bd_warehouse | 0.2.0 |
 | z3-solver | ≥ 4.12 |
 | python-solvespace | ≥ 3.0 |
-| llama.cpp | 0.9.0-dev (commit f4777f9, backend CUDA) — servidor GGUF (Q6_K) |
+| llama.cpp (heredado) | 0.9.0-dev (commit f4777f9, backend CUDA) — servidor GGUF (Q6_K) |
 | constraint-kit | repositorio del autor (sin modificar) |
 
 ## Instalación y uso
@@ -98,18 +147,40 @@ Abrir **http://127.0.0.1:8000/**: FastAPI sirve el build, API, SSE y descargas e
 el mismo origen. No se inicia otro servidor frontend. El desarrollo con HMR
 se explica en [frontend/README.md](frontend/README.md).
 
-Con Docker, sin compilar Vue ni preparar el vendor manualmente en el host:
+Variables del modelo:
+
+| Variable | Uso | Valor por defecto |
+| --- | --- | --- |
+| `DEEPSEEK_API_KEY` | API key de DeepSeek (obligatoria) | — |
+| `LLM_MODEL` | Modelo de DeepSeek | `deepseek-v4-pro` |
+| `LLM_BASE_URL` | Otro servidor compatible con OpenAI (por ejemplo, llama.cpp) | `https://api.deepseek.com` |
+
+Sin API key, `/generar` responde 503 con «El modelo no está configurado: falta
+DEEPSEEK_API_KEY.». Los errores 401, 402, 429 y los tiempos de espera de DeepSeek se
+informan en español y nunca incluyen la key.
+
+Banco HU-02 contra el modelo real (HU-14, AC6 y AC7; gasta tokens):
+
+```bash
+make bench IDS=HU02-P01,HU02-P06,HU02-P11,HU02-P21,HU02-P26   # AC6: 5 solicitudes
+make bench                                                      # AC7: las 40
+```
+
+Deja en `outputs/banco/` un CSV por caso y un resumen JSON con acierto, tasa de
+`/dsl/check`, latencia media y tokens. Con `--precio-entrada` y `--precio-salida`
+(USD por millón de tokens) también calcula el costo estimado.
+
+Con Docker, sin compilar Vue ni preparar el vendor manualmente en el host,
+definir `DEEPSEEK_API_KEY` en el entorno o `.env` ignorado por Git:
 
 ```bash
 docker compose up --build
 ```
 
-Requiere pesos del modelo en `models/`, GPU/NVIDIA Container Toolkit y
-`GEMINI_API_KEY` definida únicamente en el entorno del backend (o `.env` local
-ignorado). API/UI publicadas en **8000**; el modelo tiene diagnóstico local en
-`127.0.0.1:8080`. Gradio y su puerto se retiraron. El volumen `outputs/` conserva
-los archivos generados. Para GPU remota se usa el archivo independiente
-`docker-compose.gpu-remote.yml`; mantiene el mismo origen web y volumen de salidas.
+API/UI publicadas en **8000**, sin GPU ni pesos. Gradio y su puerto se retiraron.
+El volumen `outputs/` conserva los archivos generados. La línea base Gemma y el
+archivo independiente `docker-compose.gpu-remote.yml` son opciones heredadas;
+no se activan en el arranque normal.
 
 `M2_FRONTEND_DIST` permite ubicar el build (Docker: `/app/frontend/dist`).
 `M2_CORS_ORIGINS` es una lista separada por comas de orígenes exactos HTTP(S), sin
@@ -126,7 +197,26 @@ CAD puede continuar hasta retornar; no confirma detención remota.
 Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 [CONSTITUTION.md](CONSTITUTION.md).
 
-## Entorno en la nube (Lambda)
+### Variables de entorno
+
+| Variable | La usa | Valor local | En Docker la fija |
+| --- | --- | --- | --- |
+| `DEEPSEEK_API_KEY` | Pipeline → API de DeepSeek (HU-14) | tu clave de [DeepSeek](https://platform.deepseek.com/api_keys) | el `${DEEPSEEK_API_KEY}` del entorno |
+| `LLM_MODEL` | Modelo que pide el pipeline | `deepseek-v4-pro` | `deepseek-v4-pro` (salvo override) |
+| `LLM_BASE_URL` | Pipeline → servidor compatible con OpenAI | `https://api.deepseek.com` | — (valor por defecto del código) |
+| `M2_FRONTEND_DIST` | FastAPI → build Vue | `frontend/dist` | `/app/frontend/dist` |
+| `M2_CORS_ORIGINS` | CORS exacto de FastAPI | localhost/127.0.0.1 en 8000 | mismo valor por defecto |
+
+Copia `.env.example` a `.env` para ejecutar fuera de Docker.
+
+> **Nota:** para la línea base heredada con Gemma, `LLM_BASE_URL` apunta al servidor
+> llama.cpp (`http://llama:8080` dentro de Compose) y hace falta el GGUF; ver abajo.
+
+## Entorno en la nube (Lambda) — heredado
+
+> **Heredado (HU-01).** Desde HU-14 el modelo es la API de DeepSeek y no hace falta GPU.
+> Esta sección solo sirve para reproducir la línea base con Gemma
+> (`docker compose -f docker-compose.yml -f docker-compose.gemma.yml up`).
 
 La validación de HU-01 corre en una instancia de [Lambda](https://lambda.ai) con GPU NVIDIA
 (una **A10 de 24 GB** ya cumple el AC2 de ≤ 16 GB de VRAM). La GPU local de 4 GB no alcanza
@@ -144,7 +234,7 @@ cd code-m2-asistente-cad
 git switch develop
 bash scripts/cloud/lambda-bootstrap.sh   # Docker + NVIDIA Container Toolkit + smoke test
 make model-fetch                         # AC1: descarga 9,8 GB y verifica el SHA-256
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.gemma.yml up -d llama
 make verify-serve                        # AC2: n_ctx=8192 y VRAM <= 16 GB
 ```
 
@@ -188,6 +278,15 @@ La política de `develop` es exigir la CI en verde y una aprobación antes de fu
 con la protección de rama del repositorio (Configuración → Branches). pre-commit es
 la primera barrera local: bloquea errores de Ruff y archivos de pesos (`.gguf`, `.safetensors`),
 que nunca se versionan.
+
+## Contribución
+
+`develop` es la rama de integración: toda contribución entra por pull request
+con CI en verde y una aprobación. Lee [`CONTRIBUTING.md`](CONTRIBUTING.md)
+(entorno, flujo de ramas y estándares), [`CONSTITUTION.md`](CONSTITUTION.md)
+(verdad central del proyecto) y el
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Los issues usan plantillas de bug,
+funcionalidad y spike en `.github/ISSUE_TEMPLATE/`.
 
 ## Licencias
 

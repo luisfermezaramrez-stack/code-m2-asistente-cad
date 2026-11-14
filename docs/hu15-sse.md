@@ -42,8 +42,8 @@ data: {"solicitud_id":"6c...","secuencia":1,"estado":"validando","terminal":fals
 
 | Evento | Significado | Campos adicionales |
 | --- | --- | --- |
-| `validando` | Entrada al control de validación del pipeline; validación de texto y traducción técnica | Ninguno |
-| `generando` | Traducción finalizada; comienza planificación con modelo, seguida de catálogo, verificación, construcción y exportación | Ninguno |
+| `validando` | Entrada al control de validación del pipeline y validación del texto | Ninguno |
+| `generando` | Comienza planificación desde el español directamente con DeepSeek (HU-14), seguida de catálogo, verificación, construcción y exportación | Ninguno |
 | `verificado` | El pipeline devolvió después de construir/exportar y verificar | `resultado`: mismo diccionario de entregables/métricas que JSON |
 | `declinado` | Declinación explícita de dominio; no se infiere de un HTTP 422 genérico | `motivo`, `codigo_http: 422` |
 | `error` | Fallo de traducción/modelo/verificación, excepción interna o de registro | `motivo`, `codigo_http` |
@@ -55,7 +55,7 @@ los tres resultados de AC3 del issue #39, conforme al requisito posterior de
 tener cancelación terminal inequívoca. No se usa `error` para disimularla.
 
 El camino normal es `validando` → `generando` → terminal. Un error durante la
-validación/traducción termina sin `generando`; si se cancela antes de empezar,
+validación termina sin `generando`; si se cancela antes de empezar,
 puede existir solo `cancelado`. Un fallo al cargar el motor puede producir solo
 `error`. Nunca se añaden etapas no ejecutadas para completar una secuencia.
 
@@ -103,21 +103,25 @@ de comprobar la pertenencia; no se monta el directorio completo. Formatos no
 permitidos, archivos ajenos/ausentes y resultados no verificados devuelven 404.
 La retención de trabajos también limita el tiempo de acceso por ID.
 
-El adaptador SSE traduce errores de disponibilidad de modelo/traducción a un
+El adaptador SSE convierte errores de disponibilidad del modelo a un
 mensaje público genérico: no remite direcciones privadas ni claves del proveedor
-incluidas en una excepción. El contrato JSON anterior se conserva.
+incluidas en una excepción. El contrato JSON anterior se conserva. JSON y SSE
+aceptan DeepSeek configurado solo con `DEEPSEEK_API_KEY` o `LLM_API_KEY`, sin exigir
+`LLM_BASE_URL`; el endpoint por defecto es el de HU-14. La solicitud llega en
+español al modelo, sin etapa de traducción; el registro CSV usa `no aplica` en
+ese campo para éxitos, declinaciones y errores.
 
 ## Límites comprobables
 
 - No se matan hilos ni se promete abortar una llamada nativa o HTTP en curso.
-  Hay puntos seguros antes de iniciar, después de traducción, después de modelo,
+  Hay puntos seguros antes de iniciar, después de validar, después de modelo,
   antes de construcción y después de construcción/exportación.
-- Traducción Gemini (timeout actual 8 s), modelo (120 s) y CAD/exportación son
+- Modelo (120 s) y CAD/exportación son
   bloqueantes. Cancelar espera su retorno; CAD no tiene timeout ni interrupción
   garantizada. Durante esa espera sigue activo el estado anterior, no `cancelado`.
 - `pipeline_detenido` confirma únicamente que terminó la ejecución local del
   pipeline en un punto seguro. No certifica que un proveedor remoto haya liberado
-  GPU/procesos. No hay protocolo de cancelación remota de Gemini/llama.cpp;
+  GPU/procesos. No hay protocolo de cancelación remota de DeepSeek/llama.cpp;
   `cancelacion_remota_confirmada` permanece falso. Esto no es cancelación completa
   inmediata de extremo a extremo y no cierra por sí solo ese aspecto de AC3.
 - Si una operación falla/expira mientras hay cancelación pendiente, gana `error`,

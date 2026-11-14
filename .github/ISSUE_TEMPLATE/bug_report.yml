@@ -1,0 +1,64 @@
+name: 🐞 Reporte de bug
+description: Algo no funciona correctamente en el asistente CAD.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por reportar. Incluye la mayor evidencia posible (captura, log,
+        solicitud usada). Recuerda: las salidas del asistente son **preliminares**.
+
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: ¿Qué pasó?
+      description: Describe el comportamiento observado y el esperado.
+      placeholder: "Al pedir una placa de 120 × 120 mm, la API respondió 503…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducir
+      placeholder: |
+        1. `make up`
+        2. POST /generar con `{"texto": "…"}`
+        3. …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: componente
+    attributes:
+      label: Componente afectado
+      options:
+        - "API (FastAPI, src/m2_cad/api.py)"
+        - "Pipeline (src/m2_cad/pipeline.py)"
+        - "Banco de solicitudes (src/m2_cad/banco.py)"
+        - "Registro (src/m2_cad/registro.py)"
+        - "UI Gradio (src/m2_cad/interfaz.py)"
+        - "Servicio LLM (DeepSeek / llama.cpp heredado)"
+        - "Kernel CAD (constraint-kit)"
+        - "CI / despliegue (Docker, GitHub Actions)"
+        - "Otro"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs o evidencia
+      description: Salida relevante de la terminal o del registro (`data/registro.csv`). Sin datos personales.
+      render: shell
+
+  - type: dropdown
+    id: aporte
+    attributes:
+      label: ¿Estás dispuesto a enviar un PR?
+      options:
+        - "Sí"
+        - "No"
+        - "Tal vez"
+    validations:
+      required: true

@@ -1,6 +1,6 @@
 """Pipeline de generación y verificación geométrica (HU-04).
 
-Convierte la solicitud traducida en un programa constraint-kit, lo valida
+Convierte la solicitud en español en un programa constraint-kit, lo valida
 contra el verificador de constraint-kit, construye la pieza B-rep y entrega
 STEP, GLB y lista de materiales en CSV, con el tiempo de generación y de
 construcción de cada solicitud.
@@ -15,6 +15,8 @@ Especificación: specs/002-step-verificado/spec.md
 HU-05 (specs/003-declinacion-preliminar/spec.md): declina con motivo en
 español y sin STEP lo que está fuera del catálogo, y marca todo STEP como
 diseño preliminar.
+
+HU-14: la solicitud en español llega directa al modelo, sin traducción ES→EN.
 """
 
 import json
@@ -32,7 +34,6 @@ from constraint_kit import bom, builder, dsl, llm
 
 from m2_cad import MARCA_PRELIMINAR
 from m2_cad.seguimiento import ControlGeneracion
-from m2_cad.traduccion import traducir_solicitud
 
 RUTA_SALIDA = Path("outputs")
 NOMBRE_PIEZA = "pieza"
@@ -51,32 +52,50 @@ CATALOGO = {
 }
 PREFIJO_DECLINACION = "El asistente no puede construir esta pieza:"
 
-# Prompt de sistema tomado de vendor/constraint-kit/drivers/dsl_experiment.py
-# (traducción de texto en inglés a programa DSL de constraint-kit).
+# Prompt de sistema para DeepSeek (HU-14): el modelo no está afinado para el DSL
+# de constraint-kit, así que el prompt describe los parámetros de cada tipo del
+# catálogo (firmas de constraint_kit/parts.py y parts_bd.py, ejemplos del banco
+# HU-02) y recibe la solicitud en español, sin traducción previa.
 PROMPT_SISTEMA = (
-    "Translate a plain-English mechanical-part/assembly description into a "
-    "constraint-kit DSL program. "
-    'Output ONLY JSON: {"parts":[{"id","type","material","params":{...}}],'
-    '"mates":[...]}. '
-    "PART TYPES + params (mm): spacer{outer_d,bore_d,height}; "
-    "spur_gear{module,teeth,width,bore_d}; "
-    "plate{width,depth,thick,boss_d,boss_h,bolt_d,bolt_circle,bolt_count}; "
-    "shaft{diameter,length}; washer{outer_d,bore_d,thick}; nut{af,height,bore_d}; "
-    "bolt{shank_d,length,head_d,head_h}; panel{width,depth,height}; "
-    "link{length,width,thickness}; housing{width,depth,height,wall,bore_d}; "
-    "sheet_bracket{thickness,base_length,flange_length,width}. "
-    'MATES connect parts; use either {"a","b","intent"} with intent in '
-    '[seat_on,insert,fasten,mesh], OR {"a","a_joint","b","b_joint","type"} with '
-    "type in [coincident,rigid,contact,mesh,revolute]. plate anchors: "
-    "mount,bolt0..N. spur_gear: bore_base,bore_top. spacer: top,bottom. "
-    "The FIRST part is the fixed base. "
-    "HONESTY RULE: if the description needs a part type or feature you have NO "
-    "match for (synchronizer, helical/bevel/worm gear, spline, "
-    "tapered/roller/needle bearing, shift fork, threads-as-feature), do NOT "
-    'substitute a different part — output exactly {"unsupported":"<what you '
-    'cannot express>"}. '
-    "Output JSON only, no prose."
+    "You are a CAD planner. Convert a mechanical-part description, usually written in "
+    "Spanish (sometimes English), into a constraint-kit DSL program for ONE single part. "
+    'Output ONLY a JSON object: {"parts":[{"id":"p","type":"<type>","material":"steel",'
+    '"params":{...}}],"mates":[]}. '
+    "Copy every number from the description exactly; all lengths are in mm; a Spanish "
+    "decimal comma (12,5) means 12.5. Use 0 for optional features the description does "
+    "not ask for. material is one of steel, stainless, aluminum, brass, copper, abs, pla, "
+    "nylon (default steel). "
+    "PART TYPES + params: "
+    "plate{width,depth,thick,boss_d,boss_h,bolt_d,bolt_circle,bolt_count}: rectangular "
+    "plate centered on the origin, width along X, depth along Y, thick along Z, optional "
+    "centered top boss and a circle of bolt_count through holes of diameter bolt_d. "
+    "sheet_bracket{thickness,base_length,flange_length,width,bend_radius}: constant-"
+    "thickness 90-degree L bracket, base along X, flange rising along Z, width along Y. "
+    "adapter{bottom_w,bottom_d,top_d,height}: solid loft from a bottom_w x bottom_d "
+    "rectangle at z=0 to a circle of diameter top_d at z=height. "
+    'flange{nps,flange_class,kind}: ASME B16.5 pipe flange, nps is a string ("1","2"), '
+    "flange_class an integer (150, 300, ...), kind one of weld_neck, slip_on, blind. "
+    "spacer{outer_d,bore_d,height}: cylindrical spacer with a coaxial through bore "
+    "(bore_d 0 means solid). "
+    'screw{size,length,simple,fastener_type}: ISO 4762 socket-head cap screw, size "M<d>-'
+    '<pitch>" (e.g. "M5-0.8"), length in mm, simple true, fastener_type "iso4762". '
+    'extrusion{rail_size,length}: aluminum V-slot profile along Z, rail_size one of "20x20",'
+    '"20x40","20x60","20x80","40x40". '
+    "pipe{nps,length,material,identifier}: straight standard pipe along Z, nps a string, "
+    'material "steel", identifier the schedule (e.g. "40"). '
+    "HONESTY RULE: if the description needs several parts (an assembly) or a part type or "
+    "feature not listed above (gears, bearings, springs, threads-as-feature, ...), do NOT "
+    'substitute a different part; output exactly {"unsupported":"<what you cannot '
+    'express>"}. '
+    "Output json only, no prose."
 )
+
+# Mensajes en español para los estados HTTP más comunes de DeepSeek (HU-14, AC3).
+MENSAJES_HTTP = {
+    401: "DeepSeek rechazó la API key (HTTP 401). Revisa DEEPSEEK_API_KEY.",
+    402: "La cuenta de DeepSeek no tiene saldo suficiente (HTTP 402).",
+    429: "Se alcanzó el límite de solicitudes de DeepSeek (HTTP 429). Intenta más tarde.",
+}
 
 
 class ErrorPipeline(RuntimeError):
@@ -125,7 +144,6 @@ class ResultadoPieza:
     caja_mm: tuple[float, float, float]
     tiempo_construccion_s: float
     tiempo_generacion_s: float = 0.0
-    traduccion: str = ""
 
     def a_respuesta(self) -> dict[str, str]:
         """Serializa el resultado para la API (todos los valores como texto)."""
@@ -133,7 +151,6 @@ class ResultadoPieza:
             "step": str(self.step),
             "glb": str(self.glb),
             "bom_csv": str(self.bom_csv),
-            "traduccion": self.traduccion,
             "aviso": MARCA_PRELIMINAR,
             "volumen_mm3": f"{self.volumen_mm3:.2f}",
             "caja_mm": "x".join(f"{lado:.2f}" for lado in self.caja_mm),
@@ -254,6 +271,10 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
 
     inicio = time.perf_counter()
     ensamble, partes = builder.build_assembly(programa)
+    # La caja se mide antes de exportar: builder.export triangula la pieza para
+    # el GLB y la caja de OpenCascade posterior suma el margen de la malla
+    # (+2,74 mm por eje en un loft), lo que falsea el AC3 en piezas curvas.
+    caja = ensamble.toCompound().BoundingBox()
     base = Path(directorio) / NOMBRE_PIEZA
     exportado = builder.export(ensamble, str(base))
     marcar_step(Path(exportado["step"]))
@@ -270,29 +291,44 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
         glb=Path(exportado["glb"]),
         bom_csv=bom_csv,
         volumen_mm3=float(firma["volume"]),
-        caja_mm=tuple(float(lado) for lado in exportado["bbox"]["size"]),
+        caja_mm=(round(caja.xlen, 2), round(caja.ylen, 2), round(caja.zlen, 2)),
         tiempo_construccion_s=duracion,
     )
 
 
-def planificar_con_llm(texto_en: str) -> dict:
-    """Pide al modelo servido (HU-01) el programa constraint-kit de la pieza."""
-    url = os.environ.get("LLM_BASE_URL")
-    if not url:
-        raise ModeloNoDisponible("LLM_BASE_URL no está configurada.")
+def planificar_con_llm(texto: str) -> dict:
+    """Pide al modelo (DeepSeek por defecto, HU-14) el programa constraint-kit de la pieza.
+
+    Por defecto consulta https://api.deepseek.com con DEEPSEEK_API_KEY;
+    LLM_BASE_URL apunta a otro servidor compatible con OpenAI y LLM_MODEL
+    cambia el modelo. La API key nunca forma parte de los mensajes de error.
+    """
+    url = llm.base_url("planner")
+    con_clave = os.environ.get("LLM_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
+    if "api.deepseek.com" in url and not con_clave:
+        raise ModeloNoDisponible("El modelo no está configurado: falta DEEPSEEK_API_KEY.")
 
     cuerpo = {
         "model": llm.planner_model(),
         "messages": [
             {"role": "system", "content": PROMPT_SISTEMA},
-            {"role": "user", "content": texto_en},
+            {"role": "user", "content": texto},
         ],
         "temperature": 0.1,
+        "response_format": {"type": "json_object"},
     }
     try:
         respuesta = llm.chat(cuerpo, url=url, timeout=TIEMPO_ESPERA_LLM)
-    except httpx.HTTPError as exc:  # tiempo de espera, conexión o estado HTTP
-        raise ModeloNoDisponible(f"El modelo no respondió: {exc}") from exc
+    except httpx.TimeoutException as exc:
+        raise ModeloNoDisponible(
+            f"El modelo no respondió a tiempo (más de {TIEMPO_ESPERA_LLM:.0f} s)."
+        ) from exc
+    except httpx.HTTPStatusError as exc:
+        codigo = exc.response.status_code
+        mensaje = MENSAJES_HTTP.get(codigo, f"El modelo respondió con error HTTP {codigo}.")
+        raise ModeloNoDisponible(mensaje) from exc
+    except httpx.HTTPError as exc:  # conexión caída u otro fallo de transporte
+        raise ModeloNoDisponible("No fue posible conectar con el modelo.") from exc
     try:
         contenido = respuesta["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
@@ -303,12 +339,11 @@ def planificar_con_llm(texto_en: str) -> dict:
 def generar_pieza(
     texto: str,
     *,
-    traducir: Callable[[str], str] = traducir_solicitud,
     planificar: Callable[[str], dict] = planificar_con_llm,
     directorio: Path = RUTA_SALIDA,
     control: ControlGeneracion | None = None,
 ) -> ResultadoPieza:
-    """Traduce, genera el programa y construye la pieza (AC1-AC5).
+    """Genera el programa desde el texto en español y construye la pieza (AC1-AC5).
 
     Cada solicitud escribe en su propia subcarpeta de `directorio`.
     """
@@ -317,10 +352,9 @@ def generar_pieza(
     if not texto.strip() or len(texto) > 1000:
         raise ValueError("La descripción debe contener entre 1 y 1000 caracteres.")
     inicio = time.perf_counter()
-    traduccion = traducir(texto)
     if control is not None:
         control.informar("generando")
-    programa = planificar(traduccion)
+    programa = planificar(texto)
     if control is not None:
         control.comprobar_cancelacion()
     tiempo_generacion = time.perf_counter() - inicio
@@ -342,5 +376,4 @@ def generar_pieza(
         caja_mm=resultado.caja_mm,
         tiempo_construccion_s=resultado.tiempo_construccion_s,
         tiempo_generacion_s=tiempo_generacion,
-        traduccion=traduccion,
     )

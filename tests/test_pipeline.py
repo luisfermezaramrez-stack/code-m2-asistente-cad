@@ -27,44 +27,41 @@ def test_progreso_corresponde_a_operaciones_reales(tmp_path):
     llamadas = []
     control = ControlGeneracion(lambda etapa: llamadas.append(etapa))
 
-    def traducir(texto):
-        assert llamadas == ["validando"]
-        llamadas.append("traduccion")
-        return "spacer"
-
     def planificar(texto):
-        assert llamadas == ["validando", "traduccion", "generando"]
+        assert texto == "Espaciador"
+        assert llamadas == ["validando", "generando"]
         llamadas.append("modelo")
         return _programa("spacer")
 
     resultado = pipeline.generar_pieza(
         "Espaciador",
-        traducir=traducir,
         planificar=planificar,
         directorio=tmp_path,
         control=control,
     )
     assert resultado.step.exists() and resultado.glb.exists() and resultado.bom_csv.exists()
-    assert llamadas == ["validando", "traduccion", "generando", "modelo"]
+    assert llamadas == ["validando", "generando", "modelo"]
 
 
-@pytest.mark.parametrize("cancelar_en", ["traduccion", "modelo", "construccion"])
+@pytest.mark.parametrize("cancelar_en", ["validacion", "modelo", "construccion"])
 def test_cancelacion_entre_operaciones_no_avanza_etapas(tmp_path, monkeypatch, cancelar_en):
     from m2_cad.seguimiento import ControlGeneracion, GeneracionCancelada
 
     llamadas = []
     etapas = []
-    control = ControlGeneracion(etapas.append)
+
+    def informar(etapa):
+        etapas.append(etapa)
+        if cancelar_en == "validacion":
+            control.cancelacion.set()
+
+    control = ControlGeneracion(informar)
     construir_real = pipeline.construir_pieza
 
     def terminar_operacion(nombre):
         llamadas.append(nombre)
         if nombre == cancelar_en:
             control.cancelacion.set()
-
-    def traducir(texto):
-        terminar_operacion("traduccion")
-        return "spacer"
 
     def planificar(texto):
         terminar_operacion("modelo")
@@ -79,14 +76,14 @@ def test_cancelacion_entre_operaciones_no_avanza_etapas(tmp_path, monkeypatch, c
     with pytest.raises(GeneracionCancelada):
         pipeline.generar_pieza(
             "Espaciador",
-            traducir=traducir,
             planificar=planificar,
             directorio=tmp_path,
             control=control,
         )
-    todas = ["traduccion", "modelo", "construccion"]
-    assert llamadas == todas[: todas.index(cancelar_en) + 1]
-    assert etapas == (["validando"] if cancelar_en == "traduccion" else ["validando", "generando"])
+    todas = ["modelo", "construccion"]
+    esperadas = [] if cancelar_en == "validacion" else todas[: todas.index(cancelar_en) + 1]
+    assert llamadas == esperadas
+    assert etapas == (["validando"] if cancelar_en == "validacion" else ["validando", "generando"])
 
 
 def _programa(tipo: str, **params: float) -> dict:
@@ -107,6 +104,12 @@ def _area_circulo(diametro: float) -> float:
 
 # (programa, volumen esperado mm3, caja esperada mm) calculados a mano.
 CASOS_TOLERANCIA = [
+    pytest.param(
+        _programa("adapter", bottom_w=40, bottom_d=40, top_d=24, height=30),
+        29166.930055426,
+        (40, 40, 30),
+        id="adaptador-loft-caja-antes-de-teselar",
+    ),
     pytest.param(
         _programa("spacer", outer_d=20, bore_d=8, height=15),
         (_area_circulo(20) - _area_circulo(8)) * 15,
@@ -229,29 +232,35 @@ def test_generar_pieza_registra_tiempos(tmp_path):
     """AC5: el resultado incluye el tiempo de generación y de construcción."""
     llamadas = []
 
-    def traducir(texto: str) -> str:
-        llamadas.append(("traducir", texto))
-        return "a steel spacer"
-
-    def planificar(texto_en: str) -> dict:
-        llamadas.append(("planificar", texto_en))
+    def planificar(texto: str) -> dict:
+        llamadas.append(texto)
         return _programa("spacer")
 
     resultado = pipeline.generar_pieza(
         "un espaciador de acero",
-        traducir=traducir,
         planificar=planificar,
         directorio=tmp_path,
     )
 
-    assert llamadas == [
-        ("traducir", "un espaciador de acero"),
-        ("planificar", "a steel spacer"),
-    ]
-    assert resultado.traduccion == "a steel spacer"
+    assert llamadas == ["un espaciador de acero"]
     assert resultado.tiempo_generacion_s >= 0
     assert resultado.tiempo_construccion_s > 0
     assert resultado.step.parent.parent == tmp_path
+
+
+def test_hu14_sin_traduccion_el_texto_en_espanol_llega_al_modelo(tmp_path):
+    """HU-14 AC4: no hay paso de traducción; la respuesta no expone traducción."""
+    import importlib.util
+
+    resultado = pipeline.generar_pieza(
+        "Placa de 120 mm con 4 agujeros",
+        planificar=lambda texto: _programa("spacer"),
+        directorio=tmp_path,
+    )
+
+    assert "traduccion" not in resultado.a_respuesta()
+    assert not hasattr(resultado, "traduccion")
+    assert importlib.util.find_spec("m2_cad.traduccion") is None
 
 
 def test_a_respuesta_expone_archivos_y_tiempos(tmp_path):
@@ -291,11 +300,102 @@ def test_planificar_con_llm_usa_servidor_configurado(monkeypatch):
     assert cuerpo["messages"][-1] == {"role": "user", "content": "a steel spacer"}
 
 
-def test_planificar_con_llm_sin_servidor_lanza_error(monkeypatch):
-    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+VARIABLES_LLM = (
+    "LLM_BASE_URL",
+    "PLANNER_URL",
+    "QWEN_BASE_URL",
+    "LLM_MODEL",
+    "MODEL_PLANNER",
+    "LLM_API_KEY",
+    "DEEPSEEK_API_KEY",
+)
+CLAVE_FALSA = "sk-clave-de-prueba-secreta"
 
-    with pytest.raises(pipeline.ModeloNoDisponible):
-        pipeline.planificar_con_llm("a steel spacer")
+
+def _entorno_deepseek(monkeypatch, clave: str | None = CLAVE_FALSA) -> None:
+    for variable in VARIABLES_LLM:
+        monkeypatch.delenv(variable, raising=False)
+    if clave:
+        monkeypatch.setenv("DEEPSEEK_API_KEY", clave)
+
+
+def test_hu14_por_defecto_usa_deepseek_con_el_texto_en_espanol(monkeypatch):
+    """HU-14 AC1: sin LLM_BASE_URL se consulta DeepSeek con su modelo por defecto."""
+    peticiones = []
+
+    def chat_falso(cuerpo: dict, *, url: str, timeout: float) -> dict:
+        peticiones.append((cuerpo, url))
+        return {"choices": [{"message": {"content": json.dumps(_programa("spacer"))}}]}
+
+    _entorno_deepseek(monkeypatch)
+    monkeypatch.setattr(pipeline.llm, "chat", chat_falso)
+
+    programa = pipeline.planificar_con_llm("un espaciador de acero")
+
+    assert programa == _programa("spacer")
+    cuerpo, url = peticiones[0]
+    assert url == "https://api.deepseek.com"
+    assert cuerpo["model"] == "deepseek-v4-pro"
+    assert cuerpo["response_format"] == {"type": "json_object"}
+    assert cuerpo["messages"][-1] == {"role": "user", "content": "un espaciador de acero"}
+
+
+def test_hu14_sin_api_key_de_deepseek_no_llama_al_modelo(monkeypatch):
+    """HU-14 AC3: sin DEEPSEEK_API_KEY se informa en español y no hay petición."""
+    llamadas = []
+    _entorno_deepseek(monkeypatch, clave=None)
+    monkeypatch.setattr(pipeline.llm, "chat", lambda *a, **k: llamadas.append(a))
+
+    with pytest.raises(pipeline.ModeloNoDisponible, match="DEEPSEEK_API_KEY"):
+        pipeline.planificar_con_llm("un espaciador")
+    assert llamadas == []
+
+
+@pytest.mark.parametrize(
+    ("codigo", "fragmento"),
+    [
+        pytest.param(401, "API key", id="401-clave-invalida"),
+        pytest.param(402, "saldo", id="402-sin-saldo"),
+        pytest.param(429, "límite", id="429-limite"),
+        pytest.param(503, "HTTP 503", id="503-otro-estado"),
+    ],
+)
+def test_hu14_errores_http_de_deepseek_en_espanol_sin_la_clave(monkeypatch, codigo, fragmento):
+    """HU-14 AC2 y AC3: el error HTTP se explica en español y nunca expone la key."""
+    import httpx
+
+    peticion = httpx.Request(
+        "POST",
+        "https://api.deepseek.com/chat/completions",
+        headers={"Authorization": f"Bearer {CLAVE_FALSA}"},
+    )
+    respuesta = httpx.Response(codigo, request=peticion, text=CLAVE_FALSA)
+
+    def chat_fallido(cuerpo, *, url, timeout):
+        raise httpx.HTTPStatusError(str(codigo), request=peticion, response=respuesta)
+
+    _entorno_deepseek(monkeypatch)
+    monkeypatch.setattr(pipeline.llm, "chat", chat_fallido)
+
+    with pytest.raises(pipeline.ModeloNoDisponible) as excinfo:
+        pipeline.planificar_con_llm("un espaciador")
+
+    assert fragmento in str(excinfo.value)
+    assert CLAVE_FALSA not in str(excinfo.value)
+
+
+def test_hu14_tiempo_de_espera_en_espanol(monkeypatch):
+    """HU-14 AC3: un timeout de DeepSeek se informa como modelo no disponible."""
+    import httpx
+
+    def chat_lento(cuerpo, *, url, timeout):
+        raise httpx.ReadTimeout("timed out")
+
+    _entorno_deepseek(monkeypatch)
+    monkeypatch.setattr(pipeline.llm, "chat", chat_lento)
+
+    with pytest.raises(pipeline.ModeloNoDisponible, match="a tiempo"):
+        pipeline.planificar_con_llm("un espaciador")
 
 
 @pytest.mark.parametrize(
@@ -328,35 +428,26 @@ def test_extraer_programa_respeta_llaves_dentro_de_strings(salida, esperado):
     assert pipeline.extraer_programa(salida) == esperado
 
 
-def test_prompt_sistema_coincide_con_el_vendor():
-    """La copia del prompt no se desvía de drivers/dsl_experiment.py del vendor."""
-    import ast
-    from pathlib import Path
+def test_hu14_prompt_cubre_el_catalogo_y_acepta_espanol():
+    """HU-14 AC6: el prompt describe el DSL de cada tipo del catálogo y admite español."""
+    prompt = pipeline.PROMPT_SISTEMA
 
-    fuente = Path("vendor/constraint-kit/drivers/dsl_experiment.py")
-    if not fuente.exists():
-        pytest.skip("constraint-kit no está vendorizado")
-
-    arbol = ast.parse(fuente.read_text(encoding="utf-8"))
-    sistema = next(
-        ast.literal_eval(nodo.value)
-        for nodo in arbol.body
-        if isinstance(nodo, ast.Assign)
-        and any(getattr(destino, "id", None) == "SYSTEM" for destino in nodo.targets)
-    )
-
-    assert pipeline.PROMPT_SISTEMA == sistema
+    for tipo in pipeline.CATALOGO:
+        assert f"{tipo}{{" in prompt, tipo
+    assert "Spanish" in prompt
+    assert "JSON" in prompt
+    assert "unsupported" in prompt
 
 
 def test_generar_pieza_separa_tiempo_de_generacion_y_construccion(tmp_path, monkeypatch):
-    """AC5: la generación mide traducción + modelo y excluye la construcción."""
+    """AC5: la generación mide el modelo y excluye la construcción."""
     import time
 
     espera_generacion = 0.1
     espera_construccion = 0.3
     construir_real = pipeline.construir_pieza
 
-    def planificar_lento(texto_en: str) -> dict:
+    def planificar_lento(texto: str) -> dict:
         time.sleep(espera_generacion)
         return _programa("spacer")
 
@@ -368,7 +459,6 @@ def test_generar_pieza_separa_tiempo_de_generacion_y_construccion(tmp_path, monk
 
     resultado = pipeline.generar_pieza(
         "un espaciador",
-        traducir=lambda texto: "a spacer",
         planificar=planificar_lento,
         directorio=tmp_path,
     )
@@ -498,8 +588,7 @@ def test_hu05_fuera_de_catalogo_se_declina_en_espanol_sin_step(
     with pytest.raises(pipeline.PiezaDeclinada) as excinfo:
         pipeline.generar_pieza(
             _caso_banco(identificador)["solicitud"],
-            traducir=lambda texto: "request",
-            planificar=lambda texto_en: salida_modelo,
+            planificar=lambda texto: salida_modelo,
             directorio=tmp_path,
         )
 
@@ -516,8 +605,7 @@ def test_hu05_catalogo_no_se_declina_y_lleva_marca(tmp_path, identificador):
     """AC2 y AC3: 0/5 piezas del catálogo se declinan y toda salida lleva la marca."""
     resultado = pipeline.generar_pieza(
         _caso_banco(identificador)["solicitud"],
-        traducir=lambda texto: "request",
-        planificar=lambda texto_en: _programa_del_banco(identificador),
+        planificar=lambda texto: _programa_del_banco(identificador),
         directorio=tmp_path,
     )
 

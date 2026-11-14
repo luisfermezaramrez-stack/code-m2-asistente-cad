@@ -1,0 +1,10 @@
+{
+  "casos": 40,
+  "acierto": 1.0,
+  "tasa_dsl_check": 1.0,
+  "latencia_media_s": 2.1975000000000002,
+  "tokens_entrada": 26280,
+  "tokens_salida": 2723,
+  "costo_usd": 0.0,
+  "modelo": "deepseek-v4-pro"
+}

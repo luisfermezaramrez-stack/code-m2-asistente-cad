@@ -24,7 +24,7 @@ npm --prefix frontend run dev
 Abrir la dirección local de Vite, normalmente `http://127.0.0.1:5173`. Su proxy
 de desarrollo envía `/generar`, `/generaciones` y `/health` a la API local.
 No hay URLs del modelo ni claves en el código cliente. Las credenciales de
-Gemini y la configuración de llama.cpp pertenecen exclusivamente al backend.
+DeepSeek y la configuración del proveedor pertenecen exclusivamente al backend.
 Sin esos servicios configurados, la API devuelve un error real: la SPA no tiene
 modo demo, fixtures ni progreso generado por tiempo.
 
@@ -102,10 +102,10 @@ necesitar una vista GLB.
   respuestas tardías, independencia y ausencia de archivos, motivos como texto
   y ocultamiento de direcciones/claves en mensajes de servicio.
 - Integración comprobada en Chrome con build de producción y FastAPI/SSE reales:
-  **traductor y modelo simulados**, motor CAD/exportación reales. Descargas STEP,
+  **modelo simulado**, sin traducción desde HU-14; motor CAD/exportación reales. Descargas STEP,
   GLB y CSV devuelven bytes; GLB renderizado con WebGL y controles de teclado.
   Cancelación pendiente y salida local confirmada se observaron por separado.
-  No se probó disponibilidad de Gemini/llama.cpp ni cancelación de esos proveedores.
+  No se probó inferencia real ni cancelación de proveedores remotos.
 - A 1280 y 768 px se comprobaron estado vacío, éxito y declinación: cero elementos
   fuera de límites horizontales. Tab, foco visible de 3 px y controles del visor
   funcionan en Chrome. No se afirma validación de lectores de pantalla ni de

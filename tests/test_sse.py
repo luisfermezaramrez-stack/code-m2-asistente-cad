@@ -1,6 +1,7 @@
 """HU-15: transporte incremental, terminales y cancelación comprobable."""
 
 import asyncio
+import csv
 import json
 from threading import Event
 
@@ -112,7 +113,8 @@ def test_openapi_conserva_contrato_json_y_anuncia_sse():
 
 
 def test_sse_sin_modelo_informa_validacion_y_error(entorno, monkeypatch):
-    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    for variable in ("LLM_BASE_URL", "LLM_API_KEY", "DEEPSEEK_API_KEY"):
+        monkeypatch.delenv(variable, raising=False)
     with TestClient(api.app) as client:
         respuesta = client.post(
             "/generar", json={"texto": "Placa"}, headers={"Accept": "text/event-stream"}
@@ -120,6 +122,58 @@ def test_sse_sin_modelo_informa_validacion_y_error(entorno, monkeypatch):
     eventos = leer_eventos(respuesta.text)
     assert [e["estado"] for e in eventos] == ["validando", "error"]
     assert eventos[-1]["codigo_http"] == 503
+
+
+@pytest.mark.parametrize("variable_clave", ["DEEPSEEK_API_KEY", "LLM_API_KEY"])
+@pytest.mark.parametrize("salida", ["verificado", "declinado", "401", "429", "timeout"])
+def test_hu14_sse_usa_espanol_y_clave_sin_url_y_registra_no_aplica(
+    entorno, monkeypatch, tmp_path, variable_clave, salida
+):
+    """DeepSeek simulado en transporte; pipeline/SSE/registro y CAD reales."""
+    from m2_cad import pipeline
+
+    for variable in ("LLM_BASE_URL", "LLM_API_KEY", "DEEPSEEK_API_KEY"):
+        monkeypatch.delenv(variable, raising=False)
+    clave = "clave-solo-prueba-hu14"
+    monkeypatch.setenv(variable_clave, clave)
+    texto = "Espaciador de acero de 14 mm"
+    llamadas = []
+
+    def chat(cuerpo, *, url, timeout):
+        llamadas.append(cuerpo)
+        assert cuerpo["messages"][-1] == {"role": "user", "content": texto}
+        assert "api.deepseek.com" in url
+        request = httpx.Request("POST", url)
+        if salida == "timeout":
+            raise httpx.ReadTimeout(clave, request=request)
+        if salida in {"401", "429"}:
+            raise httpx.HTTPStatusError(
+                clave, request=request, response=httpx.Response(int(salida), request=request)
+            )
+        programa = (
+            {"unsupported": "turbina"}
+            if salida == "declinado"
+            else {"parts": [{"id": "p", "type": "spacer", "params": {}}], "mates": []}
+        )
+        return {"choices": [{"message": {"content": json.dumps(programa)}}]}
+
+    monkeypatch.setattr(pipeline.llm, "chat", chat)
+    monkeypatch.chdir(tmp_path)
+    with TestClient(api.app) as client:
+        respuesta = client.post(
+            "/generar", json={"texto": texto}, headers={"Accept": "text/event-stream"}
+        )
+    eventos = leer_eventos(respuesta.text)
+    esperado = salida if salida in {"verificado", "declinado"} else "error"
+    assert [e["estado"] for e in eventos] == ["validando", "generando", esperado]
+    assert len(llamadas) == 1
+    assert clave not in respuesta.text
+    assert "traduccion" not in eventos[-1].get("resultado", {})
+    if esperado == "error":
+        assert eventos[-1]["codigo_http"] == 503
+    registro = (tmp_path / "registro.csv").read_text(encoding="utf-8")
+    assert clave not in registro
+    assert list(csv.DictReader(registro.splitlines()))[0]["traduccion"] == "no aplica"
 
 
 class ConexionASGI:
@@ -350,7 +404,6 @@ def test_sse_integra_pipeline_real_sin_servicios(entorno, monkeypatch, tmp_path,
         return generar_real(
             texto,
             control=control,
-            traducir=lambda _: "spacer",
             planificar=planificar,
             directorio=tmp_path,
         )

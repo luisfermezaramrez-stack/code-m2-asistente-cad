@@ -1,5 +1,8 @@
 # HU-15 · Validación Docker aislada, 2026-11-13
 
+> Evidencia histórica anterior a integrar HU-14. El contrato actual elimina la
+> traducción; resultados posteriores en [integración HU-14](hu15-integracion-hu14.md).
+
 ## Resultado y alcance
 
 Imagen construida desde el Dockerfile multietapa y los lockfiles de `7bce006`,

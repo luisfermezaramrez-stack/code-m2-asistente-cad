@@ -1,3 +1,7 @@
+# Higiene de archivos + Ruff + bloqueo de pesos. El exclude global deja fuera
+# .agents/ (skills vendoreados de terceros: sus plantillas contienen marcadores
+# {{...}} que no son YAML/Python válidos).
+exclude: '^\.agents/'
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9
@@ -12,6 +16,9 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=50000"]   # bloquea pesos (GGUF) de 9,8 GB
       - id: trailing-whitespace
+        # docs/arquitectura.html es un artefacto generado por Archify (no se
+        # edita a mano; se regenera con deliver), así que no se le exige higiene.
+        exclude: '^docs/arquitectura\.html$'
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-json

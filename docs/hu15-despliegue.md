@@ -1,5 +1,10 @@
 # HU-15 / #39 · Integración y evidencia de despliegue
 
+> **Actualización HU-14/HU-15:** DeepSeek recibe español sin traducción; Compose
+> normal arranca solo `m2-cad` (Vue/FastAPI), sin GPU/modelo local. La evidencia
+> posterior a la fusión de `develop` vive en [integración HU-14](hu15-integracion-hu14.md).
+> Los resultados originales de abajo se conservan como evidencia histórica.
+
 ## Contrato operativo
 
 - Vue 3 se construye con Vite y se sirve desde FastAPI en `/`; assets con hash
@@ -26,11 +31,12 @@ Se mantiene C17 para las extensiones nativas y se incorpora un healthcheck de AP
 Se comprobó que el script vendor tiene CRLF en este checkout Windows; la etapa
 Docker normaliza su copia a LF antes de ejecutarla con Bash.
 
-`docker compose up --build` arranca `llama` y `m2-cad`. Solo `m2-cad` sirve la UI
-y API al usuario en 8000. El puerto de diagnóstico 8080 del modelo se liga solo
-a loopback; no forma parte del cliente. Se eliminaron el servicio Gradio, su
-dependencia directa/transitiva y el puerto 7860. Pesos y credenciales del backend
-siguen siendo requisitos de inferencia, no se empaquetan en el frontend.
+`docker compose up --build` arranca únicamente `m2-cad` con DeepSeek externo.
+Solo `m2-cad` sirve la UI y API al usuario en 8000. El overlay heredado
+`docker-compose.gemma.yml` añade llama/GPU y diagnóstico 8080 solo en loopback.
+Se eliminaron el servicio Gradio, su dependencia directa/transitiva y el puerto
+7860. Las credenciales de DeepSeek pertenecen al backend; los pesos solo se
+requieren en la opción heredada y no se empaquetan en el frontend.
 
 El archivo independiente `docker-compose.gpu-remote.yml` mantiene el túnel del
 modelo remoto y los volúmenes `data/` y `outputs/`, también con un único servicio

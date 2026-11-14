@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""HU-01 AC4 — Prueba end-to-end: N solicitudes al modelo servido (llama.cpp vía
+"""HEREDADO (HU-01): desde HU-14 el modelo es la API de DeepSeek.
+
+HU-01 AC4 — Prueba end-to-end: N solicitudes al modelo servido (llama.cpp vía
 túnel) y validación de cada programa generado contra /dsl/check del servicio
 cadkit. Pasa si las N devuelven un programa que supera el chequeo (ok=true, sin
 severidad "error") y no son declinaciones honestas ("unsupported").
@@ -13,6 +15,7 @@ Variables:
   MODEL_PLANNER  nombre del modelo para el payload (default: gemma4-12b-...)
   N_REQUESTS     cantidad de solicitudes    (default: 5; AC4 exige 5/5)
 """
+
 from __future__ import annotations
 
 import json
@@ -42,7 +45,7 @@ def extract_program(text: str) -> dict:
     if text.startswith("```"):
         text = text.split("```")[1]
         if text.startswith("json"):
-            text = text[len("json"):]
+            text = text[len("json") :]
     return json.loads(text.strip())
 
 

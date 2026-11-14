@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Arquitectura de runtime — M2 Asistente CAD",
+    "locale": "es",
+    "output": "docs/arquitectura.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad.git",
+      "provider": "github",
+      "revision": "bb8740d7f0947c3f7828a8770cbb188b1d5a74a3"
+    }
+  },
+  "components": [
+    {
+      "id": "usuario",
+      "type": "external",
+      "label": "Diseñador CAD",
+      "sublabel": "entrada en español",
+      "pos": [40, 40],
+      "size": [130, 64]
+    },
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Interfaz Gradio",
+      "sublabel": ":7860 · interfaz.py",
+      "pos": [40, 190],
+      "size": [150, 64],
+      "sources": [
+        { "path": "src/m2_cad/interfaz.py", "line": 20, "end_line": 42, "label": "consulta la API" },
+        { "path": "src/m2_cad/interfaz.py", "line": 106, "end_line": 139, "label": "interfaz Blocks" }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI /generar",
+      "sublabel": ":8000 · api.py",
+      "pos": [40, 340],
+      "size": [150, 64],
+      "sources": [
+        { "path": "src/m2_cad/api.py", "line": 21, "end_line": 37, "label": "validación Pydantic" },
+        { "path": "src/m2_cad/api.py", "line": 54, "end_line": 77, "label": "mapeo de errores" },
+        { "path": "src/m2_cad/api.py", "line": 90, "end_line": 122, "label": "POST /generar" }
+      ]
+    },
+    {
+      "id": "pipeline",
+      "type": "backend",
+      "label": "Pipeline CAD",
+      "sublabel": "pipeline.py",
+      "pos": [40, 490],
+      "size": [150, 64],
+      "sources": [
+        { "path": "src/m2_cad/pipeline.py", "line": 220, "end_line": 247, "label": "generar_pieza" },
+        { "path": "src/m2_cad/pipeline.py", "line": 195, "end_line": 217, "label": "planificar con LLM" },
+        { "path": "src/m2_cad/pipeline.py", "line": 36, "end_line": 59, "label": "prompt sistema" }
+      ]
+    },
+    {
+      "id": "kernel",
+      "type": "backend",
+      "label": "Verificación + B-rep",
+      "sublabel": "constraint-kit · OpenCascade",
+      "pos": [40, 640],
+      "size": [180, 64],
+      "sources": [
+        { "path": "src/m2_cad/pipeline.py", "line": 139, "end_line": 155, "label": "dsl.check" },
+        { "path": "src/m2_cad/pipeline.py", "line": 171, "end_line": 192, "label": "build + export" }
+      ]
+    },
+    {
+      "id": "outputs",
+      "type": "database",
+      "label": "outputs/<uuid>/",
+      "sublabel": "STEP · GLB · CSV",
+      "pos": [40, 790],
+      "size": [150, 64],
+      "sources": [
+        { "path": "src/m2_cad/pipeline.py", "line": 30, "end_line": 30, "label": "ruta outputs" },
+        { "path": "src/m2_cad/pipeline.py", "line": 236, "end_line": 236, "label": "subcarpeta uuid" }
+      ]
+    },
+    {
+      "id": "registro",
+      "type": "database",
+      "label": "Registro de solicitudes",
+      "sublabel": "data/registro.csv · sin PII",
+      "pos": [560, 340],
+      "size": [170, 64],
+      "sources": [
+        { "path": "src/m2_cad/registro.py", "line": 42, "end_line": 45, "label": "sanitiza PII" },
+        { "path": "src/m2_cad/registro.py", "line": 54, "end_line": 89, "label": "registrar()" },
+        { "path": "src/m2_cad/api.py", "line": 114, "end_line": 121, "label": "llamado en /generar" }
+      ]
+    },
+    {
+      "id": "traduccion",
+      "type": "backend",
+      "label": "Traducción ES→EN",
+      "sublabel": "traduccion.py",
+      "pos": [300, 490],
+      "size": [150, 64],
+      "sources": [
+        { "path": "src/m2_cad/traduccion.py", "line": 103, "end_line": 120, "label": "traducir_solicitud" },
+        { "path": "src/m2_cad/traduccion.py", "line": 27, "end_line": 36, "label": "protege medidas" }
+      ]
+    },
+    {
+      "id": "gemini",
+      "type": "cloud",
+      "label": "API Gemini",
+      "sublabel": "gemini-3.5-flash-lite",
+      "pos": [540, 490],
+      "size": [130, 64],
+      "sources": [
+        { "path": "src/m2_cad/traduccion.py", "line": 9, "end_line": 14, "label": "endpoint y modelo" },
+        { "path": "src/m2_cad/traduccion.py", "line": 39, "end_line": 65, "label": "consulta REST" }
+      ]
+    },
+    {
+      "id": "llama",
+      "type": "cloud",
+      "label": "Servidor llama.cpp",
+      "sublabel": "Gemma 4 12B · GGUF · :8080",
+      "pos": [540, 640],
+      "size": [170, 64],
+      "sources": [
+        { "path": "docker-compose.yml", "line": 6, "end_line": 27, "label": "servicio llama" }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Contenedor m2-cad (FastAPI + pipeline)",
+      "wraps": ["api", "pipeline", "kernel", "traduccion"]
+    },
+    {
+      "kind": "region",
+      "label": "Contenedor m2-cad-ui (Gradio)",
+      "wraps": ["ui"]
+    },
+    {
+      "kind": "region",
+      "label": "Contenedor llama (GPU)",
+      "wraps": ["llama"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "usuario-ui",
+      "from": "usuario",
+      "to": "ui",
+      "label": "describe la pieza",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ui-api",
+      "from": "ui",
+      "to": "api",
+      "label": "POST /generar",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-pipeline",
+      "from": "api",
+      "to": "pipeline",
+      "label": "generar_pieza()",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pipeline-kernel",
+      "from": "pipeline",
+      "to": "kernel",
+      "label": "programa DSL",
+      "variant": "emphasis"
+    },
+    {
+      "id": "kernel-outputs",
+      "from": "kernel",
+      "to": "outputs",
+      "label": "STEP · GLB · CSV"
+    },
+    {
+      "id": "api-registro",
+      "from": "api",
+      "to": "registro",
+      "label": "registrar()",
+      "variant": "dashed"
+    },
+    {
+      "id": "pipeline-traduccion",
+      "from": "pipeline",
+      "to": "traduccion",
+      "label": "traducir",
+      "variant": "emphasis"
+    },
+    {
+      "id": "traduccion-gemini",
+      "from": "traduccion",
+      "to": "gemini",
+      "label": "HTTPS"
+    },
+    {
+      "id": "pipeline-llama",
+      "from": "pipeline",
+      "to": "llama",
+      "label": "HTTP :8080",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ui-outputs",
+      "from": "ui",
+      "to": "outputs",
+      "label": "descarga",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "left",
+      "via": [[20, 222], [20, 822]],
+      "labelAt": [60, 718]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Errores → HTTP",
+      "items": [
+        "Pieza declinada o verificación fallida → HTTP 422",
+        "Modelo no disponible o error de traducción → HTTP 503",
+        "Texto vacío o mayor a 1000 caracteres → rechazo en validación"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Verificación honesta",
+      "items": [
+        "dsl.check aprueba o declina cada programa antes de construir (AC1)",
+        "El modelo declina piezas fuera del catálogo en vez de sustituirlas",
+        "STEP es B-rep de OpenCascade; volumen y caja dentro de ±2 % (AC3)"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Privacidad y alcance",
+      "items": [
+        "El registro excluye correos y nombres declarados (Ley 1581 de 2012)",
+        "La interfaz solo entrega archivos dentro de outputs/ (archivo_seguro)",
+        "Toda salida es preliminar: exige revisión de un profesional responsable"
+      ]
+    }
+  ]
+}

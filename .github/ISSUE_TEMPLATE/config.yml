@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📘 CONSTITUTION.md
+    url: ../blob/develop/CONSTITUTION.md
+    about: Fuente única de verdad del proyecto — léela antes de abrir un issue o PR.
+  - name: 🤝 Guía de contribución
+    url: ../blob/develop/CONTRIBUTING.md
+    about: Entorno, flujo de ramas, estándares de código y mensajes de commit.
+  - name: 📄 Código de conducta
+    url: ../blob/develop/CODE_OF_CONDUCT.md
+    about: Reglas de convivencia de la comunidad.

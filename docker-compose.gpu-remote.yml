@@ -1,3 +1,6 @@
+# HEREDADO (HU-01): desde HU-14 el modelo es la API de DeepSeek; este override
+# solo sirve para reproducir la línea base con Gemma en Vast.ai.
+#
 # HU-01 — Contenedor m2-cad con el modelo servido en GPU remota (Vast.ai).
 #
 # Las instancias Docker de Vast.ai no soportan docker-in-docker, así que el
@@ -18,7 +21,7 @@ services:
       - "8000:8000"   # Vue + FastAPI, SSE y descargas.
     environment:
       LLM_BASE_URL: http://host.docker.internal:8080
-      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      LLM_MODEL: gemma4-12b-constraintkit
       M2_CORS_ORIGINS: "${M2_CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}"
     extra_hosts:
       - "host.docker.internal:host-gateway"

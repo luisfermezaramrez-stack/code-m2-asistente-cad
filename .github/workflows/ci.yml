@@ -52,5 +52,5 @@ jobs:
       - name: Ruff, Vitest, TypeScript, build integrado y pytest con cobertura
         run: make check
 
-      - name: Arranque integrado HTTP (modelo y traductor simulados, CAD real)
+      - name: Arranque integrado HTTP (modelo simulado, sin traducción, CAD real)
         run: uv run --no-sync python scripts/verify_hu15_deployment.py --simulate-model
