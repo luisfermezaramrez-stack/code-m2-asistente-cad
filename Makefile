@@ -3,7 +3,7 @@
 
 .PHONY: help install lock vendor test cov lint format check \
         precommit-install precommit build up down clean bench \
-        model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup
+        model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup mlflow
 
 help: ## Lista los objetivos disponibles
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -64,6 +64,9 @@ verify-serve: ## [Heredado HU-01] AC2: contexto 8192 y VRAM <= 16 GB del servici
 
 cloud-setup: ## [Heredado HU-01] Prepara una instancia de Lambda: Docker + NVIDIA Container Toolkit
 	bash scripts/cloud/lambda-bootstrap.sh
+
+mlflow: ## HU-16: levanta solo el servidor MLflow (UI en http://127.0.0.1:5000)
+	docker compose up -d mlflow
 
 up: ## Levanta FastAPI + Gradio con DeepSeek (requiere DEEPSEEK_API_KEY)
 	docker compose up

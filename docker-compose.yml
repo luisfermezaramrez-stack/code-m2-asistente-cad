@@ -1,4 +1,24 @@
 services:
+  # HU-16: servidor de seguimiento de experimentos (observabilidad, no entregables).
+  # Sin autenticación: la UI se publica solo en 127.0.0.1 y escucha en la red interna.
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.18.0
+    command:
+      - mlflow
+      - server
+      - --backend-store-uri
+      - sqlite:////mlflow/mlflow.db
+      - --artifacts-destination
+      - /mlflow/artifacts
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+    ports:
+      - "127.0.0.1:5000:5000"   # UI de MLflow, solo en local
+    volumes:
+      - mlflow-datos:/mlflow
+
   # HU-14: el modelo es la API de DeepSeek (sin GPU ni llama.cpp).
   # DEEPSEEK_API_KEY se lee del entorno o de .env (ignorado por git), nunca de este archivo.
   # Línea base heredada con Gemma (HU-01): sumar -f docker-compose.gemma.yml.
@@ -9,9 +29,13 @@ services:
     environment:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-deepseek-v4-pro}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_TRACKING_ENABLED: ${MLFLOW_TRACKING_ENABLED:-1}
     volumes:
       - ./data:/app/data
       - ./outputs:/app/outputs
+    depends_on:
+      - mlflow
 
     # HU-08: interfaz web Gradio
   m2-cad-ui:
@@ -27,3 +51,6 @@ services:
       - ./outputs:/app/outputs
     depends_on:
       - m2-cad
+
+volumes:
+  mlflow-datos:
