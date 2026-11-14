@@ -557,3 +557,35 @@ def test_hu05_step_marcado_sigue_siendo_valido(tmp_path):
 
     assert _descripcion_step(resultado.step) == MARCA
     assert cq.importers.importStep(str(resultado.step)).val().isValid()
+
+
+def test_programa_json_escrito_pasa_por_la_sanitizacion(tmp_path, monkeypatch):
+    """AC5: el artefacto programa.json no conserva correos ni nombres del usuario."""
+    from pathlib import Path
+
+    texto_pii = "me llamo Ana López y escribo a ana.lopez@example.com"
+
+    def planificar(texto: str) -> dict:
+        assert texto == "Espaciador de 14 mm"
+        return {"parts": [{"type": "spacer"}], "mates": [], "nota": texto_pii}
+
+    monkeypatch.setattr(
+        pipeline,
+        "construir_pieza",
+        lambda programa, directorio: pipeline.ResultadoPieza(
+            programa=programa,
+            step=Path(directorio) / "pieza.step",
+            glb=Path(directorio) / "pieza.glb",
+            bom_csv=Path(directorio) / "pieza.csv",
+            volumen_mm3=1.0,
+            caja_mm=(1.0, 1.0, 1.0),
+            tiempo_construccion_s=0.0,
+        ),
+    )
+
+    pipeline.generar_pieza("Espaciador de 14 mm", planificar=planificar, directorio=tmp_path)
+
+    contenido = next(tmp_path.glob("*/programa.json")).read_text(encoding="utf-8")
+    assert "ana.lopez@example.com" not in contenido
+    assert "Ana López" not in contenido
+    assert "[correo eliminado]" in contenido

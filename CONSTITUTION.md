@@ -21,7 +21,7 @@
 | **Licencia** | MIT (código propio); ver §12 para terceros |
 | **Rama de integración** | `develop` (toda rama de trabajo sale de aquí y vuelve por PR) |
 | **Rama de entregas** | `main` (solo recibe entregas) |
-| **Estado** | En construcción 🚧 — HU-01, 03, 04, 06, 08 y 09 implementadas; 05 y 11 pendientes |
+| **Estado** | En construcción 🚧 — HU-01, 03, 04, 06, 08, 09 y 14 implementadas; HU-16 (seguimiento MLflow) implementada en `feature/hu-16-mlflow`; 05, 07, 10–13 y 15 pendientes |
 
 ## 1. Propósito y no-propósito
 
@@ -74,12 +74,13 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Kernel CAD** | `constraint-kit` (vendoreado en `vendor/`) con CadQuery 2.7.0, build123d 0.10.0, bd_warehouse 0.2.0, Z3, python-solvespace, OpenCascade (LGPL 2.1) |
 | **LLM** | DeepSeek `deepseek-v4-pro` por API (`https://api.deepseek.com`), requiere `DEEPSEEK_API_KEY` (HU-14) |
 | **LLM heredado** | `gemma-4-12b-constraintkit` GGUF Q6_K (~9,8 GB) por llama.cpp (`:8080`, CUDA); solo línea base HU-01 (`docker-compose.gemma.yml`) |
+| **Seguimiento** | [MLflow](https://mlflow.org/) 3.18 (`mlflow-skinny`): experimentos `m2-cad-generacion` y `m2-cad-banco`; servidor con backend SQLite (`mlflow.db`) y artefactos en volumen, UI en `127.0.0.1:5000` sin autenticación (HU-16) |
 | **Testing** | `pytest` + cobertura **≥ 70 %** de `src/m2_cad` (umbral en `pyproject.toml`) |
 | **Lint / Formato** | [Ruff](https://docs.astral.sh/ruff/) — reglas `E, F, I, B`, `line-length = 100` |
 | **Pre-commit** | Ruff + higiene de archivos + bloqueo de pesos (`.gguf`, `.safetensors`, …) |
 | **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `develop` |
 | **Dependencias automáticas** | [Dependabot](.github/dependabot.yml) (target `develop`) |
-| **Despliegue** | Docker Compose: `llama` + `m2-cad` (FastAPI `:8000`) + `m2-cad-ui` (Gradio `:7860`) |
+| **Despliegue** | Docker Compose: `mlflow` (`:5000`) + `m2-cad` (FastAPI `:8000`) + `m2-cad-ui` (Gradio `:7860`); `llama` solo como overlay heredado |
 
 > ⚠️ **Regla dura:** toda gestión de dependencias y entornos pasa por `uv`.
 > Dependencias nuevas con `uv add` / `uv add --dev`; `uv.lock` se versiona.
@@ -100,13 +101,15 @@ code-m2-asistente-cad/
 │   ├── pipeline.py             # orquesta solicitud→DSL→verificación→B-rep (HU-04)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
 │   ├── registro.py             # registro CSV con exclusión de PII (HU-06)
+│   ├── seguimiento.py          # MLflow: una corrida por solicitud y por caso del banco (HU-16)
 │   └── interfaz.py             # UI Gradio: texto → descargas (HU-08)
-├── tests/                      # pytest: dataset, banco, pipeline, api, registro, interfaz
+├── tests/                      # pytest: dataset, banco, pipeline, api, registro, seguimiento, interfaz
 ├── data/
 │   ├── test_cases.csv          # banco de 40 solicitudes
 │   └── registro.csv            # registro de solicitudes (ignorado en git)
 ├── outputs/                    # entregables por solicitud (uuid/; ignorado en git)
-├── specs/                      # especificaciones Spec Kit (001–007): spec, plan, tasks
+├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
+├── specs/                      # especificaciones Spec Kit (001–009): spec, plan, tasks
 ├── scripts/                    # fetch-model, verify-serve, vendor, cloud (Lambda/Vast.ai)
 ├── docs/                       # documentación y diagrama de arquitectura
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
@@ -124,7 +127,7 @@ code-m2-asistente-cad/
 ├── .editorconfig               # convenciones de estilo entre editores
 ├── .pre-commit-config.yaml     # hooks de calidad
 ├── Dockerfile                  # imagen base python:3.12-slim + uv
-└── docker-compose.yml          # llama + m2-cad + m2-cad-ui
+└── docker-compose.yml          # mlflow + m2-cad + m2-cad-ui
 ```
 
 ## 5. Convenciones de código
@@ -227,13 +230,16 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-12 | Diagrama de arquitectura con Archify en `docs/arquitectura.html` (fuente `docs/arquitectura.json`) | Documentación viva del runtime enlazada desde el README |
 | 2026-11-12 | Excluir `.agents/` (skills vendoreados) de pre-commit y `docs/arquitectura.html` de `trailing-whitespace` | Son terceros/plantillas con marcadores `{{...}}` y un artefacto generado: la higiene la da su fuente |
 | 2026-11-12 | Añadir `.env.example` y documentar las variables de entorno en el README | Configuración reproducible sin versionar secretos |
+| 2026-11-13 | Seguimiento de experimentos con MLflow (`seguimiento.py`, servicio `mlflow`, `make mlflow`); versión de modelo registrada y fin de `version="desconocida"` (HU-16) | Comparar DeepSeek contra la línea base Gemma sin revisar casos a mano y ligar cada evidencia al modelo que la produjo; el seguimiento es best-effort y nunca bloquea la respuesta |
 
 ## 10. Notas y tareas pendientes
 
 - [x] Crear `CONSTITUTION.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, plantillas de PR/issues, `.editorconfig`.
 - [ ] Proteger `develop` (CI verde + 1 aprobación) y `main` en GitHub.
-- [ ] HU-05 y HU-11 pendientes (ver `specs/`).
-- [ ] Sustituir el marcador `version="desconocida"` del registro por la versión real del modelo servido.
+- [x] HU-16 (seguimiento con MLflow, responsable Luis Meza) implementada en
+  `specs/009-hu-16-mlflow/`.
+- [x] Sustituir el marcador `version="desconocida"` del registro por la versión real del modelo servido.
+- [ ] HU-05, 07, 10–13 y 15 pendientes (ver `specs/`).
 - [x] Inyectar la configuración del modelo en el contenedor `m2-cad` (`DEEPSEEK_API_KEY`, `LLM_MODEL`; HU-14).
 - [ ] Mantener la cobertura ≥ 70 % al añadir módulos.
 - [ ] Regenerar el diagrama de arquitectura (`docs/arquitectura.*`) con Archify: todavía muestra la API Gemini y llama.cpp (HU-14).

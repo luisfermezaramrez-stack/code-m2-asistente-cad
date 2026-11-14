@@ -10,6 +10,13 @@ pytest.importorskip("cadquery")
 
 from m2_cad import banco, pipeline  # noqa: E402
 
+
+@pytest.fixture(autouse=True)
+def _seguimiento_apagado(monkeypatch):
+    """Aísla las pruebas del banco del seguimiento MLflow (HU-16)."""
+    monkeypatch.setenv("MLFLOW_TRACKING_ENABLED", "0")
+
+
 FILA_PLACA = {
     "id": "HU02-P01",
     "familia": "plate",
