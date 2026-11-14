@@ -2,7 +2,7 @@
 # Uso: `make <objetivo>` — `make help` lista todo.
 
 .PHONY: help install lock vendor test cov lint format check \
-        precommit-install precommit build up down clean bench \
+        precommit-install precommit build up down clean bench bench-report \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
         mlflow
@@ -34,6 +34,9 @@ kernel-test: kernel-image ## Corre las 113 pruebas del kernel en el contenedor d
 
 bench: ## HU-14 AC7: corre el banco HU-02 contra el modelo (gasta tokens; IDS=...)
 	uv run python -m m2_cad.banco $(if $(IDS),--ids $(IDS))
+
+bench-report: ## HU-07: evalúa 40 solicitudes HTTP y genera reporte por familia (gasta tokens)
+	uv run --locked python -m m2_cad.evaluacion
 
 cov: frontend-build ## Corre pytest con reporte de cobertura
 	uv run --locked pytest --cov=src/m2_cad --cov-report=term-missing

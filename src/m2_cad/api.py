@@ -1,5 +1,7 @@
 """API REST para la generación preliminar de componentes CAD (HU-06)."""
 
+import ast
+import csv
 import os
 import time
 import uuid
@@ -8,7 +10,9 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from m2_cad import seguimiento
@@ -77,6 +81,7 @@ class DeclinacionSolicitud(HTTPException):
         super().__init__(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Pieza declinada: {motivo}",
+            headers={"X-Resultado-Tipo": "declinacion_explicita"},
         )
         self.motivo = motivo
         self.programa_json = programa_json
@@ -199,6 +204,77 @@ def obtener_ruta_registro() -> Path:
     return RUTA_DEFAULT
 
 
+def _identificador(request: Request) -> str:
+    """UUID de correlación JSON; nunca incorpora texto arbitrario en rutas."""
+    try:
+        return uuid.UUID(request.headers.get("X-Request-ID", "")).hex
+    except ValueError:
+        return uuid.uuid4().hex
+
+
+def _cabeceras_registro(request: Request, identificador: str) -> dict[str, str]:
+    return {
+        "X-Registro-ID": identificador,
+        "X-Registro-URL": str(request.url_for("consultar_registro", identificador=identificador)),
+    }
+
+
+@app.get("/registros/{identificador}")
+def consultar_registro(identificador: str) -> dict[str, str]:
+    """Consulta una fila existente, sin escribir ni duplicar el registro (HU-07 AC3)."""
+    ruta = obtener_ruta_registro()
+    if ruta.exists():
+        with ruta.open(encoding="utf-8", newline="") as archivo:
+            for fila in csv.DictReader(archivo):
+                if fila["id"] == identificador:
+                    return fila
+    raise HTTPException(404, "Registro no encontrado.")
+
+
+@app.get("/registros/{identificador}/step")
+def descargar_step(identificador: str) -> FileResponse:
+    """Enlaza el STEP del registro persistente, incluso tras reiniciar los trabajos."""
+    fila = consultar_registro(identificador)
+    try:
+        resultado = ast.literal_eval(fila["resultado"])
+        ruta = Path(resultado["step"]).resolve()
+        if (
+            not ruta.is_relative_to(obtener_directorio_salidas())
+            or ruta.suffix.lower() != ".step"
+            or not ruta.is_file()
+        ):
+            raise ValueError("STEP no disponible")
+    except (ValueError, SyntaxError, KeyError, TypeError) as exc:
+        raise HTTPException(404, "STEP no disponible.") from exc
+    return FileResponse(
+        ruta,
+        filename=ruta.name,
+        media_type="application/step",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def registrar_entrada_invalida(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Registra una entrada rechazada una vez, sin arrancar pipeline ni corrida MLflow."""
+    respuesta = await request_validation_exception_handler(request, exc)
+    if request.method == "POST" and request.url.path == "/generar":
+        identificador = _identificador(request)
+        cuerpo = exc.body if isinstance(exc.body, dict) else {}
+        registrar(
+            texto=cuerpo.get("texto", "entrada inválida"),
+            traduccion=SIN_TRADUCCION,
+            resultado=None,
+            latencia_ms=0,
+            error="Entrada inválida",
+            version=seguimiento.version_modelo(),
+            ruta=obtener_ruta_registro(),
+            identificador=identificador,
+        )
+        respuesta.headers.update(_cabeceras_registro(request, identificador))
+    return respuesta
+
+
 def _clasificar(exc: HTTPException) -> tuple[str, str | None, str | None]:
     """Estado, motivo de declinación y clase de error de la corrida (AC3)."""
     if isinstance(exc, DeclinacionSolicitud):
@@ -292,6 +368,7 @@ def _generar_sse(
             error=terminal.get("motivo"),
             version=seguimiento.version_modelo(),
             ruta=ruta_registro,
+            identificador=terminal["solicitud_id"],
         )
         estado = _ESTADOS_CORRIDA_SSE.get(terminal["estado"], "error")
         solicitud_id = terminal["solicitud_id"]
@@ -312,7 +389,9 @@ def _generar_sse(
         )
 
     trabajo = gestor.crear(solicitud.texto, procesar, registrar_terminal)
-    return RespuestaSSE(trabajo, request)
+    respuesta = RespuestaSSE(trabajo, request)
+    respuesta.headers.update(_cabeceras_registro(request, trabajo.id))
+    return respuesta
 
 
 @app.post(
@@ -323,6 +402,7 @@ def _generar_sse(
 def generar(
     solicitud: SolicitudGenerar,
     request: Request,
+    response: Response,
     procesador: Annotated[Procesador, Depends(obtener_procesador)],
     procesador_sse: Annotated[ProcesadorSSE, Depends(obtener_procesador_sse)],
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
@@ -332,7 +412,8 @@ def generar(
     inicio = time.perf_counter()
     if _acepta_sse(request):
         return _generar_sse(solicitud, request, procesador_sse, gestor, configuracion, inicio)
-    solicitud_id = uuid.uuid4().hex
+    solicitud_id = _identificador(request)
+    cabeceras = _cabeceras_registro(request, solicitud_id)
     medido: dict[str, object] = {}
     corrida = seguimiento.iniciar_corrida(
         configuracion.experimento_generacion,
@@ -353,6 +434,7 @@ def generar(
             error=str(exc.detail),
             version=seguimiento.version_modelo(),
             ruta=obtener_ruta_registro(),
+            identificador=solicitud_id,
         )
         medir_solicitud(
             corrida,
@@ -363,18 +445,32 @@ def generar(
             motivo_declinacion=motivo,
             error=error,
         )
+        exc.headers = {**(exc.headers or {}), **cabeceras}
         raise
     except BaseException as exc:
         # Un fallo no previsto también cierra la corrida (AC3): MLflow guarda la
         # corrida activa por hilo y una en RUNNING bloquearía las siguientes.
+        latencia_ms = (time.perf_counter() - inicio) * 1000
+        registrar(
+            texto=solicitud.texto,
+            traduccion=SIN_TRADUCCION,
+            resultado=None,
+            latencia_ms=latencia_ms,
+            error=type(exc).__name__,
+            version=seguimiento.version_modelo(),
+            ruta=obtener_ruta_registro(),
+            identificador=solicitud_id,
+        )
         medir_solicitud(
             corrida,
             medido,
             configuracion,
             estado="error",
-            latencia_ms=(time.perf_counter() - inicio) * 1000,
+            latencia_ms=latencia_ms,
             error=type(exc).__name__,
         )
+        if isinstance(exc, Exception):
+            raise HTTPException(500, "Fallo técnico del pipeline.", headers=cabeceras) from exc
         raise
 
     latencia_ms = (time.perf_counter() - inicio) * 1000
@@ -385,8 +481,14 @@ def generar(
         latencia_ms=latencia_ms,
         version=seguimiento.version_modelo(),
         ruta=obtener_ruta_registro(),
+        identificador=solicitud_id,
     )
     medir_solicitud(corrida, medido, configuracion, estado="entregada", latencia_ms=latencia_ms)
+    response.headers.update(cabeceras)
+    if respuesta.get("step"):
+        response.headers["X-Step-URL"] = str(
+            request.url_for("descargar_step", identificador=solicitud_id)
+        )
     return respuesta
 
 
