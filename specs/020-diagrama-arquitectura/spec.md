@@ -5,7 +5,7 @@
 - **Historia**: pendiente de crear en el tablero (etiqueta `documentation`)
 - **Responsable**: Luis Fernando Meza
 - **Rama**: `docs/arquitectura-archify`
-- **Estado**: Especificada, pendiente de implementación
+- **Estado**: Implementada, PR pendiente
 - **Plan**: [`plan.md`](./plan.md) · **Tareas**: [`tasks.md`](./tasks.md)
 
 ## Problema y contexto

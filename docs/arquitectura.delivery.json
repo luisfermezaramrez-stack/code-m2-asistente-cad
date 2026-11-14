@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "receiptId": "28fe2548-53a1-492f-a8d0-7c287d390ed0",
+  "receiptId": "29cc17fd-7c9c-4c17-85e6-9ab7946791dc",
   "status": "current",
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/jkammusic/Documents/code-m2-asistente-cad/.archify/architecture-asistente-cad-20261112-230154/candidate.json",
-  "output": "/Users/jkammusic/Documents/code-m2-asistente-cad/docs/arquitectura.html",
+  "input": "docs/arquitectura.json",
+  "output": "docs/arquitectura.html",
   "specification": {
-    "sha256": "729c2433ae2cb6d3db96cafa87c07a95651d3c785f90d444f5cfed4a73c12eac",
-    "bytes": 7563
+    "sha256": "6d2228780870e358551b013a85533aa1c7bc6370abfcea82d6d26c30510d55ad",
+    "bytes": 9651
   },
   "artifact": {
-    "sha256": "a74dcfeaf045ae8ef33cf16f556df32e2bb223359d6554e8d4e790d640ea837b",
-    "bytes": 837628
+    "sha256": "64f2040c30ec6711e21703919b3d826fb6cc61ce3338213cfddec1de7b7e96ac",
+    "bytes": 859812
   }
 }
