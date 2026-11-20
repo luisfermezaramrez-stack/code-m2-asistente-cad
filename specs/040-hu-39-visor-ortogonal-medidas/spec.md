@@ -7,14 +7,22 @@
 - **Rama**: `feature/hu-39-visor-ortogonal-medidas`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §5
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
 El visor de la pieza usa three.js 0.187 (`frontend/package.json:15`) con `GLTFLoader` y
 `OrbitControls` (`frontend/src/GlbViewer.vue:1-8`). Sólo permite orbitar, acercar,
-alejar y restablecer la vista (`frontend/src/GlbViewer.vue:124`,
-`frontend/src/GlbViewer.vue:141-143`). Usa una `PerspectiveCamera`; no hay
-`OrthographicCamera` ni captura por `toDataURL`.
+alejar y restablecer la vista: botones en `frontend/src/GlbViewer.vue:138-144` y atajos
+de teclado en `frontend/src/GlbViewer.vue:120-127`. Usa una `PerspectiveCamera`
+(`GlbViewer.vue:67`); no hay `OrthographicCamera` ni captura por `toDataURL`, y el
+renderer se crea sin `preserveDrawingBuffer` (`GlbViewer.vue:52`).
+
+Las dimensiones de la pieza no están en el CSV, que es el BOM de materiales
+(`constraint_kit/bom.py:31`: `part_type,qty,total_mass_g,unit_mass_g`), sino en `caja_mm`
+(`src/m2_cad/pipeline.py:307`), que viaja en el `resultado` del trabajo
+(`pipeline.py:169`) y en su evento SSE terminal.
 
 Para revisar una pieza preliminar el usuario necesita vistas normalizadas, medidas
 legibles y una imagen que pueda adjuntar. Los cortes de sección quedan para SPEC-051
@@ -43,6 +51,9 @@ dimensiones sin abrir un CAD externo.
   operación por teclado.
 - **RNF-2**: las pruebas no usan red, API key ni GPU (WebGL simulado).
 - **RNF-3**: las vistas son deterministas: la misma pieza produce el mismo encuadre.
+- **RNF-4**: la captura no devuelve un lienzo vacío: o el renderer se crea con
+  `preserveDrawingBuffer: true`, o se re-renderiza la escena inmediatamente antes de
+  `toDataURL` en la misma tarea (`GlbViewer.vue:52`). La elección queda para `plan.md`.
 
 ## Criterios de aceptación
 
@@ -56,14 +67,16 @@ dimensiones sin abrir un CAD externo.
 
 - **Dado** cualquiera de las tres vistas
 - **Cuando** se pide la captura
-- **Entonces** se descarga un PNG de esa vista.
+- **Entonces** se descarga un PNG de esa vista que no es un lienzo vacío (RNF-4).
 
-### AC3 — Medidas coherentes con el CSV
+### AC3 — Medidas coherentes con `caja_mm`
 
-- **Dado** una pieza construida y su CSV
-- **Cuando** se muestran las cotas
-- **Entonces** coinciden con las dimensiones del CSV dentro de la tolerancia declarada
-  (Supuesto: ±2 %, la misma del banco en `src/m2_cad/banco.py:28`).
+- **Dado** una pieza construida y su `caja_mm` (en el `resultado` del trabajo o en el
+  evento SSE terminal), nunca el CSV
+- **Cuando** se muestran las cotas de las tres vistas
+- **Entonces** las cotas generales de ancho, fondo y alto coinciden con `caja_mm` dentro
+  de la tolerancia declarada (Supuesto: ±2 %, la misma del banco en
+  `src/m2_cad/banco.py:28`).
 
 ### AC4 — Ajuste de unidades
 
@@ -80,4 +93,5 @@ dimensiones sin abrir un CAD externo.
 ## Métricas de éxito
 
 - Tres vistas ortogonales reproducibles y exportables.
-- Diferencia entre cotas del visor y CSV dentro de tolerancia en todas las piezas de prueba.
+- Diferencia entre cotas del visor y `caja_mm` dentro de tolerancia en todas las piezas de
+  prueba.

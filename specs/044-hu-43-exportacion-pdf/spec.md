@@ -3,16 +3,25 @@
 - **ID**: SPEC-044
 - **Historia**: issue por crear · Ola 2 · Tamaño M · Épica: Pipeline
 - **Responsable**: Luis Fernando Meza
-- **Depende de**: [SPEC-043](../043-hu-42-exportacion-dxf/spec.md)
+- **Depende de**: [SPEC-043](../043-hu-42-exportacion-dxf/spec.md),
+  [SPEC-037](../037-hu-36-endurecimiento-descargas/spec.md)
 - **Rama**: `feature/hu-43-exportacion-pdf`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §5
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
 No existe exportación PDF. `pypdf` aparece en `uv.lock` sólo como dependencia del extra
-`service` de `constraint-kit` (`uv.lock:735`), y la descarga está limitada a STEP, GLB
-y CSV (`src/m2_cad/api.py:530`).
+`service` de `constraint-kit` (`uv.lock:735`), y el kit lo usa para **extraer** texto de
+PDF (`constraint_kit/spec_extract.py:117-126`), no para dibujar. Ni el kit ni el paquete
+propio tienen un escritor de PDF vectorial, y la descarga está limitada a STEP, GLB y CSV
+(`src/m2_cad/api.py:530`).
+
+Hace falta, por tanto, una dependencia de generación de PDF vectorial: una nueva, o
+promover a directa una transitiva ya presente (por ejemplo `matplotlib`, que llega por
+`vtk`, `uv.lock:4423-4427`). `plan.md` evalúa su licencia y su peso en la imagen.
 
 Un plano imprimible con cajetín es lo que se revisa en una reunión o se adjunta a una
 orden de fabricación. Esta spec reutiliza las vistas y cotas que produce SPEC-043 (el
@@ -36,16 +45,21 @@ imprimirlo o adjuntarlo sin pasar por un CAD.
 
 - **RNF-1**: la generación es determinista salvo la fecha del cajetín.
 - **RNF-2**: las pruebas no usan red, API key ni GPU.
-- **RNF-3**: Supuesto: la descarga usa el mismo canal de artefactos que el DXF
-  (SPEC-037).
+- **RNF-3**: la descarga usa el mismo canal de artefactos que el DXF (SPEC-037).
+- **RNF-4**: la dependencia de generación de PDF se declara en `pyproject.toml` con su
+  licencia y su impacto en el tamaño de la imagen documentados.
 
 ## Criterios de aceptación
 
-### AC1 — Imprimible A4/A3
+### AC1 — Página A4/A3 sin recortes
 
 - **Dado** una pieza construida
 - **Cuando** se genera el PDF en A4 y en A3
-- **Entonces** ambos se imprimen sin recortes y con escala legible.
+- **Entonces** el tamaño de página de cada uno es A4 (210 × 297 mm) o A3 (297 × 420 mm) y
+  la caja envolvente de su contenido queda dentro de la página menos el margen
+  (Supuesto: margen de 10 mm).
+
+La impresión física sin recortes es **verificación manual**, fuera de CI.
 
 ### AC2 — Cajetín completo
 
@@ -55,9 +69,13 @@ imprimirlo o adjuntarlo sin pasar por un CAD.
 
 ### AC3 — Escala declarada
 
-- **Dado** el PDF impreso a su tamaño
-- **Cuando** se mide una cota con regla
-- **Entonces** corresponde a la escala declarada en el cajetín.
+- **Dado** el PDF de una pieza del corpus dorado
+- **Cuando** se mide en unidades de página la longitud dibujada de una cota general y se
+  compara con su valor en `caja_mm`
+- **Entonces** la relación coincide con la escala declarada en el cajetín dentro de la
+  tolerancia declarada.
+
+La medición con regla sobre el plano impreso es **verificación manual**, fuera de CI.
 
 ## Riesgo declarado
 

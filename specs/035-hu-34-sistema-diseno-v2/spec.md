@@ -7,6 +7,8 @@
 - **Rama**: `feature/hu-34-sistema-diseno-v2`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §4
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
@@ -18,9 +20,14 @@ pero con tres límites. Esta spec reformula el ítem 24 del borrador; no parte d
    (`frontend/src/main.ts:3`).
 2. Solo hay tema claro: `color-scheme: light` (`design/tokens.css:3`) y ninguna regla
    `prefers-color-scheme`.
-3. Existen tokens tipográficos (`design/tokens.css:25-34`: familias, cuatro tamaños,
-   pesos e interlineados), pero no hay una escala tipográfica documentada que indique
-   sus proporciones y usos.
+3. Ya existe una escala tipográfica (`design/tokens.css:27-30`: `--text-small`,
+   `--text-body`, `--text-heading` y `--text-title`, junto con familias, pesos e
+   interlineados en `design/tokens.css:25-34`), pero no está documentada: no se indican
+   sus proporciones ni sus usos.
+
+Los tokens ya son fuente única: se importan una sola vez (`frontend/src/main.ts:3`) y los
+componentes los consumen por variable CSS. Lo que falta es moverlos al paquete,
+documentar la escala y aplicar el modo oscuro.
 
 `design/README.md` y `design/validation.md` documentan el contraste del tema claro; el
 tema oscuro no tiene validación.
@@ -38,7 +45,7 @@ preferencia y cumplan contraste AA, **para** trabajar cómodo en cualquier entor
 
 - **RF-1**: los tokens viven dentro de `frontend/src` o en un paquete propio; la elección
   queda abierta para `plan.md`.
-- **RF-2**: escala tipográfica definida y documentada.
+- **RF-2**: la escala tipográfica existente queda documentada (proporciones y usos).
 - **RF-3**: tema claro y oscuro, seleccionado por `prefers-color-scheme` y por una
   preferencia explícita del usuario que prevalece sobre la del sistema.
 - **RF-4**: contraste AA verificado en ambos temas.
@@ -61,7 +68,10 @@ preferencia y cumplan contraste AA, **para** trabajar cómodo en cualquier entor
 - **Cuando** se mide el contraste de cada par de texto y fondo y del indicador de foco
 - **Entonces** el texto cumple ≥ 4.5:1 y el foco ≥ 3:1 en ambos temas.
 
-### AC2 — Cambiar un token no toca componentes
+### AC2 — Cambiar un token no toca componentes (AC de no regresión)
+
+Este criterio ya se cumple hoy (`design/tokens.css:2-63` importado una vez en
+`frontend/src/main.ts:3`); se conserva como prueba de no regresión tras mover los tokens.
 
 - **Dado** el sistema de tokens dentro del paquete del frontend
 - **Cuando** se cambia el valor de un token

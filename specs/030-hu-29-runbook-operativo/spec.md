@@ -7,6 +7,8 @@
 - **Rama**: `feature/hu-29-runbook-operativo`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §3
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
@@ -22,6 +24,14 @@ La documentación actual explica cómo levantar el sistema, no cómo operarlo cu
    vuelta atrás.
 4. El registro vive en `data/registro.csv` (`src/m2_cad/registro.py:29`) y las piezas en
    `outputs/`; no hay procedimiento de restauración.
+5. Existe un precedente de diagnóstico: `docs/hu15-despliegue.md:100-114` (*Bloqueos de
+   entorno observados*) registra síntomas y causas de bloqueos de Docker, de la
+   instalación en Windows y de la inferencia real. Cubre la puesta en marcha, no los
+   incidentes en operación.
+
+El hueco se delimita a lo que ese precedente no cubre: modelo caído o respuesta inválida,
+saldo y credencial del proveedor, rotación de clave, rollback de imagen y de versión de
+modelo, y restauración de datos.
 
 ## Historia de usuario
 

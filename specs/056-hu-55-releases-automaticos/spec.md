@@ -7,6 +7,8 @@
 - **Rama**: `feature/hu-55-releases-automaticos`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
@@ -14,7 +16,22 @@ Los releases se hacen a mano: existen las etiquetas `v1.0` y `v1.0.1`, pero el p
 declara `version = "0.1.0"` (`pyproject.toml:3`), no hay `CHANGELOG.md` en la raíz y el
 único workflow de CI corre pruebas en PRs y pushes a `develop`
 (`.github/workflows/ci.yml:3-7`), sin job de release. El equipo ya usa PRs hacia
-`develop` y Conventional Commits (`AGENTS.md`, "Flujo Diario").
+`develop` y Conventional Commits (`AGENTS.md`, "Flujo Diario"). Las etiquetas `v1.0` y
+`v1.0.1` están en `main` (`CONSTITUTION.md:24`), pero ninguna rama de release está
+declarada y el CI no corre en `main`.
+
+## Decisión abierta para `plan.md`
+
+"Al fusionar en la rama principal" es ambiguo hoy. `plan.md` debe elegir, y registrar en
+`CONSTITUTION.md`, desde qué rama se corta el release y quién crea la etiqueta:
+
+- **Opción A — release desde `main`**: se mantiene el precedente de `v1.0`/`v1.0.1`; exige
+  un PR `develop` → `main` por release y que el job de release dispare en `main`, donde
+  hoy no corre CI.
+- **Opción B — release desde `develop`**: reutiliza el disparador actual del CI; las
+  etiquetas dejan de vivir en `main` y `main` pierde su papel de rama publicada.
+
+Los RF y AC dicen "rama de release" para referirse a la rama elegida.
 
 El ítem 46 del borrador se bajó a la ola 3. Sólo aporta si se mantiene el flujo de PRs y
 Conventional Commits ya en uso (`docs/backlog-v2.md` §6). Depende de SPEC-032 porque la
@@ -34,7 +51,8 @@ redactarlo a mano.
   (`feat` → menor, `fix` → parche, `BREAKING CHANGE` → mayor).
 - **RF-2**: generar o actualizar `CHANGELOG.md` agrupado por tipo de commit.
 - **RF-3**: crear la etiqueta y el GitHub Release con las notas del changelog al fusionar
-  en la rama principal. Supuesto: herramienta estándar de release en GitHub Actions.
+  en la rama de release (ver decisión abierta). Supuesto: herramienta estándar de release
+  en GitHub Actions.
 - **RF-4**: sincronizar la versión de `pyproject.toml` con la etiqueta publicada.
 - **RF-5**: un cambio incompatible en el contrato `/v1` (SPEC-032) exige
   `BREAKING CHANGE` y produce versión mayor.
@@ -52,13 +70,13 @@ redactarlo a mano.
 ### AC1 — Release de parche
 
 - **Dado** sólo commits `fix:` desde la última etiqueta
-- **Cuando** se fusiona en la rama principal
+- **Cuando** se fusiona en la rama de release
 - **Entonces** se publica una versión de parche con su entrada en `CHANGELOG.md`.
 
 ### AC2 — Release mayor
 
 - **Dado** un commit con `BREAKING CHANGE` sobre el contrato `/v1`
-- **Cuando** se fusiona en la rama principal
+- **Cuando** se fusiona en la rama de release
 - **Entonces** se publica una versión mayor y las notas destacan el cambio incompatible.
 
 ### AC3 — Versión coherente
@@ -71,7 +89,7 @@ redactarlo a mano.
 
 - Publicar el paquete en PyPI o la imagen en un registro (ver SPEC-048).
 - Reescribir el historial de commits previo a la adopción.
-- Cambiar la estrategia de ramas.
+- Cambiar la estrategia de ramas más allá de elegir la rama de release (decisión abierta).
 
 ## Métricas de éxito
 

@@ -8,6 +8,8 @@
 - **Rama**: `feature/hu-51-panorama-metricas`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
@@ -17,7 +19,7 @@ de modelo (`src/m2_cad/seguimiento.py:286-336`), y tiene UI propia en el puerto 
 (`make mlflow`, `Makefile:87-88`). El costo por solicitud ya se calcula
 (`src/m2_cad/seguimiento.py:71-81`). Falta un resumen accesible desde la API y la UI: hoy
 no existe un endpoint `/metricas` (las rutas de `src/m2_cad/api.py` son `/health`,
-`/registros/...` y `/generaciones/...`).
+`/registros/...`, `POST /generar` (`src/m2_cad/api.py:397-398`) y `/generaciones/...`).
 
 El ítem 40 del borrador ("Dashboard de métricas") se reformuló y redujo para no duplicar
 MLflow (`docs/backlog-v2.md` §7). El alcance es `/metricas`, las etiquetas de causa de

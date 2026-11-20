@@ -7,6 +7,8 @@
 - **Rama**: `feature/hu-27-tipos-openapi`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §3
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
@@ -17,7 +19,9 @@
    compara el TypeScript con ese contrato: un campo renombrado en FastAPI sólo se descubre
    en ejecución.
 3. Varias rutas no declaran `response_model` (por ejemplo `GET /generaciones/{solicitud_id}`,
-   `src/m2_cad/api.py:495`), así que su forma no aparece hoy en `/openapi.json`.
+   `src/m2_cad/api.py:495`), así que en `/openapi.json` aparecen como un objeto genérico
+   sin campos (`"type": "object"` sin `properties`), igual que la respuesta JSON de
+   `POST /generar` (`tests/test_sse.py:117-119`).
 
 Esta spec es requisito de la API versionada
 ([SPEC-032](../032-hu-31-api-v1/spec.md)).

@@ -7,14 +7,20 @@
 - **Rama**: `feature/hu-54-sitio-documentacion`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
 La documentación vive como Markdown suelto en el repositorio: `README.md`,
-`CONSTITUTION.md`, `docs/` (informe final, model card, despliegue de HU-15, prueba de
-usuarios, diagrama de arquitectura en `docs/arquitectura.html`) y `specs/` con su índice
-(`specs/README.md`). No hay un sitio navegable publicado ni configuración de generador
-(no existe `mkdocs.yml` en la raíz).
+`CONSTITUTION.md`, `docs/` y `specs/` con su índice (`specs/README.md`). `docs/` contiene
+`docs/README.md`, `informe-final.md`, `model-card.md`, `backlog-v2.md`,
+`auditoria-specs-024-056.md`, los documentos de HU-15 (`hu15-despliegue.md`,
+`hu15-docker-validation.md`, `hu15-integracion-hu14.md`, `hu15-sse.md`), la prueba de
+usuarios (`prueba-usuarios.md` y `prueba-usuarios/`), las corridas del banco de HU-07
+(`docs/hu07/`) y el diagrama de arquitectura (`arquitectura.html` con sus JSON). No hay
+configuración de generador (no existe `mkdocs.yml` en la raíz). Supuesto: no hay un sitio
+navegable publicado; no es verificable desde el repositorio.
 
 El ítem 48 del borrador ("MkDocs") se bajó a la ola 3: la necesidad operativa se cubre
 primero con el runbook de SPEC-030; el sitio es presentación, no operación

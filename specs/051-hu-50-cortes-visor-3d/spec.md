@@ -7,6 +7,8 @@
 - **Rama**: `feature/hu-50-cortes-visor-3d`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
@@ -52,7 +54,11 @@ sección, **para** revisar espesores y geometría interna sin abrir otra herrami
 
 - **Dado** una placa con agujeros pasantes cargada en el visor
 - **Cuando** se activa un corte en Z a media altura
-- **Entonces** se ven la sección rellena y los agujeros atravesándola.
+- **Entonces** (Vitest, sin GPU) el visor expone un plano de corte activo de eje Z cuya
+  posición es la mitad de la altura de la caja de la pieza, y el material de la pieza
+  recorta con ese plano; hoy falla porque el visor no tiene corte.
+- **Verificación manual** (o captura E2E de SPEC-042): se ven la sección rellena y los
+  agujeros atravesándola.
 
 ### AC2 — Ajuste y desactivación
 

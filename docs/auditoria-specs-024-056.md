@@ -8,8 +8,8 @@
 - **Método**: lectura de las 33 specs, contraste de las 122 referencias `ruta:línea` contra
   el árbol y contra `vendor/constraint-kit` (presente en el checkout aunque esté
   gitignored), y verificación manual de los 13 hallazgos de mayor impacto.
-- **Decisión**: no se modifican las specs. Cada corrección se aplica **al tomar la HU**,
-  antes de redactar su `plan.md`. Esta nota es la lista de trabajo por spec.
+- **Decisión**: las correcciones se aplicaron **antes** de crear las issues, en la misma
+  rama, para no publicar alcances falsos. Ver §8.
 
 ## Cómo usar esta nota
 
@@ -263,3 +263,23 @@ SPEC-043 y SPEC-049 se redactaron sin leer `drawing.py`, `bom.py`, `massprops.py
 - Commit auditado: `7d45bd4`, rama `docs/backlog-v2-specs`, **local, sin push**.
 - No se crearon issues ni se cargó nada en el tablero `m2-asistente-cad`.
 - Este archivo no modifica ninguna spec: es la lista de correcciones a aplicar por HU.
+
+## 8. Aplicación de las correcciones
+
+Las correcciones de §1 a §4 se aplicaron en la rama `docs/backlog-v2-specs`, antes de crear
+las issues. Cada spec corregida lo declara en su encabezado (**Auditoría**). Cada hallazgo
+se volvió a verificar contra el código antes de aplicarlo; estos se ajustaron o rechazaron:
+
+| Spec | Hallazgo de la auditoría | Resultado de la verificación |
+| --- | --- | --- |
+| 026 | el 503 no está en `api.py:176-180` | también está ahí (ruta SSE); se citan ambos lugares |
+| 030 | precedente operativo en `docs/hu15-despliegue.md:100-114` | cubre problemas de entorno al levantar, no incidentes en operación |
+| 038 | GLB y CSV dependen de SPEC-031 | las rutas ya se guardan en `resultado` (`api.py:477-480`); falta servirlas; se acota a STEP |
+| 043 | el kit ya proyecta a DXF | las proyecciones ortogonales del kit son SVG (`drawing.py:52-60`); la sección sí es DXF |
+| 043 | exclusión de cotas en `drawing.py:14-17` | está en `drawing.py:9-11` |
+| 044 | hace falta una dependencia PDF nueva | `matplotlib` ya está instalado vía `vtk`; la spec admite ambas opciones |
+| 047 | baseline en `docs/hu07/banco-real-*/reporte.md` | está un nivel más abajo: `docs/hu07/banco-real-*/*/reporte.md` |
+| 049 | `pla`, `abs`, `nylon`, `brass`, `copper` fuera del prompt | ya están en el prompt (`pipeline.py:68-69`); los extras son `iron`, `al`, `petg` |
+
+`docs/backlog-v2.md` se redujo a priorización, trazabilidad y reglas: los `spec.md` son la
+fuente de verdad del alcance (§5 resuelta).

@@ -7,15 +7,21 @@
 - **Rama**: `feature/hu-49-plantillas-parametrizadas`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
 Cada pieza se genera desde cero a partir de una descripción libre: el LLM traduce el texto
 a un programa DSL con los tipos y parámetros que enumera el prompt
-(`src/m2_cad/pipeline.py:70-93`). No existe un catálogo de piezas frecuentes que el
-usuario pueda elegir y ajustar por parámetros, aunque el banco ya agrupa las solicitudes
-en familias (`plate`, `flange`, `adapter`, `sheet_bracket`, `spacer`, `tornillería`;
-`data/test_cases.csv`).
+(`src/m2_cad/pipeline.py:70-93`). El `constraint-kit` vendoreado sí trae bibliotecas de
+dominio: `library.py` carga definiciones de ensamble versionadas como JSON
+(`vendor/constraint-kit/libraries/`) y la API propia del kit las expone con
+`GET /libraries` y `POST /assembly/from_library` (`constraint_kit/api.py:684,690`); M2 no
+las expone. El hueco es más fino: hay librerías, pero no **plantillas de pieza con
+parámetros de rango validado y unidades declaradas** que el usuario pueda elegir y
+ajustar, aunque el banco ya agrupa las solicitudes en familias (`plate`, `flange`,
+`adapter`, `sheet_bracket`, `spacer`, `tornillería`; `data/test_cases.csv`).
 
 Corresponde al ítem 30 del borrador ("Catálogo de plantillas"), mantenido y dependiente de
 SPEC-036 para reutilizar el programa DSL de una pieza ya generada (`docs/backlog-v2.md`

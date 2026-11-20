@@ -7,6 +7,8 @@
 - **Rama**: `feature/hu-48-materiales-tolerancias-bom`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
@@ -14,9 +16,16 @@ Hoy el material sólo vive en el prompt del planificador: el LLM elige entre `st
 `stainless`, `aluminum`, `brass`, `copper`, `abs`, `pla` y `nylon`
 (`src/m2_cad/pipeline.py:68-69`). El CSV de la pieza se genera con
 `bom.bom_document` (`src/m2_cad/pipeline.py:294-297`) y sólo trae tipo, cantidad y masa
-(`vendor/constraint-kit/constraint_kit/bom.py:31`); no hay costos. La tolerancia de ±2 %
-del banco (`src/m2_cad/banco.py:28`, `TOLERANCIA = 0.02`) es de **medición** del
-resultado contra la referencia, no una tolerancia de fabricación.
+(`vendor/constraint-kit/constraint_kit/bom.py:31`: `part_type,qty,total_mass_g,unit_mass_g`);
+no hay costos. El BOM agrupa por `part_type`, no por material: el resumen que lo alimenta
+se arma por tipo en `_resumen_materiales` (`src/m2_cad/pipeline.py:268-278`).
+
+No hay guard de material: `DENSITY_G_MM3` admite además `iron`, `al` y `petg`, que el prompt
+no ofrece, y un material desconocido cae a la densidad del acero sin diagnóstico
+(`constraint_kit/builder.py:320`).
+
+La tolerancia de ±2 % del banco (`src/m2_cad/banco.py:28`, `TOLERANCIA = 0.02`) es de
+**medición** del resultado contra la referencia, no una tolerancia de fabricación.
 
 Revisión del `constraint-kit` vendoreado (`vendor/`, restaurado con `make vendor`):
 
@@ -24,16 +33,27 @@ Revisión del `constraint-kit` vendoreado (`vendor/`, restaurado con `make vendo
 - Resistencia por material: `MATERIAL_STRENGTH` (`constraint_kit/rules.py:49`).
 - Ajustes ISO 286 (`constraint_kit/iso286.py:94,122,130`) y cadena de tolerancias
   peor caso/RSS (`constraint_kit/tolerance.py:25`).
+- Propiedades de masa ponderadas por densidad: `constraint_kit/massprops.py`.
+- Reglas de fabricabilidad FDM (voladizo, pared, canal, volumen):
+  `constraint_kit/manufacture.py`, sin costos y sin endpoint en la API de M2. Se declaran
+  para no duplicar trabajo.
 - No se encontraron precios ni costos por material en el BOM.
-- No se verificó si el DSL acepta tolerancias por cota ni si `dsl/check` las valida.
+- **El DSL no admite tolerancias por cota**: el programa es `parts{id,type,params,material}`
+  más `mates` (`constraint_kit/dsl.py:10`) y `_check_part` sólo valida `id`, `type` y
+  `params` (`constraint_kit/dsl.py:128-140`). Las tolerancias viven en el kit **fuera** del
+  programa (`iso286.py`, `tolerance.py`, `POST /tolerance/stackup`,
+  `POST /synthesize/tolerance` en `constraint_kit/api.py:431,678`).
 
 Corresponde al ítem 31 del borrador, mantenido y ampliado con BOM con costos.
 
 ## Riesgo declarado
 
-- **Research-first**: el alcance depende de lo que `constraint-kit` exponga. Si el DSL no
-  soporta tolerancias de fabricación, la spec cambia de alcance (backlog §9) y se limita
-  a material explícito y BOM con costos.
+- **Research-first**: el alcance depende de lo que `constraint-kit` exponga. El DSL **no**
+  soporta tolerancias por cota (ver contexto), así que RF-4 exige parchear el repositorio
+  externo en una revisión fija (`scripts/vendor-constraint-kit.sh`): es el mayor riesgo
+  del backlog, no una incógnita menor. El spike de RF-1 se cierra **antes** de comprometer
+  la HU; si descarta el parche, la spec cambia de alcance (backlog §9) y se limita a
+  material explícito y BOM con costos.
 - No confundir la tolerancia de ±2 % de `banco.py` (medición) con tolerancias de
   fabricación.
 - Toca el DSL y la verificación: exige el corpus dorado de SPEC-024 en CI antes de
@@ -57,6 +77,8 @@ preliminar.
 - **RF-4**: si el spike lo confirma, la descripción admite tolerancias o ajustes ISO 286
   y la verificación las comprueba de forma determinista.
 - **RF-5**: un material o tolerancia no soportado produce declinación con motivo legible.
+  Requiere código nuevo: un guard que valide el material del programa contra la lista
+  soportada, hoy inexistente.
 
 ### No funcionales
 
@@ -74,15 +96,22 @@ preliminar.
 
 ### AC2 — Material en el BOM
 
-- **Dado** la solicitud "placa de aluminio de 100 × 50 × 5 mm" (Supuesto de ejemplo)
+- **Dado** un programa DSL con una `plate` de `material: "aluminum"` de 100 × 50 × 5 mm
+  (Supuesto de ejemplo; el LLM se simula)
 - **Cuando** se construye la pieza
-- **Entonces** el CSV indica `aluminum`, la masa con su densidad y el costo estimado.
+- **Entonces** el CSV tiene una columna `material` con `aluminum`, la masa con la densidad
+  de `DENSITY_G_MM3["aluminum"]` y el costo estimado por línea y total.
+- **Decisión para `plan.md`**: agrupar por material exige pre-agrupar en
+  `_resumen_materiales` (`src/m2_cad/pipeline.py:268-278`) y escribir el CSV en M2, o
+  parchear `bom.py` en el kit vendoreado. Hoy este AC falla: el CSV no tiene material.
 
 ### AC3 — Material no soportado
 
-- **Dado** una descripción con un material fuera de la lista soportada
-- **Cuando** se procesa
-- **Entonces** el sistema declina con un motivo que nombra el material.
+- **Dado** un programa DSL cuyo `material` está fuera de la lista soportada del prompt
+  (`src/m2_cad/pipeline.py:68-69`), por ejemplo `"titanium"` o `"iron"` (Supuesto)
+- **Cuando** se verifica el programa
+- **Entonces** el sistema declina con un motivo que nombra el material, en lugar de construir
+  con la densidad del acero como hoy (`constraint_kit/builder.py:320`).
 
 ### AC4 — Tolerancias (condicionado al spike)
 

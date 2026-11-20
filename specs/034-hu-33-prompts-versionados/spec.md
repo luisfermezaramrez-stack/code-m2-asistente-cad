@@ -7,6 +7,8 @@
 - **Rama**: `feature/hu-33-prompts-versionados`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §4
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
@@ -38,8 +40,8 @@ a la versión de prompt que lo produjo.
 - **RF-1**: los prompts se guardan como archivos versionados con id y hash de contenido.
 - **RF-2**: el pipeline carga el prompt desde esos archivos, no desde una cadena inline.
 - **RF-3**: cada solicitud registra la versión de prompt usada en el registro y en MLflow.
-- **RF-4**: tests de prompt: formato de salida, familias del catálogo cubiertas y rechazo
-  de texto ambiguo.
+- **RF-4**: tests del prompt versionado: el pipeline carga el prompt por id, su hash coincide
+  con el contenido del archivo y la versión queda en el registro.
 - **RF-5**: CI falla si el contenido de un prompt cambia sin cambiar su versión.
 
 ### No funcionales
@@ -64,12 +66,17 @@ a la versión de prompt que lo produjo.
 - **Cuando** se modifica su contenido sin subir su versión
 - **Entonces** la verificación de CI falla.
 
-### AC3 — Tests de prompt
+### AC3 — Tests del prompt versionado
 
-- **Dado** el prompt vigente y respuestas simuladas del modelo
+- **Dado** el prompt vigente guardado como archivo versionado y respuestas simuladas del
+  modelo
 - **Cuando** corren los tests de prompt
-- **Entonces** validan el formato JSON del DSL, que cada familia de `CATALOGO` está
-  descrita y que un texto ambiguo se rechaza.
+- **Entonces** verifican que el pipeline carga el prompt por su id, que el hash registrado
+  coincide con el contenido del archivo y que la fila del registro lleva ese id y hash.
+
+> Formato JSON, familias de `CATALOGO` y rechazo fuera de catálogo ya están cubiertos sobre
+> el texto inline (`tests/test_pipeline.py:486-493` y `:631-638`); esas pruebas se
+> conservan como no regresión.
 
 ## Fuera de alcance
 

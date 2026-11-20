@@ -3,19 +3,24 @@
 - **ID**: SPEC-047
 - **Historia**: issue por crear · Ola 3 (opcional) · Tamaño M · Épica: MLOps
 - **Responsable**: Juan Camilo Pérez
-- **Depende de**: [SPEC-045](../045-hu-44-banco-ci-replay/spec.md); usa además las
-  etiquetas de [SPEC-027](../027-hu-26-declinacion-legible/spec.md)
+- **Depende de**: [SPEC-045](../045-hu-44-banco-ci-replay/spec.md),
+  [SPEC-027](../027-hu-26-declinacion-legible/spec.md) (RF-3 y AC3 agrupan por su etiqueta de
+  causa de declinación)
 - **Rama**: `feature/hu-46-alertas-regresion`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
 Hoy la calidad del pipeline sólo se mide cuando alguien ejecuta el banco a mano: el banco
 gasta tokens reales (`src/m2_cad/banco.py:1-12`) y el reporte de evaluación declara que
-no reintenta ni ajusta nada automáticamente (`src/m2_cad/evaluacion.py:244-246`). No
-existe un baseline histórico con el cual comparar una corrida, de modo que una caída de
-la tasa de aceptación pasa desapercibida hasta la siguiente revisión manual.
+no reintenta ni ajusta nada automáticamente (`src/m2_cad/evaluacion.py:244-246`). Sí hay
+un baseline histórico commiteado: los reportes de corridas reales en
+`docs/hu07/banco-real-*/*/reporte.md` traen resumen por familia y causa por caso. Lo que
+no existe es la **comparación automática** de una corrida contra ese baseline, de modo que
+una caída de la tasa de aceptación pasa desapercibida hasta la siguiente revisión manual.
 
 El backlog fija que esta spec necesita el baseline de SPEC-045 (corrida real registrada
 en MLflow y modo replay en CI) y las etiquetas por causa de SPEC-027; sin ellos

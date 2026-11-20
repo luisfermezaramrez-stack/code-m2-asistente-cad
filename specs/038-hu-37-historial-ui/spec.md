@@ -7,6 +7,8 @@
 - **Rama**: `feature/hu-37-historial-ui`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §5
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
@@ -19,6 +21,16 @@ servidor:
 2. `src/m2_cad/api.py:222-231` expone `GET /registros/{identificador}`, que devuelve una
    fila existente, y `src/m2_cad/api.py:234-254` enlaza su STEP incluso tras reiniciar
    los trabajos.
+
+El backend tiene dos límites: esta historia resuelve el primero y declara el segundo:
+
+- **No existe endpoint de listado**: la única consulta es `GET /registros/{identificador}`
+  (`api.py:222-231`), que exige conocer el id.
+- **Sólo el STEP es re-descargable** de una solicitud pasada (`api.py:234-255`). El GLB y
+  el CSV se sirven desde `/generaciones/{solicitud_id}/archivos/{formato}`, que exige el
+  trabajo vivo en `GestorTrabajos` (`api.py:520-531`) y se pierde al reiniciar. Sus rutas
+  sí quedan en la columna `resultado` del registro (`api.py:477-480`), pero ninguna ruta
+  las sirve desde allí.
 
 Falta un listado consultable y una vista que permita volver a una solicitud anterior.
 La persistencia transaccional de SPEC-031 es la fuente de datos de esta historia; el
@@ -40,8 +52,12 @@ gastar otra llamada al modelo.
 - **RF-2**: el listado se puede filtrar (Supuesto: al menos por resultado —construida o
   declinada— y por texto de la descripción).
 - **RF-3**: al reabrir una solicitud se reanuda la vista de resultado (estado, motivo de
-  declinación o visor de la pieza).
-- **RF-4**: desde la solicitud reabierta se descargan sus artefactos disponibles.
+  declinación y, si el GLB sigue disponible, visor de la pieza).
+- **RF-4**: desde la solicitud reabierta se descarga su STEP por
+  `/registros/{identificador}/step`; el GLB y el CSV sólo se ofrecen mientras el trabajo
+  siga vivo en el servidor.
+- **RF-5**: el backend expone un endpoint de listado de solicitudes registradas
+  (Supuesto: `GET /registros`, con los filtros de RF-2).
 
 ### No funcionales
 
@@ -65,20 +81,25 @@ gastar otra llamada al modelo.
 - **Cuando** se abre la interfaz desde otro equipo contra el mismo backend
 - **Entonces** el historial muestra esas solicitudes.
 
-### AC3 — Sin copia autoritativa en el cliente
+### AC3 — El listado usa un endpoint de listado
 
-- **Dado** un navegador con el almacenamiento local vacío o borrado
+- **Dado** un backend con varias solicitudes registradas
 - **Cuando** se abre el historial
-- **Entonces** el contenido se reconstruye completo desde el backend.
+- **Entonces** el cliente obtiene el listado de un endpoint de listado del backend (hoy no
+  existe: sólo `GET /registros/{identificador}`), sin recorrer ids conocidos por el
+  cliente.
 
 ### AC4 — Reabrir y descargar
 
 - **Dado** una solicitud construida en el historial
 - **Cuando** se reabre
-- **Entonces** se muestra su vista de resultado y sus artefactos se pueden descargar.
+- **Entonces** se muestra su vista de resultado y su STEP se puede descargar, incluso
+  tras reiniciar el servidor.
 
 ## Fuera de alcance
 
+- Re-descarga de GLB y CSV de solicitudes cuyo trabajo ya no está vivo: exige servirlos
+  desde el registro (posible extensión de este endpoint o de SPEC-031).
 - Autenticación y separación de historiales por usuario (SPEC-054).
 - Edición iterativa a partir de una solicitud anterior (SPEC-036).
 - Cambiar el esquema de persistencia (SPEC-031).

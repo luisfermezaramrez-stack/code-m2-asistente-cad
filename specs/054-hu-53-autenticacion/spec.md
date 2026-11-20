@@ -7,12 +7,16 @@
 - **Rama**: `feature/hu-53-autenticacion`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
-La API no autentica a nadie: `POST /generaciones` (`src/m2_cad/api.py:397-402`), las
-consultas y descargas (`src/m2_cad/api.py:495-522`) y el registro
-(`src/m2_cad/api.py:222-235`) están abiertos a cualquier cliente que alcance el servicio.
+La API no autentica a nadie: `POST /generar` (`src/m2_cad/api.py:397-398`), las
+consultas, la cancelación y las descargas de `/generaciones/...`
+(`src/m2_cad/api.py:495-522`) y la lectura del registro con `GET /registros/{id}` y
+`GET /registros/{id}/step` (`src/m2_cad/api.py:222-235`, ambas de sólo lectura) están
+abiertas a cualquier cliente que alcance el servicio.
 La única restricción es CORS con orígenes exactos (`src/m2_cad/web.py:14-31`). Esto es
 aceptable en despliegue local, pero no en uno público (SPEC-048).
 
@@ -49,7 +53,7 @@ descarguen piezas, **para** controlar el acceso y el costo de un despliegue púb
 ### AC1 — Acceso anónimo rechazado
 
 - **Dado** la autenticación activada
-- **Cuando** un cliente sin credenciales llama a `POST /generaciones`
+- **Cuando** un cliente sin credenciales llama a `POST /generar`
 - **Entonces** recibe 401 y no se crea ninguna solicitud.
 
 ### AC2 — Aislamiento entre usuarios
@@ -64,11 +68,13 @@ descarguen piezas, **para** controlar el acceso y el costo de un despliegue púb
 - **Cuando** se consulta su registro
 - **Entonces** el registro identifica al usuario.
 
-### AC4 — Salud abierta
+### AC4 — Salud abierta (AC de no regresión)
 
 - **Dado** la autenticación activada
 - **Cuando** se consulta `/health`
 - **Entonces** responde 200 sin credenciales.
+- Hoy ya se cumple (`src/m2_cad/api.py:54-57`): es una prueba de no regresión que fija que
+  la autenticación no cierre `/health`, no trabajo nuevo.
 
 ## Fuera de alcance
 

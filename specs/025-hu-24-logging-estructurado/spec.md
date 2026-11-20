@@ -7,6 +7,8 @@
 - **Rama**: `feature/hu-24-logging-estructurado`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §3
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
@@ -71,11 +73,18 @@ concreta filtrando por un único id.
 - **Entonces** la línea es JSON válido con, al menos, `nivel`, `modulo`, `mensaje`,
   `marca_tiempo` y, si corresponde, `request_id`.
 
-### AC3 — Sin secretos
+### AC3 — Sin secretos ante un error del proveedor
 
-- **Dado** una solicitud que falla con la API key configurada
-- **Cuando** se registra el motivo del error
+- **Dado** la API key configurada y un proveedor simulado que responde con un error HTTP
+  cuyo cuerpo incluye la cabecera `Authorization` recibida (con el valor de la clave)
+- **Cuando** la solicitud falla y se registra el motivo del error con la configuración
+  central de logging
 - **Entonces** ni el valor de la API key ni la cabecera `Authorization` aparecen en los logs.
+
+> Hoy ningún código registra el cuerpo de la respuesta del proveedor: `_respuesta_modelo`
+> traduce el error a mensajes fijos (`src/m2_cad/pipeline.py:391-396`). El caso del
+> cuerpo con `Authorization` fija la exigencia para cuando el logging central registre el
+> motivo del error.
 
 ## Fuera de alcance
 

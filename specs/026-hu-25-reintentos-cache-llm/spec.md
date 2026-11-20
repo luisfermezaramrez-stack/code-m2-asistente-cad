@@ -7,15 +7,20 @@
 - **Rama**: `feature/hu-25-reintentos-cache-llm`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §3
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
 1. `_respuesta_modelo` hace una única llamada al modelo (`src/m2_cad/pipeline.py:386`,
    `llm.chat`), que a su vez hace un solo `httpx.post` sin reintento
-   (`vendor/constraint-kit/constraint_kit/llm.py:68`).
+   (`vendor/constraint-kit/constraint_kit/llm.py:68`). `vendor/` está gitignored: se
+   restaura con `make vendor` en la revisión fijada por `CK_REV` en
+   `scripts/vendor-constraint-kit.sh:10`, de modo que la cita resiste un clone limpio.
 2. Cualquier fallo se convierte de inmediato en `ModeloNoDisponible`
    (`src/m2_cad/pipeline.py:387-396`), incluso un 5xx transitorio o un corte de conexión;
-   la API lo devuelve como 503 (`src/m2_cad/api.py:176-180`).
+   la API lo devuelve como 503 en la ruta JSON (`src/m2_cad/api.py:137-139`) y en el
+   adaptador SSE (`src/m2_cad/api.py:176-180`).
 3. `_REINTENTOS_HTTP = "0"` (`src/m2_cad/seguimiento.py:32`) pertenece al cliente MLflow,
    no al LLM.
 4. No hay caché: repetir la misma solicitud vuelve a pagar tokens.
@@ -74,11 +79,15 @@ una falla momentánea ni pagar dos veces la misma respuesta.
 - **Entonces** no se llama al proveedor, no se pagan tokens y se registra un acierto de
   caché.
 
-### AC3 — Errores no transitorios
+### AC3 — Errores no transitorios (AC de no regresión)
 
 - **Dado** un proveedor simulado que responde 401 o 402
 - **Cuando** se procesa una solicitud
 - **Entonces** no hay reintentos y el mensaje en español es el actual.
+
+> Este AC pasa hoy sin código nuevo: una sola llamada y mensajes de `MENSAJES_HTTP`
+> (`src/m2_cad/pipeline.py:96-100,391-394`). Se conserva como prueba de no regresión del
+> mecanismo de reintentos, no como trabajo nuevo.
 
 ## Fuera de alcance
 

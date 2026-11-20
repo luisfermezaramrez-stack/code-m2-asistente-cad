@@ -7,6 +7,8 @@
 - **Rama**: `feature/hu-36-endurecimiento-descargas`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §4
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
@@ -65,11 +67,16 @@ adivinar un UUID no baste para obtener mis archivos.
 - **Cuando** se pide con un token válido
 - **Entonces** el servicio responde 410.
 
-### AC3 — Validación estricta
+### AC3 — Validación estricta del id
 
-- **Dado** un id que no es un UUID o un formato fuera de la allowlist
-- **Cuando** se pide la descarga
-- **Entonces** el servicio la rechaza sin leer el disco.
+- **Dado** un id que no es un UUID en `/registros/{identificador}`,
+  `/registros/{identificador}/step` o `/generaciones/{solicitud_id}/archivos/{formato}`
+- **Cuando** se pide la consulta o la descarga
+- **Entonces** el servicio la rechaza sin leer el disco ni el registro (hoy
+  `api.py:222-231` recorre `registro.csv` con cualquier identificador).
+
+El rechazo de formatos fuera de la allowlist ya ocurre (`api.py:530`) y no forma parte de
+este AC; se conserva como no regresión. La expiración se cubre en AC2.
 
 ## Fuera de alcance
 

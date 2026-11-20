@@ -7,22 +7,30 @@
 - **Rama**: `feature/hu-23-corpus-dorado-nucleo`
 - **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §3
+- **Auditoría**: corregida según
+  [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
 
 ## Problema y contexto
 
 El núcleo determinista (DSL → verificación → STEP) es la parte del sistema que más
-justifica la etiqueta "profesional" y, sin embargo, es la única que CI no vigila:
+justifica la etiqueta "profesional". CI ya construye piezas reales, pero sólo las compara
+contra tolerancias amplias y no contra resultados congelados:
 
 1. `make kernel-test` corre las 113 pruebas de `constraint-kit` sólo dentro del
    contenedor del autor `cadkit:0.1` (`Makefile:29-33`); ningún workflow lo invoca.
-2. `.github/workflows/ci.yml:52-56` ejecuta `make check` y el smoke
-   `scripts/verify_hu15_deployment.py --simulate-model`; ninguno compara la geometría
-   producida contra resultados congelados.
+2. `tests/test_pipeline.py` construye piezas reales en CI y compara volumen y caja
+   envolvente contra el valor esperado con tolerancia ±2 %
+   (`tests/test_pipeline.py:106-130,219-227`), y el smoke de `.github/workflows/ci.yml:55`
+   arranca el servicio con CAD real. Ninguno compara la geometría producida contra
+   resultados congelados por hash.
 3. `pipeline.verificar_programa` (`src/m2_cad/pipeline.py:200-219`) y
    `pipeline.construir_pieza` (`src/m2_cad/pipeline.py:281-311`) dependen de
    `dsl.check` y de `builder` del `constraint-kit` vendoreado y parcheado
-   (`make vendor`). Un cambio en el parche o en la versión fijada puede alterar una pieza
-   sin que ninguna prueba lo note.
+   (`make vendor`). Un cambio en el parche o en la versión fijada que altere una pieza
+   por debajo del 2 % de volumen o caja pasa inadvertido.
+
+El hueco real es, por tanto, la ausencia de resultados congelados por hash: una
+divergencia geométrica inferior a la tolerancia actual no se detecta.
 
 ## Historia de usuario
 
@@ -61,19 +69,23 @@ geométrica del núcleo se detecte en CI y no en una pieza entregada.
 
 ## Criterios de aceptación
 
-### AC1 — Cambio en `constraint-kit` rompe CI
+### AC1 — Divergencia de hash rompe CI
 
-- **Dado** el corpus dorado congelado en la rama base
-- **Cuando** una PR modifica `constraint-kit` (versión o parche) de forma que altera la
-  geometría de al menos una pieza del corpus
-- **Entonces** el job de CI falla y nombra el caso cuyo hash del STEP divergió.
+- **Dado** el corpus dorado congelado y un caso aceptado cuyo hash esperado se altera a
+  propósito en la definición del corpus
+- **Cuando** se ejecuta el job de CI del corpus
+- **Entonces** el job falla y nombra el caso cuyo hash del STEP divergió, con el hash
+  esperado y el obtenido.
 
-### AC2 — Cambio en `dsl.check` rompe CI
+### AC2 — Divergencia de aceptación rompe CI
 
-- **Dado** el corpus dorado congelado
-- **Cuando** un cambio en `dsl.check` hace que un caso pase de aceptado a declinado, o a la
-  inversa
-- **Entonces** el job de CI falla e indica el caso, el resultado esperado y el obtenido.
+- **Dado** el corpus dorado congelado y un caso cuyo resultado esperado se invierte a
+  propósito (de `acepta` a `declina`, o a la inversa)
+- **Cuando** se ejecuta el job de CI del corpus
+- **Entonces** el job falla e indica el caso, el resultado esperado y el obtenido.
+
+> **Supuesto**: la alteración deliberada de AC1 y AC2 se prueba con un corpus de prueba
+> o una copia temporal, sin modificar `constraint-kit` ni `dsl.check` dentro de la PR.
 
 ### AC3 — Declinaciones explícitas
 
