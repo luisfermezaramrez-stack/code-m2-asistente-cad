@@ -1,7 +1,8 @@
 # SPEC-054 · HU-53 — Autenticación y usuarios
 
 - **ID**: SPEC-054
-- **Historia**: issue por crear · Ola 3 (opcional) · Tamaño L · Épica: Backend
+- **Historia**: #113 (HU-53) · 5 SP · Etiquetas: Backend · Hito: M4
+- **Planificación**: Ola 3 (opcional) · Tamaño L · Épica: Backend
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: [SPEC-037](../037-hu-36-endurecimiento-descargas/spec.md)
 - **Rama**: `feature/hu-53-autenticacion`

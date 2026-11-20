@@ -1,7 +1,8 @@
 # SPEC-024 · HU-23 — Corpus dorado del núcleo determinista en CI
 
 - **ID**: SPEC-024
-- **Historia**: issue por crear · Ola 0 · Tamaño M · Épica: Calidad
+- **Historia**: #83 (HU-23) · 3 SP · Etiquetas: Testing, ML · Hito: M4
+- **Planificación**: Ola 0 · Tamaño M · Épica: Calidad
 - **Responsable**: Luis Fernando Meza
 - **Depende de**: —
 - **Rama**: `feature/hu-23-corpus-dorado-nucleo`

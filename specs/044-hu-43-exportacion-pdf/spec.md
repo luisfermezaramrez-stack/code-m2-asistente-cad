@@ -1,7 +1,8 @@
 # SPEC-044 · HU-43 — Exportación PDF de planos con cotas
 
 - **ID**: SPEC-044
-- **Historia**: issue por crear · Ola 2 · Tamaño M · Épica: Pipeline
+- **Historia**: #103 (HU-43) · 3 SP · Etiquetas: Backend · Hito: M4
+- **Planificación**: Ola 2 · Tamaño M · Épica: Pipeline
 - **Responsable**: Luis Fernando Meza
 - **Depende de**: [SPEC-043](../043-hu-42-exportacion-dxf/spec.md),
   [SPEC-037](../037-hu-36-endurecimiento-descargas/spec.md)

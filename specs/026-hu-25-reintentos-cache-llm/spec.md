@@ -1,7 +1,8 @@
 # SPEC-026 · HU-25 — Reintentos con backoff y caché de respuestas del LLM
 
 - **ID**: SPEC-026
-- **Historia**: issue por crear · Ola 0 · Tamaño S · Épica: Backend
+- **Historia**: #85 (HU-25) · 2 SP · Etiquetas: Backend, ML · Hito: M4
+- **Planificación**: Ola 0 · Tamaño S · Épica: Backend
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: —
 - **Rama**: `feature/hu-25-reintentos-cache-llm`

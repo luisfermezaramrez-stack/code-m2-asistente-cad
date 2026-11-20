@@ -1,7 +1,8 @@
 # SPEC-040 · HU-39 — Visor 3D: vistas ortogonales, medidas y captura
 
 - **ID**: SPEC-040
-- **Historia**: issue por crear · Ola 2 · Tamaño M · Épica: UX
+- **Historia**: #99 (HU-39) · 3 SP · Etiquetas: Frontend · Hito: M4
+- **Planificación**: Ola 2 · Tamaño M · Épica: UX
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: —
 - **Rama**: `feature/hu-39-visor-ortogonal-medidas`

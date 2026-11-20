@@ -1,7 +1,8 @@
 # SPEC-028 · HU-27 — Tipos del frontend generados desde OpenAPI
 
 - **ID**: SPEC-028
-- **Historia**: issue por crear · Ola 0 · Tamaño S · Épica: Frontend/API
+- **Historia**: #87 (HU-27) · 2 SP · Etiquetas: Frontend, Backend · Hito: M4
+- **Planificación**: Ola 0 · Tamaño S · Épica: Frontend/API
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: —
 - **Rama**: `feature/hu-27-tipos-openapi`

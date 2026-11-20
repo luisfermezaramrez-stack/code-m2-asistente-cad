@@ -1,7 +1,8 @@
 # SPEC-038 · HU-37 — Historial de solicitudes en la UI
 
 - **ID**: SPEC-038
-- **Historia**: issue por crear · Ola 2 · Tamaño M · Épica: UX
+- **Historia**: #97 (HU-37) · 3 SP · Etiquetas: Frontend, Backend · Hito: M4
+- **Planificación**: Ola 2 · Tamaño M · Épica: UX
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: [SPEC-031](../031-hu-30-persistencia-registro/spec.md)
 - **Rama**: `feature/hu-37-historial-ui`

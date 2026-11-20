@@ -1,7 +1,8 @@
 # SPEC-045 · HU-44 — Evaluación continua del banco con respuestas grabadas
 
 - **ID**: SPEC-045
-- **Historia**: issue por crear · Ola 2 · Tamaño M · Épica: MLOps
+- **Historia**: #104 (HU-44) · 3 SP · Etiquetas: ML, Testing · Hito: M4
+- **Planificación**: Ola 2 · Tamaño M · Épica: MLOps
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: [SPEC-026](../026-hu-25-reintentos-cache-llm/spec.md),
   [SPEC-034](../034-hu-33-prompts-versionados/spec.md)

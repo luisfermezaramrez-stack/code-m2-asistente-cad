@@ -1,7 +1,8 @@
 # SPEC-052 · HU-51 — Panorama de métricas sobre MLflow
 
 - **ID**: SPEC-052
-- **Historia**: issue por crear · Ola 3 (opcional) · Tamaño S · Épica: MLOps
+- **Historia**: #111 (HU-51) · 1 SP · Etiquetas: ML · Hito: M4
+- **Planificación**: Ola 3 (opcional) · Tamaño S · Épica: MLOps
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: [SPEC-025](../025-hu-24-logging-estructurado/spec.md),
   [SPEC-027](../027-hu-26-declinacion-legible/spec.md)

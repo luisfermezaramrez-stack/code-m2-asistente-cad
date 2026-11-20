@@ -1,7 +1,8 @@
 # SPEC-055 · HU-54 — Sitio de documentación publicado
 
 - **ID**: SPEC-055
-- **Historia**: issue por crear · Ola 3 (opcional) · Tamaño M · Épica: Entrega
+- **Historia**: #114 (HU-54) · 2 SP · Etiquetas: documentation · Hito: M4
+- **Planificación**: Ola 3 (opcional) · Tamaño M · Épica: Entrega
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: [SPEC-030](../030-hu-29-runbook-operativo/spec.md)
 - **Rama**: `feature/hu-54-sitio-documentacion`

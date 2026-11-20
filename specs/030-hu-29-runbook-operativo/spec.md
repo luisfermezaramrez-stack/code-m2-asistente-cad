@@ -1,7 +1,8 @@
 # SPEC-030 · HU-29 — Runbook operativo
 
 - **ID**: SPEC-030
-- **Historia**: issue por crear · Ola 0 · Tamaño S · Épica: Entrega
+- **Historia**: #89 (HU-29) · 1 SP · Etiquetas: documentation · Hito: M4
+- **Planificación**: Ola 0 · Tamaño S · Épica: Entrega
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: —
 - **Rama**: `feature/hu-29-runbook-operativo`

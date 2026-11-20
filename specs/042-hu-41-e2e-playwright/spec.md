@@ -1,7 +1,8 @@
 # SPEC-042 · HU-41 — E2E del frontend con Playwright en CI
 
 - **ID**: SPEC-042
-- **Historia**: issue por crear · Ola 2 · Tamaño M · Épica: Calidad
+- **Historia**: #101 (HU-41) · 2 SP · Etiquetas: Testing, Frontend · Hito: M4
+- **Planificación**: Ola 2 · Tamaño M · Épica: Calidad
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: [SPEC-039](../039-hu-38-app-shell/spec.md)
 - **Rama**: `feature/hu-41-e2e-playwright`

@@ -1,7 +1,8 @@
 # SPEC-043 · HU-42 — Exportación DXF de planos 2D
 
 - **ID**: SPEC-043
-- **Historia**: issue por crear · Ola 2 · Tamaño L (ver «Tamaño») · Épica: Pipeline
+- **Historia**: #102 (HU-42) · 5 SP · Etiquetas: Backend, spike · Hito: M4
+- **Planificación**: Ola 2 · Tamaño L (ver «Tamaño») · Épica: Pipeline
 - **Responsable**: Luis Fernando Meza
 - **Depende de**: [SPEC-024](../024-hu-23-corpus-dorado-nucleo/spec.md),
   [SPEC-037](../037-hu-36-endurecimiento-descargas/spec.md)

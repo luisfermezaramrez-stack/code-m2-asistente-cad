@@ -1,7 +1,8 @@
 # SPEC-036 · HU-35 — Edición iterativa de la pieza
 
 - **ID**: SPEC-036
-- **Historia**: issue por crear · Ola 1 · Tamaño L · Épica: Pipeline
+- **Historia**: #95 (HU-35) · 5 SP · Etiquetas: ML, Backend · Hito: M4
+- **Planificación**: Ola 1 · Tamaño L · Épica: Pipeline
 - **Responsable**: Luis Fernando Meza
 - **Depende de**: [SPEC-034](../034-hu-33-prompts-versionados/spec.md)
 - **Rama**: `feature/hu-35-edicion-iterativa`

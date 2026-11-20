@@ -1,7 +1,8 @@
 # SPEC-039 · HU-38 — App shell y navegación por vistas
 
 - **ID**: SPEC-039
-- **Historia**: issue por crear · Ola 2 · Tamaño M · Épica: UX
+- **Historia**: #98 (HU-38) · 3 SP · Etiquetas: Frontend · Hito: M4
+- **Planificación**: Ola 2 · Tamaño M · Épica: UX
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: [SPEC-035](../035-hu-34-sistema-diseno-v2/spec.md)
 - **Rama**: `feature/hu-38-app-shell`

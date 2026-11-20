@@ -1,7 +1,8 @@
 # SPEC-047 · HU-46 — Alertas de regresión de calidad
 
 - **ID**: SPEC-047
-- **Historia**: issue por crear · Ola 3 (opcional) · Tamaño M · Épica: MLOps
+- **Historia**: #106 (HU-46) · 2 SP · Etiquetas: ML, Testing · Hito: M4
+- **Planificación**: Ola 3 (opcional) · Tamaño M · Épica: MLOps
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: [SPEC-045](../045-hu-44-banco-ci-replay/spec.md),
   [SPEC-027](../027-hu-26-declinacion-legible/spec.md) (RF-3 y AC3 agrupan por su etiqueta de

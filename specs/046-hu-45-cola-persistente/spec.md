@@ -1,7 +1,8 @@
 # SPEC-046 · HU-45 — Cola persistente de trabajos y worker
 
 - **ID**: SPEC-046
-- **Historia**: issue por crear · Ola 2 · Tamaño L · Épica: Backend
+- **Historia**: #105 (HU-45) · 5 SP · Etiquetas: Backend, infra · Hito: M4
+- **Planificación**: Ola 2 · Tamaño L · Épica: Backend
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: [SPEC-031](../031-hu-30-persistencia-registro/spec.md)
 - **Rama**: `feature/hu-45-cola-persistente`

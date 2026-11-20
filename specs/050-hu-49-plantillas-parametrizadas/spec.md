@@ -1,7 +1,8 @@
 # SPEC-050 · HU-49 — Plantillas parametrizadas de piezas
 
 - **ID**: SPEC-050
-- **Historia**: issue por crear · Ola 3 (opcional) · Tamaño M · Épica: Pipeline
+- **Historia**: #109 (HU-49) · 3 SP · Etiquetas: Backend, ML · Hito: M4
+- **Planificación**: Ola 3 (opcional) · Tamaño M · Épica: Pipeline
 - **Responsable**: Luis Fernando Meza
 - **Depende de**: [SPEC-036](../036-hu-35-edicion-iterativa/spec.md)
 - **Rama**: `feature/hu-49-plantillas-parametrizadas`

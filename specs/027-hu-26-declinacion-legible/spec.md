@@ -1,7 +1,8 @@
 # SPEC-027 · HU-26 — Motivo de declinación legible y etiquetado por causa
 
 - **ID**: SPEC-027
-- **Historia**: issue por crear · Ola 0 · Tamaño S · Épica: Pipeline
+- **Historia**: #86 (HU-26) · 2 SP · Etiquetas: ML, Backend · Hito: M4
+- **Planificación**: Ola 0 · Tamaño S · Épica: Pipeline
 - **Responsable**: Luis Fernando Meza
 - **Depende de**: —
 - **Rama**: `feature/hu-26-declinacion-legible`

@@ -1,7 +1,8 @@
 # SPEC-051 · HU-50 — Cortes y secciones en el visor 3D
 
 - **ID**: SPEC-051
-- **Historia**: issue por crear · Ola 3 (opcional) · Tamaño L · Épica: UX
+- **Historia**: #110 (HU-50) · 4 SP · Etiquetas: Frontend · Hito: M4
+- **Planificación**: Ola 3 (opcional) · Tamaño L · Épica: UX
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: [SPEC-040](../040-hu-39-visor-ortogonal-medidas/spec.md)
 - **Rama**: `feature/hu-50-cortes-visor-3d`

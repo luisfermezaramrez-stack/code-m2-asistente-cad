@@ -1,7 +1,8 @@
 # SPEC-037 · HU-36 — Endurecimiento de artefactos y descargas
 
 - **ID**: SPEC-037
-- **Historia**: issue por crear · Ola 1 · Tamaño S · Épica: Backend
+- **Historia**: #96 (HU-36) · 2 SP · Etiquetas: Backend · Hito: M4
+- **Planificación**: Ola 1 · Tamaño S · Épica: Backend
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: —
 - **Rama**: `feature/hu-36-endurecimiento-descargas`

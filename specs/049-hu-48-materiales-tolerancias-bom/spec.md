@@ -1,7 +1,8 @@
 # SPEC-049 · HU-48 — Materiales, tolerancias y BOM con costos
 
 - **ID**: SPEC-049
-- **Historia**: issue por crear · Ola 3 (opcional) · Tamaño L · Épica: Pipeline
+- **Historia**: #108 (HU-48) · 5 SP · Etiquetas: Backend, spike · Hito: M4
+- **Planificación**: Ola 3 (opcional) · Tamaño L · Épica: Pipeline
 - **Responsable**: Luis Fernando Meza
 - **Depende de**: [SPEC-024](../024-hu-23-corpus-dorado-nucleo/spec.md)
 - **Rama**: `feature/hu-48-materiales-tolerancias-bom`

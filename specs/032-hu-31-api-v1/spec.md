@@ -1,7 +1,8 @@
 # SPEC-032 · HU-31 — API `/v1` versionada con contrato congelado
 
 - **ID**: SPEC-032
-- **Historia**: issue por crear · Ola 1 · Tamaño M · Épica: Backend
+- **Historia**: #91 (HU-31) · 2 SP · Etiquetas: Backend · Hito: M4
+- **Planificación**: Ola 1 · Tamaño M · Épica: Backend
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: [SPEC-028](../028-hu-27-tipos-openapi/spec.md)
 - **Rama**: `feature/hu-31-api-v1`

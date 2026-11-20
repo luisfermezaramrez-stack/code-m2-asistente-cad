@@ -1,7 +1,8 @@
 # SPEC-041 · HU-40 — Cierre de brechas WCAG 2.1 AA
 
 - **ID**: SPEC-041
-- **Historia**: issue por crear · Ola 2 · Tamaño M · Épica: UX
+- **Historia**: #100 (HU-40) · 2 SP · Etiquetas: Frontend, accessibility · Hito: M4
+- **Planificación**: Ola 2 · Tamaño M · Épica: UX
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: [SPEC-035](../035-hu-34-sistema-diseno-v2/spec.md),
   [SPEC-039](../039-hu-38-app-shell/spec.md)

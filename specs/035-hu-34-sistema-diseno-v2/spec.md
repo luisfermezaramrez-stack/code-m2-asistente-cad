@@ -1,7 +1,8 @@
 # SPEC-035 · HU-34 — Sistema de diseño v2: tokens, tipografía y modo oscuro
 
 - **ID**: SPEC-035
-- **Historia**: issue por crear · Ola 1 · Tamaño M · Épica: UX
+- **Historia**: #94 (HU-34) · 3 SP · Etiquetas: Frontend · Hito: M4
+- **Planificación**: Ola 1 · Tamaño M · Épica: UX
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: —
 - **Rama**: `feature/hu-34-sistema-diseno-v2`

@@ -1,7 +1,8 @@
 # SPEC-056 · HU-55 — Releases automáticos con changelog
 
 - **ID**: SPEC-056
-- **Historia**: issue por crear · Ola 3 (opcional) · Tamaño M · Épica: Entrega
+- **Historia**: #115 (HU-55) · 2 SP · Etiquetas: infra · Hito: M4
+- **Planificación**: Ola 3 (opcional) · Tamaño M · Épica: Entrega
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: [SPEC-032](../032-hu-31-api-v1/spec.md)
 - **Rama**: `feature/hu-55-releases-automaticos`

@@ -1,7 +1,8 @@
 # SPEC-031 · HU-30 — Persistencia transaccional, retención y backup del registro
 
 - **ID**: SPEC-031
-- **Historia**: issue por crear · Ola 1 · Tamaño M · Épica: Backend
+- **Historia**: #90 (HU-30) · 3 SP · Etiquetas: Backend · Hito: M4
+- **Planificación**: Ola 1 · Tamaño M · Épica: Backend
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: —
 - **Rama**: `feature/hu-30-persistencia-registro`

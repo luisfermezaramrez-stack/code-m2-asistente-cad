@@ -1,7 +1,8 @@
 # SPEC-034 · HU-33 — Prompts versionados como artefactos
 
 - **ID**: SPEC-034
-- **Historia**: issue por crear · Ola 1 · Tamaño M · Épica: Pipeline
+- **Historia**: #93 (HU-33) · 2 SP · Etiquetas: ML · Hito: M4
+- **Planificación**: Ola 1 · Tamaño M · Épica: Pipeline
 - **Responsable**: Luis Fernando Meza
 - **Depende de**: —
 - **Rama**: `feature/hu-33-prompts-versionados`

@@ -1,7 +1,8 @@
 # SPEC-025 · HU-24 — Logging estructurado y trazas correlacionadas
 
 - **ID**: SPEC-025
-- **Historia**: issue por crear · Ola 0 · Tamaño S · Épica: Backend
+- **Historia**: #84 (HU-24) · 2 SP · Etiquetas: Backend, infra · Hito: M4
+- **Planificación**: Ola 0 · Tamaño S · Épica: Backend
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: —
 - **Rama**: `feature/hu-24-logging-estructurado`

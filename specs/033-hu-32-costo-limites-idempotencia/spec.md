@@ -1,7 +1,8 @@
 # SPEC-033 · HU-32 — Control de costo, límites de uso e idempotencia
 
 - **ID**: SPEC-033
-- **Historia**: issue por crear · Ola 1 · Tamaño M · Épica: Backend
+- **Historia**: #92 (HU-32) · 3 SP · Etiquetas: Backend · Hito: M4
+- **Planificación**: Ola 1 · Tamaño M · Épica: Backend
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: [SPEC-026](../026-hu-25-reintentos-cache-llm/spec.md)
 - **Rama**: `feature/hu-32-costo-limites-idempotencia`

@@ -1,7 +1,8 @@
 # SPEC-048 · HU-47 — Despliegue en la nube
 
 - **ID**: SPEC-048
-- **Historia**: issue por crear · Ola 3 (opcional) · Tamaño L · Épica: Entrega
+- **Historia**: #107 (HU-47) · 4 SP · Etiquetas: infra · Hito: M4
+- **Planificación**: Ola 3 (opcional) · Tamaño L · Épica: Entrega
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: [SPEC-033](../033-hu-32-costo-limites-idempotencia/spec.md),
   [SPEC-037](../037-hu-36-endurecimiento-descargas/spec.md),

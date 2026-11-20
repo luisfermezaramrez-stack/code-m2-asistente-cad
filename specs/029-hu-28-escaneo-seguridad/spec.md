@@ -1,7 +1,8 @@
 # SPEC-029 · HU-28 — Escaneo de dependencias y secretos en CI
 
 - **ID**: SPEC-029
-- **Historia**: issue por crear · Ola 0 · Tamaño S · Épica: Entrega
+- **Historia**: #88 (HU-28) · 1 SP · Etiquetas: infra, Testing · Hito: M4
+- **Planificación**: Ola 0 · Tamaño S · Épica: Entrega
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: —
 - **Rama**: `feature/hu-28-escaneo-seguridad`

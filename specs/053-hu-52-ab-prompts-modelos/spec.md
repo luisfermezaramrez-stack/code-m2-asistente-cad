@@ -1,7 +1,8 @@
 # SPEC-053 · HU-52 — Comparación A/B de prompts y modelos
 
 - **ID**: SPEC-053
-- **Historia**: issue por crear · Ola 3 (opcional) · Tamaño M · Épica: MLOps
+- **Historia**: #112 (HU-52) · 3 SP · Etiquetas: ML · Hito: M4
+- **Planificación**: Ola 3 (opcional) · Tamaño M · Épica: MLOps
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: [SPEC-034](../034-hu-33-prompts-versionados/spec.md),
   [SPEC-045](../045-hu-44-banco-ci-replay/spec.md)
