@@ -43,8 +43,9 @@
   (`httpx.post` único); conviene aclarar que `vendor/` se restaura con `make vendor` y la
   revisión fijada en `scripts/vendor-constraint-kit.sh`, para que la cita resista un clone
   limpio.
-- El mapeo a 503 no está en `api.py:176-180` (adaptador SSE) sino en
-  `src/m2_cad/api.py:137-139`.
+- El mapeo a 503 existe en **dos** rutas: `src/m2_cad/api.py:135-138` (ruta JSON) y
+  `api.py:176-179` (adaptador SSE). La cita de la spec no es falsa: es parcial.
+  *(Corregido: esta nota decía que 176-180 no era el mapeo.)*
 - AC3 ("401/402 sin reintentos") es el comportamiento actual (`pipeline.py:391-394`,
   `MENSAJES_HTTP:96-100`): convertirlo en prueba de no regresión, no en trabajo nuevo.
 
@@ -53,9 +54,10 @@
   genérico sin propiedades (`tests/test_sse.py:117-119`). Decir "aparece sin campos".
 
 ### SPEC-030 · runbook
-- Ya existe un precedente de diagnóstico operativo en `docs/hu15-despliegue.md:100-114`.
-  Delimitar el hueco a lo que falta: modelo caído, saldo/credencial, rotación de clave,
-  rollback de imagen y de versión de modelo, restauración de datos.
+- El precedente que sí existe es de **bloqueos de entorno** — Docker, instalación limpia
+  en Windows, inferencia real pendiente — en `docs/hu15-despliegue.md:100-116`. No cubre
+  modelo caído, saldo/credencial, rotación de clave, rollback de imagen y de versión de
+  modelo, ni restauración de datos. Enunciarlo así, sin llamarlo runbook.
 
 ### SPEC-032 · API `/v1`
 - El 404 JSON de rutas desconocidas vive en `src/m2_cad/web.py:40-70`; `api.py:560` es el
@@ -155,10 +157,11 @@
 - **AC2 es imposible tal como está**: el BOM agrupa por `part_type`
   (`constraint_kit/bom.py:31`), no por material. Concretar: pre-agrupar en
   `pipeline.py:268-278` o cambiar el BOM vendorizado.
-- **AC3 no es determinista hoy**: `DENSITY_G_MM3` (`constraint_kit/parts.py:18-22`) admite
-  `iron`, `al`, `petg`, `pla`, `abs`, `nylon`, `brass`, `copper` además de la lista del
-  prompt (`pipeline.py:68`), y no hay guard de material. La declinación por material
-  requiere código nuevo.
+- **AC3 requiere código nuevo, pero el hueco es chico**: el prompt ya declara ocho
+  materiales — `steel`, `stainless`, `aluminum`, `brass`, `copper`, `abs`, `pla`, `nylon`
+  (`pipeline.py:66-69`) — y `DENSITY_G_MM3` (`constraint_kit/parts.py:18-22`) agrega
+  **sólo tres**: `iron`, `al`, `petg`. Sin guard de material la declinación no es
+  determinista. *(Corregido: esta nota daba por extra toda la tabla de densidades.)*
 - Inventario incompleto: el kit también trae `massprops.py` y `manufacture.py`
   (printability FDM: overhang, pared, canal, volumen), sin costos y sin endpoint en la API.
   Declararlo para no duplicar trabajo.
