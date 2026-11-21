@@ -1,11 +1,11 @@
 # SPEC-057 · HU-56 — Constitución de Spec Kit apuntando a `CONSTITUTION.md` (refactor)
 
 - **ID**: SPEC-057
-- **Historia**: pendiente (HU-56) · 1 SP · Etiquetas: documentation, refactor
+- **Historia**: #117 (HU-56) · 1 SP · Etiquetas: documentation, refactor
 - **Responsable**: Luis Meza
 - **Depende de**: [SPEC-023](../023-hu-22-constitution-refactor/spec.md)
 - **Rama**: `docs/hu-56-constitucion-speckit`
-- **Estado**: Spec-first · propuesta; la issue y la PR se registran al abrirse
+- **Estado**: Spec-first · en revisión (PR #116)
 
 ## Problema y contexto
 

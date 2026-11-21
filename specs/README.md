@@ -40,7 +40,7 @@ Cada spec se vincula a su historia del tablero y a la PR que la implementa.
 | [021](021-hu-20-cierre-entrega/) | HU-20 · Publicación de la entrega en `main` con `v1.0` | #72 | #75 | Spec-first | Fusionada; `v1.0` publicada |
 | [022](022-hu-21-informe-final-refactor/) | HU-21 · Refactor del informe final y la trazabilidad de la HU-13 (refactor) | #73 | #74 | Spec-first | Fusionada |
 | [023](023-hu-22-constitution-refactor/) | HU-22 · Refactor de CONSTITUTION.md al estado real de la entrega (refactor) | #77 | #78 | Spec-first | Fusionada |
-| [057](057-hu-56-constitucion-speckit/) | HU-56 · Constitución de Spec Kit apuntando a `CONSTITUTION.md` (refactor) | — | — | Spec-first | Propuesta |
+| [057](057-hu-56-constitucion-speckit/) | HU-56 · Constitución de Spec Kit apuntando a `CONSTITUTION.md` (refactor) | #117 | #116 | Spec-first | En revisión |
 
 ## Backlog v2 — Profesionalización
 
