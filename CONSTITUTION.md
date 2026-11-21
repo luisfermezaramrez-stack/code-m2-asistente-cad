@@ -285,9 +285,9 @@ git push -u origin feature/hu-XX-tema
 ## 10. Notas y tareas pendientes
 
 - [x] Crear `CONSTITUTION.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, plantillas de PR/issues, `.editorconfig`.
-- [ ] Exigir el check `test` en la protección de `main` tras fusionar HU-57 (#120); la
-  aprobación, las conversaciones resueltas y el bloqueo de force-push y borrado ya están activos.
-  Después, eliminar la rama `develop` del remoto.
+- [x] Proteger `main` en GitHub: check `test` en verde y actualizado, 1 aprobación,
+  conversaciones resueltas, sin force-push ni borrado, también para administradores (HU-57).
+- [ ] Eliminar la rama `develop` del remoto (HU-57).
 - [x] HU-16 (seguimiento con MLflow, responsable Luis Meza) implementada en
   `specs/009-hu-16-mlflow/`.
 - [x] Sustituir el marcador `version="desconocida"` del registro por la versión real del modelo servido.
