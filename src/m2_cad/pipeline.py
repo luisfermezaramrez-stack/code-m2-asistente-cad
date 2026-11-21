@@ -32,7 +32,7 @@ from pathlib import Path
 import httpx
 from constraint_kit import bom, builder, dsl, llm
 
-from m2_cad import MARCA_PRELIMINAR
+from m2_cad import MARCA_PRELIMINAR, llm_resiliente
 from m2_cad.control import ControlGeneracion
 from m2_cad.registro import _sanitizar
 
@@ -338,9 +338,20 @@ def _planificador_con_uso(medir_uso: Callable[[dict], None] | None) -> Callable[
     """Planificador por defecto que informa el `usage` del proveedor (HU-16, AC2)."""
 
     def planificar(texto: str) -> dict:
-        respuesta = _respuesta_modelo(texto)
+        llm_resiliente.reiniciar_metricas()
+        try:
+            respuesta = _respuesta_modelo(texto)
+        except Exception:
+            if medir_uso is not None:
+                medir_uso(llm_resiliente.metricas_actuales())
+            raise
         if medir_uso is not None:
-            medir_uso(respuesta.get("usage") or {})
+            medir_uso(
+                {
+                    **(respuesta.get("usage") or {}),
+                    **llm_resiliente.metricas_actuales(),
+                }
+            )
         return _programa_de(respuesta)
 
     return planificar
@@ -383,7 +394,9 @@ def _respuesta_modelo(texto: str) -> dict:
         "response_format": {"type": "json_object"},
     }
     try:
-        return llm.chat(cuerpo, url=url, timeout=TIEMPO_ESPERA_LLM)
+        return llm_resiliente.consultar(
+            cuerpo, url=url, timeout=TIEMPO_ESPERA_LLM, proveedor=llm.chat
+        )
     except httpx.TimeoutException as exc:
         raise ModeloNoDisponible(
             f"El modelo no respondió a tiempo (más de {TIEMPO_ESPERA_LLM:.0f} s)."

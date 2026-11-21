@@ -144,6 +144,8 @@ def test_hu14_sse_usa_espanol_y_clave_sin_url_y_registra_no_aplica(
         monkeypatch.delenv(variable, raising=False)
     clave = "clave-solo-prueba-hu14"
     monkeypatch.setenv(variable_clave, clave)
+    monkeypatch.setenv("LLM_MAX_RETRIES", "2")
+    monkeypatch.setenv("LLM_RETRY_BASE_SECONDS", "0")
     texto = "Espaciador de acero de 14 mm"
     llamadas = []
 
@@ -174,7 +176,7 @@ def test_hu14_sse_usa_espanol_y_clave_sin_url_y_registra_no_aplica(
     eventos = leer_eventos(respuesta.text)
     esperado = salida if salida in {"verificado", "declinado"} else "error"
     assert [e["estado"] for e in eventos] == ["validando", "generando", esperado]
-    assert len(llamadas) == 1
+    assert len(llamadas) == (3 if salida == "timeout" else 1)
     assert clave not in respuesta.text
     assert "traduccion" not in eventos[-1].get("resultado", {})
     if esperado == "error":
