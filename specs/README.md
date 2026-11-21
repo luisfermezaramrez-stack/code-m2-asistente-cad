@@ -41,6 +41,7 @@ Cada spec se vincula a su historia del tablero y a la PR que la implementa.
 | [022](022-hu-21-informe-final-refactor/) | HU-21 · Refactor del informe final y la trazabilidad de la HU-13 (refactor) | #73 | #74 | Spec-first | Fusionada |
 | [023](023-hu-22-constitution-refactor/) | HU-22 · Refactor de CONSTITUTION.md al estado real de la entrega (refactor) | #77 | #78 | Spec-first | Fusionada |
 | [057](057-hu-56-constitucion-speckit/) | HU-56 · Constitución de Spec Kit apuntando a `CONSTITUTION.md` (refactor) | #117 | #116 | Spec-first | En revisión |
+| [058](058-hu-57-flujo-main/) | HU-57 · `main` como única rama de integración (refactor de proceso) | #119 | #120 | Spec-first | Fusionada |
 
 ## Backlog v2 — Profesionalización
 

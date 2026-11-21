@@ -52,12 +52,12 @@ make check
 
 ## 🌿 Flujo de trabajo con Git
 
-La rama **`develop`** es la rama de integración: **toda rama de trabajo sale de
-`develop`** y vuelve por pull request. `main` solo recibe entregas.
+La rama **`main`** es la única rama de integración: **toda rama de trabajo sale de
+`main`** y vuelve por pull request. Las entregas son etiquetas sobre `main`.
 
-1. Actualiza `develop`:
+1. Actualiza `main`:
    ```bash
-   git switch develop && git pull
+   git switch main && git pull
    ```
 2. Crea una rama descriptiva (una por historia de usuario):
    ```bash
@@ -72,9 +72,10 @@ La rama **`develop`** es la rama de integración: **toda rama de trabajo sale de
    | `test/` | Pruebas |
    | `chore/` | Mantenimiento o configuración |
 3. Desarrolla en commits pequeños y atómicos.
-4. Abre un Pull Request hacia `develop`.
+4. Abre un Pull Request hacia `main`; escribe `Closes #N` en la descripción para
+   que la issue se cierre al fusionar.
 
-> 💡 **Regla de oro:** nunca hagas `push` directo a `develop` "para ver si
+> 💡 **Regla de oro:** nunca hagas `push` directo a `main` "para ver si
 > funciona". Verifica localmente con `make check` antes de abrir el PR.
 
 ## 🧹 Estándares de código
@@ -116,11 +117,11 @@ Se usa la especificación de [Conventional Commits](https://www.conventionalcomm
 
 ## 🔀 Pull Requests
 
-1. Verifica que tu rama esté actualizada respecto a `develop`.
-2. Abre el PR hacia `develop` y completa la plantilla oficial.
+1. Verifica que tu rama esté actualizada respecto a `main`.
+2. Abre el PR hacia `main` y completa la plantilla oficial.
 3. Usa un título con prefijo convencional y mantén el PR **acotado a un solo propósito**.
 4. Marca los checklist aplicables (pruebas, lint, cobertura, `CONSTITUTION.md`, etc.).
-5. La CI de `.github/workflows/ci.yml` debe estar en verde; `develop` exige CI verde
+5. La CI de `.github/workflows/ci.yml` debe estar en verde; `main` exige CI verde
    **y una aprobación** antes de fusionar (protección de rama).
 
 ## 🐞 Reportar issues
