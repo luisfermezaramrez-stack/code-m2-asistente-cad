@@ -1,10 +1,10 @@
 # SPEC-058 · HU-57 — `main` como única rama de integración (refactor de proceso)
 
 - **ID**: SPEC-058
-- **Historia**: HU-57 · 1 SP · Etiquetas: chore, infra, documentation
+- **Historia**: #119 (HU-57) · 1 SP · Etiquetas: chore, infra, documentation
 - **Responsable**: Luis Meza
 - **Rama**: `chore/hu-57-flujo-main`
-- **Estado**: Spec-first · en revisión
+- **Estado**: Spec-first · en revisión (PR #120)
 - **Resuelve**: la decisión abierta de [SPEC-056](../056-hu-55-releases-automaticos/spec.md)
   ("rama de release"): los releases se cortan desde `main`.
 
