@@ -279,6 +279,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-13 | Seguimiento de experimentos con MLflow (`seguimiento.py`, servicio `mlflow`, `make mlflow`); versión de modelo registrada y fin de `version="desconocida"` (HU-16) | Comparar DeepSeek contra la línea base Gemma sin revisar casos a mano y ligar cada evidencia al modelo que la produjo; el seguimiento es best-effort y nunca bloquea la respuesta |
 | 2026-11-14 | Integrar HU-16 en HU-15: el control de cancelación pasa a `control.py` y `seguimiento.py` queda para MLflow; la ruta SSE abre y cierra su corrida en el hilo del trabajo | Evitar el choque de nombres entre ambas HU y medir también las solicitudes SSE; MLflow guarda la corrida activa por hilo |
 | 2026-11-14 | Refactor de esta CONSTITUTION al estado real tras `v1.0` como historia propia (HU-22, SPEC-023), sin mover la etiqueta | La fuente única de verdad contradecía el tablero y las specs; una etiqueta publicada es inmutable, así que la corrección entra por `develop` |
+| 2026-11-20 | La constitución de Spec Kit (`.specify/memory/constitution.md`) remite a esta CONSTITUTION en lugar de ser una plantilla vacía (HU-56, SPEC-057) | `/speckit.plan` y `/speckit.analyze` validaban contra marcadores vacíos; una remisión sin copiar reglas mantiene una sola fuente de verdad |
 
 ## 10. Notas y tareas pendientes
 
