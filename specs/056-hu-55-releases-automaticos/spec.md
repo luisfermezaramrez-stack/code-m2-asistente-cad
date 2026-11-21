@@ -23,6 +23,9 @@ declarada y el CI no corre en `main`.
 
 ## Decisión abierta para `plan.md`
 
+> **Resuelta por [SPEC-058](../058-hu-57-flujo-main/spec.md)**: `main` es la única rama de
+> integración y los releases se cortan desde `main` (opción A); el CI ya corre en `main`.
+
 "Al fusionar en la rama principal" es ambiguo hoy. `plan.md` debe elegir, y registrar en
 `CONSTITUTION.md`, desde qué rama se corta el release y quién crea la etiqueta:
 
