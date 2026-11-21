@@ -78,6 +78,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Lint / Formato** | [Ruff](https://docs.astral.sh/ruff/) — reglas `E, F, I, B`, `line-length = 100` |
 | **Pre-commit** | Ruff + higiene de archivos + bloqueo de pesos (`.gguf`, `.safetensors`, …) |
 | **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `main` |
+| **Espejo GitLab** | GitHub es la fuente de verdad; `.github/workflows/espejo-gitlab.yml` replica ramas y etiquetas en GitLab (solo lectura) vía deploy key SSH (`vars.GITLAB_MIRROR_URL`, `secrets.GITLAB_MIRROR_SSH_KEY`) |
 | **Dependencias automáticas** | [Dependabot](.github/dependabot.yml) (target `main`) |
 | **Despliegue** | Docker multietapa Node/vendor/Python; Compose: `mlflow` (`:5000`) + `m2-cad` (Vue + FastAPI `:8000`), DeepSeek externo |
 

@@ -1,0 +1,49 @@
+name: Espejo GitLab
+
+# GitHub es la fuente de verdad del código; GitLab es una copia de solo lectura.
+# Cada push o borrado de ramas/etiquetas en GitHub se replica en GitLab.
+# Requiere la variable GITLAB_MIRROR_URL (URL SSH del proyecto GitLab) y el secreto
+# GITLAB_MIRROR_SSH_KEY (clave privada de una deploy key con escritura en GitLab).
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["**"]
+  delete:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: espejo-gitlab
+  cancel-in-progress: false
+
+jobs:
+  espejo:
+    # Inactivo en forks o mientras no esté configurado el destino.
+    if: vars.GITLAB_MIRROR_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Replicar ramas y etiquetas en GitLab
+        env:
+          GITLAB_MIRROR_URL: ${{ vars.GITLAB_MIRROR_URL }}
+          GITLAB_MIRROR_SSH_KEY: ${{ secrets.GITLAB_MIRROR_SSH_KEY }}
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$GITLAB_MIRROR_SSH_KEY" > "$HOME/.ssh/id_gitlab"
+          chmod 600 "$HOME/.ssh/id_gitlab"
+          # Clave de host publicada por GitLab (SHA256:eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8).
+          echo 'gitlab.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf' \
+            > "$HOME/.ssh/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/id_gitlab -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+          # Evita publicar el symref origin/HEAD como una rama llamada "HEAD".
+          git symbolic-ref --delete refs/remotes/origin/HEAD 2>/dev/null || true
+          git push --force --prune "$GITLAB_MIRROR_URL" \
+            'refs/remotes/origin/*:refs/heads/*' \
+            'refs/tags/*:refs/tags/*'
