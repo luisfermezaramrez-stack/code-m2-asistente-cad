@@ -74,7 +74,8 @@ de integración.
 - **Dado** el repositorio tras el cambio
 - **Cuando** se buscan referencias a `develop` en `.github/`, `CONSTITUTION.md`,
   `CONTRIBUTING.md`, `AGENTS.md`, `README.md` y `data/README.md`
-- **Entonces** sólo quedan menciones históricas (§9 de la constitución).
+- **Entonces** sólo quedan menciones históricas (§9 de la constitución) y la tarea pendiente
+  de eliminar `develop` (§10).
 
 ### AC4 — Nada se pierde
 
