@@ -172,6 +172,7 @@ def test_evaluador_y_api_actual_40_registros_unicos_sin_modelo(tmp_path, monkeyp
     from m2_cad import api, seguimiento
 
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("M2_DOWNLOAD_SECRET", "hu36-test-" * 8)
     ruta = tmp_path / "registro.csv"
     monkeypatch.setattr(api, "obtener_ruta_registro", lambda: ruta)
     step = tmp_path / "outputs" / "pieza.step"
@@ -196,11 +197,29 @@ def test_evaluador_y_api_actual_40_registros_unicos_sin_modelo(tmp_path, monkeyp
     )
     try:
         with TestClient(api.app) as cliente:
+            tokens_por_registro = {}
+            post_original = cliente.post
+
+            def post_con_token_hu36(*args, **kwargs):
+                respuesta = post_original(*args, **kwargs)
+                registro_id = respuesta.headers.get("X-Registro-ID")
+                token = respuesta.headers.get("X-Download-Token")
+                if registro_id and token:
+                    tokens_por_registro[registro_id] = token
+                return respuesta
+
+            monkeypatch.setattr(cliente, "post", post_con_token_hu36)
             reporte, _ = ejecutar(cliente, salida=tmp_path / "reportes", simulado=True)
             for fila in reporte["casos"]:
                 assert fila["registro_confirmado"] and fila["correlacion_respuesta"]
                 if fila["positivo"]:
-                    assert cliente.get(fila["step"]).text == "STEP SIMULADO"
+                    assert cliente.get(fila["step"]).status_code == 403
+                    respuesta_step = cliente.get(
+                        fila["step"],
+                        headers={"X-Download-Token": tokens_por_registro[fila["request_id"]]},
+                    )
+                    assert respuesta_step.status_code == 200
+                    assert respuesta_step.text == "STEP SIMULADO"
         with ruta.open(newline="", encoding="utf-8") as archivo:
             filas = list(csv.DictReader(archivo))
         assert len(filas) == len({f["id"] for f in filas}) == 40

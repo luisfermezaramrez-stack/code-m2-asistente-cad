@@ -49,6 +49,15 @@ jobs:
       - name: Instalar frontend desde lockfile
         run: make frontend-install
 
+      - name: Preparar secreto efímero para pruebas HU-36
+        run: |
+          python - <<'PY'
+          import os
+          import secrets
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fichero:
+              fichero.write("M2_DOWNLOAD_SECRET=" + secrets.token_hex(32) + "\n")
+          PY
+
       - name: Ruff, Vitest, TypeScript, build integrado y pytest con cobertura
         run: make check
 

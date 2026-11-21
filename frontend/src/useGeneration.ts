@@ -1,5 +1,5 @@
 import { computed, onScopeDispose, ref } from 'vue'
-import { availableArtifacts, parseJob, publicMessage, requestJob, type Artifact, type Job, type Stage } from './api'
+import { availableArtifacts, downloadArtifact, parseJob, publicMessage, requestJob, type Artifact, type Job, type Stage } from './api'
 import { readSSE } from './sse'
 
 export function useGeneration() {
@@ -7,6 +7,7 @@ export function useGeneration() {
   const timeoutSeconds = ref(180)
   const job = ref<Job | null>(null)
   const requestId = ref('')
+  const downloadToken = ref('')
   const stages = ref<Stage[]>([])
   const artifacts = ref<Artifact[]>([])
   const busy = ref(false)
@@ -57,10 +58,11 @@ export function useGeneration() {
       const filesController = controller()
       const filesTimer = setTimeout(() => filesController.abort(), 10_000)
       try {
-        const found = await availableArtifacts(incoming.solicitud_id, incoming.resultado, filesController.signal)
+        const found = await availableArtifacts(incoming.solicitud_id, incoming.resultado, filesController.signal, downloadToken.value)
         if (current === epoch) artifacts.value = found
-      } catch {
-        if (current === epoch) filesError.value = 'No se pudo comprobar la disponibilidad de los archivos.'
+      } catch (error) {
+        if (current === epoch) filesError.value = publicMessage(error instanceof Error ? error.message : '',
+          'No se pudo comprobar la disponibilidad de los archivos.')
       } finally {
         clearTimeout(filesTimer)
         controllers.delete(filesController)
@@ -124,7 +126,7 @@ export function useGeneration() {
     ++epoch
     const current = epoch
     abortAll()
-    job.value = null; requestId.value = ''; stages.value = []; artifacts.value = []
+    job.value = null; requestId.value = ''; downloadToken.value = ''; stages.value = []; artifacts.value = []
     message.value = ''; filesError.value = ''; disconnected.value = false
     loadingFiles.value = false; checking.value = false; cancelling.value = false; busy.value = true
     const control = controller()
@@ -152,6 +154,9 @@ export function useGeneration() {
       if (!response.headers.get('Content-Type')?.startsWith('text/event-stream') || !response.body) {
         throw new Error('El servicio no informa progreso para esta solicitud.')
       }
+      const token = response.headers.get('X-Download-Token')
+      if (!token) throw new Error('El servicio no entregó una autorización de descarga.')
+      downloadToken.value = token
       let sequence = 0
       streamOpened = true
       let previous: Stage | undefined
@@ -188,8 +193,17 @@ export function useGeneration() {
     }
   }
 
-  onScopeDispose(() => { ++epoch; abortAll() })
-  return { description, timeoutSeconds, job, stages, artifacts, busy, checking, cancelling,
+  async function download(file: Artifact) {
+    filesError.value = ''
+    try {
+      await downloadArtifact(file, downloadToken.value)
+    } catch (error) {
+      filesError.value = publicMessage(error instanceof Error ? error.message : '',
+        'No fue posible descargar el archivo.')
+    }
+  }
+  onScopeDispose(() => { ++epoch; abortAll(); downloadToken.value = '' })
+  return { description, timeoutSeconds, job, stages, artifacts, downloadToken, busy, checking, cancelling,
     loadingFiles, message, inputError, filesError, disconnected, canCancel, canCheck,
-    start, cancel, refresh, stopWaiting }
+    start, cancel, refresh, stopWaiting, download }
 }
