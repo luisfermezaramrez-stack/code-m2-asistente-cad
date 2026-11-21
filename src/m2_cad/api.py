@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, field_validator
 from m2_cad import seguimiento
 from m2_cad.control import ControlGeneracion, SolicitudDeclinada
 from m2_cad.registro import RUTA_DEFAULT, SIN_TRADUCCION, registrar
+from m2_cad.seguridad_descargas import emitir_token, exigir_token, validar_uuid
 from m2_cad.trabajos import GestorTrabajos, RespuestaSSE
 from m2_cad.web import configurar_web
 
@@ -222,6 +223,7 @@ def _cabeceras_registro(request: Request, identificador: str) -> dict[str, str]:
 @app.get("/registros/{identificador}")
 def consultar_registro(identificador: str) -> dict[str, str]:
     """Consulta una fila existente, sin escribir ni duplicar el registro (HU-07 AC3)."""
+    identificador = validar_uuid(identificador)
     ruta = obtener_ruta_registro()
     if ruta.exists():
         with ruta.open(encoding="utf-8", newline="") as archivo:
@@ -232,8 +234,9 @@ def consultar_registro(identificador: str) -> dict[str, str]:
 
 
 @app.get("/registros/{identificador}/step")
-def descargar_step(identificador: str) -> FileResponse:
+def descargar_step(identificador: str, request: Request) -> FileResponse:
     """Enlaza el STEP del registro persistente, incluso tras reiniciar los trabajos."""
+    exigir_token(identificador, request.headers.get("X-Download-Token"))
     fila = consultar_registro(identificador)
     try:
         resultado = ast.literal_eval(fila["resultado"])
@@ -391,6 +394,8 @@ def _generar_sse(
     trabajo = gestor.crear(solicitud.texto, procesar, registrar_terminal)
     respuesta = RespuestaSSE(trabajo, request)
     respuesta.headers.update(_cabeceras_registro(request, trabajo.id))
+    respuesta.headers["X-Download-Token"] = emitir_token(trabajo.id)
+    respuesta.headers["Cache-Control"] = "no-store, no-transform"
     return respuesta
 
 
@@ -485,6 +490,8 @@ def generar(
     )
     medir_solicitud(corrida, medido, configuracion, estado="entregada", latencia_ms=latencia_ms)
     response.headers.update(cabeceras)
+    response.headers["X-Download-Token"] = emitir_token(solicitud_id)
+    response.headers["Cache-Control"] = "no-store"
     if respuesta.get("step"):
         response.headers["X-Step-URL"] = str(
             request.url_for("descargar_step", identificador=solicitud_id)
@@ -522,10 +529,12 @@ def obtener_directorio_salidas() -> Path:
 def descargar_archivo(
     solicitud_id: str,
     formato: str,
+    request: Request,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
     salidas: Annotated[Path, Depends(obtener_directorio_salidas)],
 ) -> FileResponse:
     """Entrega solo artefactos existentes del resultado verificado de este trabajo."""
+    exigir_token(solicitud_id, request.headers.get("X-Download-Token"))
     estado = gestor.obtener(solicitud_id).estado()
     if estado["estado"] != "verificado" or formato not in {"step", "glb", "csv"}:
         raise HTTPException(404, "Archivo no disponible.")
