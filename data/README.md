@@ -299,7 +299,7 @@ uv run --no-sync python -B scripts/generate_hu02_dataset.py --write
 
 Solo `--write` reemplaza el CSV y únicamente después de construir y validar
 los 30 positivos y el contrato completo. Revisar el diff y tramitar cualquier
-cambio posterior mediante pull request a `develop`.
+cambio posterior mediante pull request a `main`.
 
 ## Pruebas del banco frente a evaluación del asistente
 
