@@ -30,7 +30,7 @@ make check
 git add -A
 git commit -m "tipo(hu-XX): mensaje descriptivo"
 
-# 4. Subir y abrir PR hacia develop (rama de integración)
+# 4. Subir y abrir PR hacia main (única rama de integración)
 git push -u origin feature/hu-XX-tema
 ```
 
