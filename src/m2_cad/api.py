@@ -105,6 +105,8 @@ def _preparar_medicion(pipeline, medido: dict) -> Callable[[dict], None]:
     def medir_uso(uso: dict) -> None:
         medido["tokens_entrada"] = int(uso.get("prompt_tokens") or 0)
         medido["tokens_salida"] = int(uso.get("completion_tokens") or 0)
+        for clave in ("llm_reintentos", "llm_cache_hit", "llm_cache_miss"):
+            medido[clave] = int(uso.get(clave) or 0)
 
     return medir_uso
 
@@ -310,6 +312,9 @@ def medir_solicitud(
             precio_salida=configuracion.precio_salida,
         ),
         verificacion_ok=1 if estado == "entregada" else 0,
+        llm_reintentos=medido.get("llm_reintentos"),
+        llm_cache_hit=medido.get("llm_cache_hit"),
+        llm_cache_miss=medido.get("llm_cache_miss"),
     )
     corrida.registrar_artefactos(*(medido.get("artefactos") or []))
     modelo = medido.get("modelo")
