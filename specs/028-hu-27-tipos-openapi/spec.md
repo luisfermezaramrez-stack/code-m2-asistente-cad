@@ -6,7 +6,7 @@
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: —
 - **Rama**: `feature/hu-27-tipos-openapi`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: Implementada localmente; ver `plan.md` y `tasks.md` para alcance y verificación. Pendiente de revisión/CI y aceptación.
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §3
 - **Auditoría**: corregida según
   [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)

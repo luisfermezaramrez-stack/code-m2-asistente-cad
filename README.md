@@ -155,6 +155,18 @@ Abrir **http://127.0.0.1:8000/**: FastAPI sirve el build, API, SSE y descargas e
 el mismo origen. No se inicia otro servidor frontend. El desarrollo con HMR
 se explica en [frontend/README.md](frontend/README.md).
 
+### Tipos del API (HU-27)
+
+Después de modificar el contrato FastAPI, ejecutar `make api-types` y versionar
+`frontend/src/generated/api.ts` con el cambio. El esquema se obtiene de
+`app.openapi()` (el mismo que `/openapi.json`), sin arrancar el servidor, usar
+claves, GPU ni red una vez instaladas las dependencias Python/npm.
+
+`make api-types-check` compara los tipos sin modificarlos; también se ejecuta en
+`make check` y en CI. Si detecta una diferencia, falla e indica `make api-types`.
+`api.ts` consume los tipos generados y conserva `parseJob` para validar datos
+HTTP/SSE en ejecución. Plan y alcance: [SPEC-028](specs/028-hu-27-tipos-openapi/plan.md).
+
 Variables del modelo:
 
 | Variable | Uso | Valor por defecto |
