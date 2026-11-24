@@ -47,12 +47,18 @@ Linux, que es la referencia reproducible.
 | Validación | Comando | Resultado |
 |---|---|---|
 | Ruff lint | `uv run --no-sync ruff check src tests` | Sin errores |
-| Ruff format | `uv run --no-sync ruff format --check src tests` | 28 archivos ya formateados |
+| Ruff format | `uv run --no-sync ruff format --check src tests` | 46 archivos ya formateados |
 | Pruebas HU-25 | `uv run --no-sync pytest tests/test_hu25_resiliencia.py tests/test_hu25_ac3_mensajes.py -q` | **29 aprobadas** |
 | Seguimiento MLflow | `uv run --no-sync pytest tests/test_api_seguimiento.py -q` | **10 aprobadas** |
-| Regresión completa | `uv run --no-sync pytest -q` | **341 aprobadas**, 0 fallidas |
-| Cobertura | `uv run --no-sync pytest --cov=src/m2_cad --cov-report=term-missing -q` | **96,11 %** total; **92 %** en `llm_resiliente.py` |
+| Regresión completa | `uv run --no-sync pytest -q` | **404 aprobadas**, 0 fallidas |
+| Cobertura | `uv run --no-sync pytest --cov=src/m2_cad --cov-report=term-missing -q` | **94,00 %** total; **92 %** en `llm_resiliente.py` |
 | `git diff --check` | `git diff --check` | Sin errores |
+
+La regresión se repitió tras integrar `main` (HU-27, HU-30 y HU-36) en la rama. Para
+ejecutarla localmente hace falta `M2_DOWNLOAD_SECRET` (HU-36) y las dependencias de
+`frontend/` para los tests de tipos OpenAPI (HU-27); la CI las prepara en sus pasos
+previos. La CI de GitHub Actions quedó en verde sobre el commit de integración
+`5bdb7f0`.
 
 ## 4. Integración con MLflow
 
@@ -79,5 +85,5 @@ Las correcciones cubren los ocho puntos de la revisión: el plazo total evita es
 multiplicadas, la caché sólo reutiliza respuestas válidas, la cancelación detiene los
 reintentos, la configuración inválida se informa como 503, las métricas de error no
 distorsionan MLflow, los 5xx permanentes no se reintentan y la documentación refleja el
-comportamiento real. Ruff, la suite completa (341 pruebas) y la cobertura (96,11 %) están
+comportamiento real. Ruff, la suite completa (404 pruebas) y la cobertura (94,00 %) están
 en verde.

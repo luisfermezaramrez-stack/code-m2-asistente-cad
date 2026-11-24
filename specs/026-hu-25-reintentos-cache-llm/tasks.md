@@ -25,7 +25,7 @@
 - [x] AC5: configuración inválida informada como 503, no como 500.
 - [x] AC6: respuesta inválida no almacenada en caché.
 - [x] Verificar pytest, Ruff, formato y pruebas de regresión del proyecto.
-- [x] Comprobar registro de métricas y cobertura (96,11 % total; 92 % en `llm_resiliente.py`).
+- [x] Comprobar registro de métricas y cobertura (94,00 % total tras integrar `main`; 92 % en `llm_resiliente.py`).
 
 ## Fase 4 — Entrega
 - [x] Crear `evidence.md` con resultados verificables y limitaciones.
