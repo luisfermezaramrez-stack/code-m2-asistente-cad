@@ -298,8 +298,16 @@ Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 | `MLFLOW_EXPERIMENT_NAME` / `MLFLOW_EXPERIMENT_BANCO` | Nombres de experimento | `m2-cad-generacion` / `m2-cad-banco` | igual |
 | `MLFLOW_PRECIO_ENTRADA` / `MLFLOW_PRECIO_SALIDA` | USD por millón de tokens para `costo_usd` | `0` | `0` |
 | `LLM_MODEL_VERSION` | Versión publicada por el proveedor (AC7) | id del modelo servido | id del modelo servido |
+| `M2_LOG_LEVEL` | Nivel del logging JSON de `m2_cad` (HU-24) | `INFO` | `INFO` (o el valor del entorno) |
 
 Copia `.env.example` a `.env` para ejecutar fuera de Docker.
+
+Los registros del paquete `m2_cad` se emiten en JSON con `nivel`, `modulo`, `mensaje`,
+`marca_tiempo` y, cuando aplica, `request_id` y `job_id`. El `request_id` se reutiliza del
+encabezado `X-Request-ID` cuando es un UUID válido y, si no, se genera uno nuevo. Ese mismo
+id se etiqueta en la corrida de MLflow, de modo que una sola búsqueda reconstruye la
+solicitud. Las claves, tokens Bearer, cabeceras `Authorization` y datos personales se
+redactan antes de escribir el log.
 
 > **Nota:** para la línea base heredada con Gemma, `LLM_BASE_URL` apunta al servidor
 > llama.cpp (`http://llama:8080` dentro de Compose) y hace falta el GGUF; ver abajo.

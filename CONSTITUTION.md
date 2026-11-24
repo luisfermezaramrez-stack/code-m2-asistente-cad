@@ -105,6 +105,7 @@ code-m2-asistente-cad/
 │   ├── trabajos.py             # SSE, registro en memoria y cancelación cooperativa
 │   ├── control.py              # puntos seguros de cancelación del pipeline (HU-15)
 │   ├── seguimiento.py          # MLflow: una corrida por solicitud y por caso del banco (HU-16)
+│   ├── observabilidad.py       # logs JSON, request_id/job_id y redacción de secretos (HU-24)
 │   └── web.py                  # Vue/estáticos, CORS restringido y errores JSON
 ├── frontend/                   # Vue, TypeScript, Vite y pruebas Vitest
 ├── design/                     # referencia y fuente única de tokens (tokens.css)
@@ -295,6 +296,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-20 | La constitución de Spec Kit (`.specify/memory/constitution.md`) remite a esta CONSTITUTION en lugar de ser una plantilla vacía (HU-56, SPEC-057) | `/speckit.plan` y `/speckit.analyze` validaban contra marcadores vacíos; una remisión sin copiar reglas mantiene una sola fuente de verdad |
 | 2026-11-20 | Retirar `develop`: `main` pasa a ser la única rama de integración, con CI, Dependabot y la protección que tenía `develop`; las entregas son etiquetas sobre `main` (HU-57, SPEC-058) | GitHub sólo cierra issues con `Closes #N` al fusionar en la rama por defecto (`main`); una sola rama de larga vida simplifica el flujo del equipo |
 | 2026-11-22 | HU-27: generar tipos frontend desde OpenAPI y comprobarlos en `make check`; compartir `EstadoTrabajo` entre HTTP y documentación SSE | Detectar divergencias del contrato en CI; generador compatible con TypeScript 6, offline tras instalación y sin cambiar el transporte |
+| 2026-11-24 | HU-24: logging central en JSON con `request_id`/`job_id` correlacionados y redacción de secretos | Reconstruir cada solicitud con un solo id sin filtrar credenciales; el contexto se copia al hilo SSE y se etiqueta en MLflow |
 
 ## 10. Notas y tareas pendientes
 
