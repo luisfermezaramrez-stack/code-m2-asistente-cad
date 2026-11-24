@@ -49,7 +49,7 @@ jobs:
       - name: Instalar frontend desde lockfile
         run: make frontend-install
 
-      - name: Ruff, Vitest, TypeScript, build integrado y pytest con cobertura
+      - name: Ruff, contrato OpenAPI, Vitest, TypeScript, build integrado y cobertura
         run: make check
 
       - name: Arranque integrado HTTP (modelo simulado, sin traducción, CAD real)
