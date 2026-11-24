@@ -3,7 +3,9 @@
 **Fecha:** 24 de noviembre de 2026  
 **Issue:** #84  
 **Especificación:** SPEC-025  
-**Rama:** `feature/hu-24-logging-estructurado`
+**Rama:** `feature/hu-24-logging-estructurado`  
+**Commit:** `53741a1`  
+**Pull request:** [#129](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/129)
 
 ## 1. Implementación
 
