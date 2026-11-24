@@ -410,8 +410,14 @@ def test_correlacion_version_consulta_y_step(tmp_path, monkeypatch):
             assert fila["id"] == identificador
             assert fila["traduccion"] == "no aplica"
             assert fila["version"] == "modelo-revision-simulada"
-            assert client.get(respuesta.headers["X-Step-URL"]).text == "STEP SIMULADO"
-            assert client.get("/registros/inexistente").status_code == 404
+            autorizacion = {"X-Download-Token": respuesta.headers["X-Download-Token"]}
+            assert client.get(respuesta.headers["X-Step-URL"]).status_code == 403
+            assert (
+                client.get(respuesta.headers["X-Step-URL"], headers=autorizacion).text
+                == "STEP SIMULADO"
+            )
+            assert client.get("/registros/inexistente").status_code == 422
+            assert client.get(f"/registros/{uuid.uuid4().hex}").status_code == 404
             assert len(leer_registro_csv(api.obtener_ruta_registro())) == 1
     finally:
         api.app.dependency_overrides.pop(api.obtener_procesador, None)
@@ -444,17 +450,25 @@ def test_fallo_inesperado_y_contexto_quedan_registrados(tmp_path, monkeypatch):
     assert fila["error"] == "RuntimeError"
 
 
-def test_entrada_invalida_tiene_registro_y_step_fuera_de_outputs_no_se_expone(tmp_path):
+def test_entrada_invalida_tiene_registro_y_step_fuera_de_outputs_no_se_expone(
+    tmp_path, monkeypatch
+):
     from fastapi.testclient import TestClient
 
     from m2_cad import api
+    from m2_cad.seguridad_descargas import emitir_token
+
+    monkeypatch.setenv("M2_DOWNLOAD_SECRET", "test-hu36-" * 8)
 
     with TestClient(api.app) as client:
         respuesta = client.post("/generar", json={"texto": " "})
         assert respuesta.status_code == 422
         assert "X-Resultado-Tipo" not in respuesta.headers
         assert client.get(respuesta.headers["X-Registro-URL"]).status_code == 200
-        assert client.get(respuesta.headers["X-Registro-URL"] + "/step").status_code == 404
+        ruta_step = respuesta.headers["X-Registro-URL"] + "/step"
+        assert client.get(ruta_step).status_code == 403
+        token = emitir_token(respuesta.headers["X-Registro-ID"])
+        assert client.get(ruta_step, headers={"X-Download-Token": token}).status_code == 404
         secreto = tmp_path / "fuera.step"
         secreto.write_text("no exponer", encoding="utf-8")
         api.app.dependency_overrides[api.obtener_procesador] = lambda: (
@@ -462,6 +476,9 @@ def test_entrada_invalida_tiene_registro_y_step_fuera_de_outputs_no_se_expone(tm
         )
         try:
             respuesta = client.post("/generar", json={"texto": "placa"})
-            assert client.get(respuesta.headers["X-Step-URL"]).status_code == 404
+            autorizacion = {"X-Download-Token": respuesta.headers["X-Download-Token"]}
+            assert (
+                client.get(respuesta.headers["X-Step-URL"], headers=autorizacion).status_code == 404
+            )
         finally:
             api.app.dependency_overrides.pop(api.obtener_procesador, None)

@@ -29,7 +29,7 @@ export class FakeCadService {
           try { controller.error(new DOMException('Aborted', 'AbortError')) } catch { /* cerrado */ }
         })
       } })
-      return new Response(body, { headers: { 'Content-Type': 'text/event-stream', 'X-Solicitud-ID': 'job1' } })
+      return new Response(body, { headers: { 'Content-Type': 'text/event-stream', 'X-Download-Token': 'token-simulado-hu36', 'X-Solicitud-ID': 'job1' } })
     }
     if (url.endsWith('/archivos/step') || url.endsWith('/archivos/glb') || url.endsWith('/archivos/csv')) {
       const format = url.split('/').at(-1) as Format

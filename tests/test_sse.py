@@ -456,14 +456,15 @@ def test_archivos_reales_independientes_y_head(entorno, tmp_path):
                 "/generar", json={"texto": "Placa"}, headers={"Accept": "text/event-stream"}
             )
             id_ = response.headers["x-solicitud-id"]
+            autorizacion = {"X-Download-Token": response.headers["x-download-token"]}
             base = f"/generaciones/{id_}/archivos"
-            assert client.get(f"{base}/step").content == step.read_bytes()
-            assert client.get(f"{base}/csv").content == csv.read_bytes()
-            head = client.head(f"{base}/step")
+            assert client.get(f"{base}/step", headers=autorizacion).content == step.read_bytes()
+            assert client.get(f"{base}/csv", headers=autorizacion).content == csv.read_bytes()
+            head = client.head(f"{base}/step", headers=autorizacion)
             assert head.status_code == 200 and head.content == b""
             assert "pieza.step" in head.headers["content-disposition"]
-            assert client.head(f"{base}/glb").status_code == 404
-            assert client.get(f"{base}/desconocido").status_code == 404
+            assert client.head(f"{base}/glb", headers=autorizacion).status_code == 404
+            assert client.get(f"{base}/desconocido", headers=autorizacion).status_code == 404
     finally:
         api.app.dependency_overrides.pop(api.obtener_directorio_salidas, None)
 
@@ -490,7 +491,11 @@ def test_descargas_no_exponen_archivos_ajenos_o_extension_incorrecta(entorno, tm
                 "/generar", json={"texto": "Placa"}, headers={"Accept": "text/event-stream"}
             )
             id_ = response.headers["x-solicitud-id"]
-            assert client.get(f"/generaciones/{id_}/archivos/step").status_code == 404
+            autorizacion = {"X-Download-Token": response.headers["x-download-token"]}
+            assert (
+                client.get(f"/generaciones/{id_}/archivos/step", headers=autorizacion).status_code
+                == 404
+            )
     finally:
         api.app.dependency_overrides.pop(api.obtener_directorio_salidas, None)
 
@@ -513,5 +518,6 @@ def test_descarga_resuelve_rutas_relativas_con_raiz_real(entorno, tmp_path, monk
             "/generar", json={"texto": "Placa"}, headers={"Accept": "text/event-stream"}
         )
         id_ = response.headers["x-solicitud-id"]
-        archivo = client.get(f"/generaciones/{id_}/archivos/step")
+        autorizacion = {"X-Download-Token": response.headers["x-download-token"]}
+        archivo = client.get(f"/generaciones/{id_}/archivos/step", headers=autorizacion)
         assert archivo.status_code == 200 and archivo.content == b"STEP real de prueba"
