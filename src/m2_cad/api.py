@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from m2_cad import seguimiento
+from m2_cad.contratos import EstadoTrabajo
 from m2_cad.control import ControlGeneracion, SolicitudDeclinada
 from m2_cad.registro import RUTA_DEFAULT, SIN_TRADUCCION, registrar
 from m2_cad.trabajos import GestorTrabajos, RespuestaSSE
@@ -397,7 +398,16 @@ def _generar_sse(
 @app.post(
     "/generar",
     response_model=dict[str, str],
-    responses={200: {"content": {"text/event-stream": {"schema": {"type": "string"}}}}},
+    responses={
+        200: {
+            "content": {
+                "text/event-stream": {
+                    "schema": {"type": "string"},
+                    "x-event-data-schema": {"$ref": "#/components/schemas/EstadoTrabajo"},
+                }
+            }
+        }
+    },
 )
 def generar(
     solicitud: SolicitudGenerar,
@@ -492,7 +502,7 @@ def generar(
     return respuesta
 
 
-@app.get("/generaciones/{solicitud_id}")
+@app.get("/generaciones/{solicitud_id}", response_model=EstadoTrabajo)
 def consultar_generacion(
     solicitud_id: str,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
@@ -501,7 +511,13 @@ def consultar_generacion(
     return gestor.obtener(solicitud_id).estado()
 
 
-@app.delete("/generaciones/{solicitud_id}")
+@app.delete(
+    "/generaciones/{solicitud_id}",
+    response_model=EstadoTrabajo,
+    responses={
+        202: {"model": EstadoTrabajo, "description": "Cancelación solicitada, no confirmada."}
+    },
+)
 def cancelar_generacion(
     solicitud_id: str,
     response: Response,
