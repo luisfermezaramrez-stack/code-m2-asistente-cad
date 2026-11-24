@@ -45,18 +45,46 @@ export async function requestJob(id: string, method: 'GET' | 'DELETE', signal: A
   return parseJob(await response.json())
 }
 
-export async function availableArtifacts(id: string, result: NonNullable<Job['resultado']>, signal: AbortSignal): Promise<Artifact[]> {
+export class ArtifactAccessError extends Error {}
+export async function availableArtifacts(id: string, result: NonNullable<Job['resultado']>, signal: AbortSignal, token?: string): Promise<Artifact[]> {
   const formats: Format[] = ['step', 'glb', 'csv']
   const found = await Promise.all(formats.map(async (format) => {
     if (!(format === 'csv' ? result.bom_csv || result.csv : result[format])) return null
     const url = artifactUrl(id, format)
     try {
-      const response = await fetch(url, { method: 'HEAD', signal })
+      const response = await fetch(url, { method: 'HEAD', signal, headers: token ? { 'X-Download-Token': token } : undefined })
+      if (response.status === 403) throw new ArtifactAccessError('La autorización para consultar archivos no es válida.')
+      if (response.status === 410) throw new ArtifactAccessError('Los archivos han expirado. Genera la pieza nuevamente.')
       return response.ok ? { format, url } : null
     } catch (error) {
-      if (signal.aborted) throw error
+      if (signal.aborted || error instanceof ArtifactAccessError) throw error
       return null
     }
   }))
   return found.filter((item): item is Artifact => item !== null)
+}
+/** Descarga autorizada; nunca expone el token en la URL. */
+export async function downloadArtifact(artifact: Artifact, token: string): Promise<void> {
+  if (!token) throw new Error('La autorización de descarga no está disponible.')
+  const response = await fetch(artifact.url, {
+    method: 'GET',
+    headers: { 'X-Download-Token': token },
+    cache: 'no-store',
+  })
+  if (response.status === 410) throw new Error('El archivo ha expirado. Genera la pieza nuevamente.')
+  if (response.status === 403) throw new Error('La autorización de descarga es inválida.')
+  if (!response.ok) throw new Error('No se pudo descargar el archivo.')
+  const blob = await response.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  try {
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = `pieza.${artifact.format}`
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+  } finally {
+    // Retraso para que el navegador pueda comenzar a guardar el archivo.
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+  }
 }

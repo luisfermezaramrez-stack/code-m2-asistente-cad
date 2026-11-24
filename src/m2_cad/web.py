@@ -51,8 +51,8 @@ def configurar_web(
         allow_origins=origenes if origenes is not None else origenes_frontend(),
         allow_credentials=False,
         allow_methods=["GET", "HEAD", "POST", "DELETE"],
-        allow_headers=["Accept", "Content-Type"],
-        expose_headers=["X-Solicitud-ID", "Content-Disposition"],
+        allow_headers=["Accept", "Content-Type", "X-Download-Token"],
+        expose_headers=["X-Solicitud-ID", "Content-Disposition", "X-Download-Token"],
     )
 
     @app.get("/", include_in_schema=False)

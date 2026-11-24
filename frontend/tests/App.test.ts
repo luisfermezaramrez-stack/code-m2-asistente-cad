@@ -34,7 +34,7 @@ describe('SPA conectada a FastAPI simulado', () => {
   it('muestra aviso profesional y estado vacío sin muestras técnicas', () => {
     expect(wrapper.text()).toContain('Diseño preliminar: requiere revisión profesional')
     expect(wrapper.text()).toContain('Sin solicitud')
-    expect(wrapper.findAll('a[download]')).toHaveLength(0)
+    expect(wrapper.findAll('button.download')).toHaveLength(0)
     expect(wrapper.text()).not.toMatch(/MAQUETA|SSE|localhost|simulado/)
   })
 
@@ -65,7 +65,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     service.send(event('verificado', 3, { resultado: result }), true)
     await flushPromises()
     expect(wrapper.findAll('.steps li').map((item) => item.text())).toEqual(['Validando solicitud', 'Generando pieza', 'Pieza verificada'])
-    expect(wrapper.findAll('a[download]').map((item) => item.attributes('href'))).toEqual([
+    expect(wrapper.findAll('button.download').map((item) => item.attributes('data-download-url'))).toEqual([
       '/generaciones/job1/archivos/step', '/generaciones/job1/archivos/glb', '/generaciones/job1/archivos/csv',
     ])
     expect(wrapper.find('[data-testid="visor-simulado"]').exists()).toBe(true)
@@ -77,8 +77,8 @@ describe('SPA conectada a FastAPI simulado', () => {
     await start(); await sendStages()
     service.send(event('verificado', 3, { resultado: result }))
     await flushPromises()
-    expect(wrapper.findAll('a[download]')).toHaveLength(2)
-    expect(wrapper.get('a[download="pieza.step"]').attributes('href')).toBe('/generaciones/job1/archivos/step')
+    expect(wrapper.findAll('button.download')).toHaveLength(2)
+    expect(wrapper.get('button.download[data-download-filename="pieza.step"]').attributes('data-download-url')).toBe('/generaciones/job1/archivos/step')
     expect(wrapper.text()).toContain('Vista 3D no disponible')
     expect(wrapper.find('[data-testid="visor-simulado"]').exists()).toBe(false)
   })
@@ -88,7 +88,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     await start(); await sendStages()
     service.send(event('verificado', 3, { resultado: result }))
     await flushPromises()
-    expect(wrapper.findAll('a[download]')).toHaveLength(1)
+    expect(wrapper.findAll('button.download')).toHaveLength(1)
     expect(wrapper.text()).toContain('No hay archivo STEP disponible')
     expect(wrapper.find('[data-testid="visor-simulado"]').exists()).toBe(true)
   })
@@ -97,7 +97,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     await start(); await sendStages()
     service.send(event('verificado', 3, { resultado: { step: result.step, [key]: 'materiales.csv' } }))
     await flushPromises()
-    expect(wrapper.get('a[download="pieza.csv"]').attributes('href')).toBe('/generaciones/job1/archivos/csv')
+    expect(wrapper.get('button.download[data-download-filename="pieza.csv"]').attributes('data-download-url')).toBe('/generaciones/job1/archivos/csv')
   })
 
   it('comunica el detalle público de un error HTTP sin ofrecer archivos', async () => {
@@ -105,7 +105,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     service.postDetail = 'El servicio de generación no está disponible.'
     await start()
     expect(wrapper.text()).toContain('El servicio de generación no está disponible.')
-    expect(wrapper.findAll('a[download]')).toHaveLength(0)
+    expect(wrapper.findAll('button.download')).toHaveLength(0)
   })
 
   it('limpia visor y descargas al empezar de nuevo y conserva la descripción al declinar', async () => {
@@ -113,7 +113,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     service.send(event('verificado', 3, { resultado: result }))
     await flushPromises()
     await start('Turbina fuera de catálogo')
-    expect(wrapper.findAll('a[download]')).toHaveLength(0)
+    expect(wrapper.findAll('button.download')).toHaveLength(0)
     expect(wrapper.find('[data-testid="visor-simulado"]').exists()).toBe(false)
     service.send(event('validando', 1))
     service.send(event('declinado', 2, { motivo: 'Fuera del catálogo admitido' }))
@@ -121,7 +121,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     expect(wrapper.text()).toContain('Solicitud declinada')
     expect(wrapper.text()).toContain('Fuera del catálogo admitido')
     expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe('Turbina fuera de catálogo')
-    expect(wrapper.findAll('a[download]')).toHaveLength(0)
+    expect(wrapper.findAll('button.download')).toHaveLength(0)
   })
 
   it('distingue DELETE 202 de cancelación local confirmada y no aborta antes de confirmarla', async () => {
@@ -143,7 +143,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     await button('Cancelar solicitud').trigger('click'); await flushPromises()
     expect(wrapper.text()).toContain('Pieza verificada')
     expect(wrapper.text()).not.toContain('Procesamiento local detenido')
-    expect(wrapper.findAll('a[download]')).toHaveLength(3)
+    expect(wrapper.findAll('button.download')).toHaveLength(3)
     service.close(); await flushPromises()
   })
 
@@ -200,7 +200,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('No se pudo completar')
     expect(wrapper.text()).not.toMatch(/10\.0\.0\.5|secreto|api_key/)
-    expect(wrapper.findAll('a[download]')).toHaveLength(0)
+    expect(wrapper.findAll('button.download')).toHaveLength(0)
   })
 
   it('un corte de red solicita cancelación local sin afirmar recepción ni detención', async () => {
@@ -220,7 +220,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     service.send(event('error', 2, { motivo: 'El modelo no está configurado: falta DEEPSEEK_API_KEY.', codigo_http: 503 }))
     await flushPromises()
     expect(wrapper.text()).toContain('El modelo no está configurado: falta DEEPSEEK_API_KEY.')
-    expect(wrapper.findAll('a[download]')).toHaveLength(0)
+    expect(wrapper.findAll('button.download')).toHaveLength(0)
   })
 
   it('muestra el mismo diagnóstico seguro si llega como error HTTP', async () => {
@@ -270,8 +270,8 @@ describe('SPA conectada a FastAPI simulado', () => {
       ? Promise.reject(new TypeError('Red no disponible')) : original(url, init))
     await start(); await sendStages()
     service.send(event('verificado', 3, { resultado: result })); await flushPromises()
-    expect(wrapper.findAll('a[download]')).toHaveLength(2)
-    expect(wrapper.get('a[download="pieza.csv"]').attributes('href')).toContain('/archivos/csv')
+    expect(wrapper.findAll('button.download')).toHaveLength(2)
+    expect(wrapper.get('button.download[data-download-filename="pieza.csv"]').attributes('data-download-url')).toContain('/archivos/csv')
   })
 
   it('desmontar aborta la espera sin anunciar cancelación completa', async () => {
@@ -321,6 +321,6 @@ describe('SPA conectada a FastAPI simulado', () => {
     // El doble ignora abort deliberadamente para reproducir una respuesta tardía.
     await start('Otra placa')
     resolve(Response.json(event('verificado', 3, { resultado: result }))); await flushPromises()
-    expect(wrapper.findAll('a[download]')).toHaveLength(0)
+    expect(wrapper.findAll('button.download')).toHaveLength(0)
   })
 })
