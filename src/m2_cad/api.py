@@ -1,11 +1,15 @@
 """API REST para la generación preliminar de componentes CAD (HU-06)."""
 
 import ast
+import asyncio
 import csv
+import logging
 import os
+import tempfile
 import time
 import uuid
 from collections.abc import Callable
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Annotated
 
@@ -16,8 +20,10 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from m2_cad import seguimiento
+from m2_cad.contratos import EstadoTrabajo
 from m2_cad.control import ControlGeneracion, SolicitudDeclinada
 from m2_cad.registro import RUTA_DEFAULT, SIN_TRADUCCION, registrar
+from m2_cad.retencion_salidas import depurar_outputs, leer_politica
 from m2_cad.seguridad_descargas import emitir_token, exigir_token, validar_uuid
 from m2_cad.trabajos import GestorTrabajos, RespuestaSSE
 from m2_cad.web import configurar_web
@@ -25,8 +31,37 @@ from m2_cad.web import configurar_web
 Procesador = Callable[[str, dict | None], dict[str, str]]
 ProcesadorSSE = Callable[[str, ControlGeneracion, dict | None], dict[str, str]]
 
+
+async def _limpieza_periodica(politica) -> None:
+    """Limpieza no invasiva: no se ejecuta si existe un trabajo en proceso."""
+    while True:
+        try:
+            if not gestor_trabajos.hay_trabajos_activos():
+                await asyncio.to_thread(depurar_outputs, Path("outputs"), dias=politica.dias)
+        except Exception:
+            logger.exception("No se pudo aplicar la política de retención.")
+        await asyncio.sleep(politica.intervalo_segundos)
+
+
+@asynccontextmanager
+async def _ciclo_aplicacion(_: FastAPI):
+    """Activa retención solo cuando está configurada; finaliza el limpiador al cerrar."""
+    politica = leer_politica()
+    tarea = asyncio.create_task(_limpieza_periodica(politica)) if politica else None
+    try:
+        yield
+    finally:
+        if tarea is not None:
+            tarea.cancel()
+            with suppress(asyncio.CancelledError):
+                await tarea
+
+
+logger = logging.getLogger(__name__)
+
 app = FastAPI(
     title="M2 CAD Assistant API",
+    lifespan=_ciclo_aplicacion,
     version="0.1.0",
     description="Servicio de generación preliminar de componentes CAD.",
 )
@@ -92,6 +127,40 @@ def _modelo_configurado() -> bool:
     """Hay modelo: DeepSeek con key (HU-14) o un servidor propio en LLM_BASE_URL."""
     return any(
         os.environ.get(variable) for variable in ("LLM_BASE_URL", "LLM_API_KEY", "DEEPSEEK_API_KEY")
+    )
+
+
+def _registro_disponible() -> bool:
+    """Comprueba acceso al registro sin crearlo ni alterar su contenido."""
+    ruta = Path(obtener_ruta_registro())
+    try:
+        if ruta.exists() and not ruta.is_file():
+            return False
+        # El temporal verifica escritura efectiva, incluso si el CSV aún no existe.
+        with tempfile.TemporaryFile(dir=ruta.parent) as temporal:
+            temporal.write(b"ready")
+        if ruta.exists():
+            with ruta.open("rb") as archivo:
+                archivo.read(1)
+    except OSError:
+        return False
+    return True
+
+
+@app.get("/ready")
+def ready() -> JSONResponse:
+    """Disponibilidad operativa local; /health conserva el contrato de vida."""
+    dependencias = {
+        "modelo": "ok" if _modelo_configurado() else "no_disponible",
+        "registro": "ok" if _registro_disponible() else "no_disponible",
+    }
+    disponible = all(estado == "ok" for estado in dependencias.values())
+    return JSONResponse(
+        status_code=200 if disponible else 503,
+        content={
+            "status": "ok" if disponible else "no_disponible",
+            "dependencias": dependencias,
+        },
     )
 
 
@@ -402,7 +471,16 @@ def _generar_sse(
 @app.post(
     "/generar",
     response_model=dict[str, str],
-    responses={200: {"content": {"text/event-stream": {"schema": {"type": "string"}}}}},
+    responses={
+        200: {
+            "content": {
+                "text/event-stream": {
+                    "schema": {"type": "string"},
+                    "x-event-data-schema": {"$ref": "#/components/schemas/EstadoTrabajo"},
+                }
+            }
+        }
+    },
 )
 def generar(
     solicitud: SolicitudGenerar,
@@ -499,7 +577,7 @@ def generar(
     return respuesta
 
 
-@app.get("/generaciones/{solicitud_id}")
+@app.get("/generaciones/{solicitud_id}", response_model=EstadoTrabajo)
 def consultar_generacion(
     solicitud_id: str,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
@@ -508,7 +586,13 @@ def consultar_generacion(
     return gestor.obtener(solicitud_id).estado()
 
 
-@app.delete("/generaciones/{solicitud_id}")
+@app.delete(
+    "/generaciones/{solicitud_id}",
+    response_model=EstadoTrabajo,
+    responses={
+        202: {"model": EstadoTrabajo, "description": "Cancelación solicitada, no confirmada."}
+    },
+)
 def cancelar_generacion(
     solicitud_id: str,
     response: Response,

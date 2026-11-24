@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [develop]
+    branches: [main]
   push:
-    branches: [develop]
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -58,7 +58,7 @@ jobs:
               fichero.write("M2_DOWNLOAD_SECRET=" + secrets.token_hex(32) + "\n")
           PY
 
-      - name: Ruff, Vitest, TypeScript, build integrado y pytest con cobertura
+      - name: Ruff, contrato OpenAPI, Vitest, TypeScript, build integrado y cobertura
         run: make check
 
       - name: Arranque integrado HTTP (modelo simulado, sin traducción, CAD real)

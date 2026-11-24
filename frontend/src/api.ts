@@ -1,16 +1,8 @@
-export type Stage = 'iniciando' | 'validando' | 'generando' | 'verificado' | 'declinado' | 'error' | 'cancelado'
-export interface Job {
-  solicitud_id: string
-  estado: Stage
-  terminal: boolean
-  cancelacion_solicitada: boolean
-  secuencia?: number
-  resultado?: Record<string, string>
-  motivo?: string
-  codigo_http?: number
-  pipeline_detenido?: boolean
-  cancelacion_remota_confirmada?: boolean
-}
+import type { ConsultarGeneracionGeneracionesSolicitudIdGetResponse } from './generated/api'
+
+export type Job = ConsultarGeneracionGeneracionesSolicitudIdGetResponse
+export type Stage = Job['estado']
+// Formatos y enlaces descubiertos por HEAD: estado local de UI, no un cuerpo JSON.
 export type Format = 'step' | 'glb' | 'csv'
 export interface Artifact { format: Format; url: string }
 const terminals = new Set<Stage>(['verificado', 'declinado', 'error', 'cancelado'])
@@ -54,7 +46,7 @@ export async function requestJob(id: string, method: 'GET' | 'DELETE', signal: A
 }
 
 export class ArtifactAccessError extends Error {}
-export async function availableArtifacts(id: string, result: Record<string, string>, signal: AbortSignal, token?: string): Promise<Artifact[]> {
+export async function availableArtifacts(id: string, result: NonNullable<Job['resultado']>, signal: AbortSignal, token?: string): Promise<Artifact[]> {
   const formats: Format[] = ['step', 'glb', 'csv']
   const found = await Promise.all(formats.map(async (format) => {
     if (!(format === 'csv' ? result.bom_csv || result.csv : result[format])) return null

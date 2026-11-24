@@ -1,6 +1,6 @@
 # m2-asistente-cad
 
-[![CI](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/workflows/ci.yml)
+[![CI](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/workflows/ci.yml)
 [![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](.python-version)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v1.json)](https://docs.astral.sh/ruff/)
@@ -154,6 +154,18 @@ uv run --locked uvicorn m2_cad.api:app --app-dir src --host 127.0.0.1 --port 800
 Abrir **http://127.0.0.1:8000/**: FastAPI sirve el build, API, SSE y descargas en
 el mismo origen. No se inicia otro servidor frontend. El desarrollo con HMR
 se explica en [frontend/README.md](frontend/README.md).
+
+### Tipos del API (HU-27)
+
+Después de modificar el contrato FastAPI, ejecutar `make api-types` y versionar
+`frontend/src/generated/api.ts` con el cambio. El esquema se obtiene de
+`app.openapi()` (el mismo que `/openapi.json`), sin arrancar el servidor, usar
+claves, GPU ni red una vez instaladas las dependencias Python/npm.
+
+`make api-types-check` compara los tipos sin modificarlos; también se ejecuta en
+`make check` y en CI. Si detecta una diferencia, falla e indica `make api-types`.
+`api.ts` consume los tipos generados y conserva `parseJob` para validar datos
+HTTP/SSE en ejecución. Plan y alcance: [SPEC-028](specs/028-hu-27-tipos-openapi/plan.md).
 
 Variables del modelo:
 
@@ -311,7 +323,6 @@ para el GGUF Q6_K de ~9,8 GB: el modelo no entra.
 ```bash
 git clone https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad.git
 cd code-m2-asistente-cad
-git switch develop
 bash scripts/cloud/lambda-bootstrap.sh   # Docker + NVIDIA Container Toolkit + smoke test
 make model-fetch                         # AC1: descarga 9,8 GB y verifica el SHA-256
 docker compose -f docker-compose.yml -f docker-compose.gemma.yml up -d llama
@@ -340,31 +351,31 @@ estado y la evidencia de cada objetivo (HU-13).
 
 ## Flujo de ramas e integración continua
 
-`develop` es la rama de integración: **toda rama de trabajo sale de `develop`** y vuelve por pull
-request. `main` solo recibe entregas.
+`main` es la única rama de integración: **toda rama de trabajo sale de `main`** y vuelve por pull
+request con `Closes #N`, que cierra la issue al fusionar. Las entregas son etiquetas sobre `main`.
 
 ```bash
-git switch develop && git pull          # 1. partir siempre de develop
+git switch main && git pull             # 1. partir siempre de main
 git switch -c feature/hu-XX-tema       # 2. una rama por historia de usuario
 make precommit-install                 # 3. una vez: hooks de Ruff y bloqueo de pesos
 make check                             # 4. antes de abrir el PR: Ruff + pytest + cobertura
 ```
 
-Cada pull request a `develop` dispara `.github/workflows/ci.yml`: Python 3.12
+Cada pull request a `main` dispara `.github/workflows/ci.yml`: Python 3.12
 (`.python-version`), Node 24, `uv sync --locked --dev`, `npm ci` y `make check`.
 Exige Ruff limpio, pruebas Vitest, TypeScript, build y pytest con cobertura ≥70 %
 de `src/`. El build se genera antes de probar las rutas estáticas integradas.
 Las pruebas útiles de la UI anterior se migraron a SPA/API; la trazabilidad de
 los 23 casos está en [HU-15/despliegue](docs/hu15-despliegue.md).
 
-La política de `develop` es exigir la CI en verde y una aprobación antes de fusionar; se activa
+La política de `main` es exigir la CI en verde y una aprobación antes de fusionar; se activa
 con la protección de rama del repositorio (Configuración → Branches). pre-commit es
 la primera barrera local: bloquea errores de Ruff y archivos de pesos (`.gguf`, `.safetensors`),
 que nunca se versionan.
 
 ## Contribución
 
-`develop` es la rama de integración: toda contribución entra por pull request
+`main` es la única rama de integración: toda contribución entra por pull request
 con CI en verde y una aprobación. Lee [`CONTRIBUTING.md`](CONTRIBUTING.md)
 (entorno, flujo de ramas y estándares), [`CONSTITUTION.md`](CONSTITUTION.md)
 (verdad central del proyecto) y el

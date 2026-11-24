@@ -19,9 +19,8 @@
 | **Descripción** | Asistente CAD para el diseño preliminar de componentes metálicos auxiliares. |
 | **Repositorio** | <https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad> |
 | **Licencia** | MIT (código propio); ver §12 para terceros |
-| **Rama de integración** | `develop` (toda rama de trabajo sale de aquí y vuelve por PR) |
-| **Rama de entregas** | `main` (solo recibe entregas) |
-| **Estado** | Entregada ✅ — `v1.0` publicada en `main` (`0caa8ee`, 2026-11-14); HU-01 a HU-21 cerradas (HU-03 retirada por HU-14 y HU-08 reemplazada por HU-15). Refactors posteriores entran por `develop` |
+| **Rama de integración** | `main` (toda rama de trabajo sale de aquí y vuelve por PR; las entregas son etiquetas sobre `main`) |
+| **Estado** | Entregada ✅ — `v1.0` publicada en `main` (`0caa8ee`, 2026-11-14); HU-01 a HU-21 cerradas (HU-03 retirada por HU-14 y HU-08 reemplazada por HU-15). Desde HU-57 todo entra por PR a `main` |
 
 ## 1. Propósito y no-propósito
 
@@ -71,6 +70,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Build backend** | `hatchling` (wheel desde `src/m2_cad`) |
 | **API** | [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` |
 | **UI** | Vue 3 Composition API + TypeScript + Vite, Node 24, npm lockfile |
+| **Contrato frontend/API** | Tipos generados desde `app.openapi()` con `@hey-api/openapi-ts` (sólo TypeScript, sin SDK); `make api-types` y `make api-types-check` (HU-27) |
 | **Kernel CAD** | `constraint-kit` (vendoreado en `vendor/`) con CadQuery 2.7.0, build123d 0.10.0, bd_warehouse 0.2.0, Z3, python-solvespace, OpenCascade (LGPL 2.1) |
 | **LLM** | DeepSeek `deepseek-v4-pro` por API (`https://api.deepseek.com`), requiere `DEEPSEEK_API_KEY` (HU-14) |
 | **LLM heredado** | `gemma-4-12b-constraintkit` GGUF Q6_K (~9,8 GB) por llama.cpp (`:8080`, CUDA); solo línea base HU-01 (`docker-compose.gemma.yml`) |
@@ -78,8 +78,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Testing** | `pytest` + cobertura **≥ 70 %** de `src/m2_cad` (umbral en `pyproject.toml`) |
 | **Lint / Formato** | [Ruff](https://docs.astral.sh/ruff/) — reglas `E, F, I, B`, `line-length = 100` |
 | **Pre-commit** | Ruff + higiene de archivos + bloqueo de pesos (`.gguf`, `.safetensors`, …) |
-| **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `develop` |
-| **Dependencias automáticas** | [Dependabot](.github/dependabot.yml) (target `develop`) |
+| **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `main` |
+| **Dependencias automáticas** | [Dependabot](.github/dependabot.yml) (target `main`) |
 | **Despliegue** | Docker multietapa Node/vendor/Python; Compose: `mlflow` (`:5000`) + `m2-cad` (Vue + FastAPI `:8000`), DeepSeek externo |
 
 > ⚠️ **Regla dura:** toda gestión de dependencias y entornos pasa por `uv`.
@@ -171,14 +171,26 @@ code-m2-asistente-cad/
 | `pytest` | Pruebas | `make test` |
 | Cobertura | Umbral ≥ 70 % de `src/m2_cad` | `make cov` (falla si baja) |
 | `pre-commit` | Hooks antes de cada commit | `make precommit-install` / `make precommit` |
-| GitHub Actions | CI en PRs a `develop` | `.github/workflows/ci.yml` |
+| GitHub Actions | CI en PRs a `main` | `.github/workflows/ci.yml` |
 | Kernel del autor | 113 pruebas dentro del contenedor `cadkit:0.1` | `make kernel-image` + `make kernel-test` |
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
 | Servicio | Vue/FastAPI + DeepSeek externo | `make up` / `make down` |
 
-`make check` ejecuta Ruff, Vitest, TypeScript, build y pytest con cobertura;
+`make check` ejecuta Ruff, comprobación de tipos OpenAPI, Vitest, TypeScript, build y pytest con cobertura;
 CI reproduce estos controles desde lockfiles. Las pruebas con dobles se
 identifican como simuladas y no prueban inferencia real.
+
+HU-27 define `EstadoTrabajo` en `contratos.py`, compartido por GET/DELETE de
+generaciones y documentado para el JSON `data` de SSE con `x-event-data-schema`.
+Los campos opcionales usan `NotRequired`: no se insertan valores `null` ni se
+cambian los cuerpos HTTP/SSE. `scripts/generate_api_types.py` obtiene el esquema
+sin iniciar servicios y ejecuta el generador Node instalado desde el lockfile;
+`frontend/src/generated/api.ts` se versiona y el cliente importa sus tipos.
+`parseJob` sigue validando datos en ejecución. El generador admite TypeScript 6;
+el mínimo Node del paquete frontend es 22.18 (CI y Docker usan Node 24).
+La generación es offline tras la
+instalación, determinista y normalizada a UTF-8/LF. Si el contrato diverge,
+`make api-types-check` falla sin escribir e indica `make api-types`.
 
 FastAPI sirve HTML/assets, JSON, SSE y archivos desde un mismo origen; las rutas
 API desconocidas devuelven JSON, nunca el índice Vue. CORS admite solo orígenes
@@ -216,7 +228,7 @@ rechazar con 403 al cliente de la API aunque `/health` responda correctamente.
 - Ningún commit se salta los hooks (`--no-verify` prohibido salvo causa
   justificada y documentada).
 - La **CI debe estar en verde** y con una aprobación antes de fusionar un PR a
-  `develop` (protección de rama).
+  `main` (protección de rama).
 - `vendor/constraint-kit` debe existir antes de `uv sync` (source local en
   `[tool.uv.sources]`): en un checkout limpio, correr `make vendor` primero; la CI
   lo hace automáticamente cuando el pyproject declara ese source.
@@ -228,8 +240,9 @@ rechazar con 403 al cliente de la API aunque `/health` responda correctamente.
 
 - **Remoto:** `git@github.com:luisfermezaramrez-stack/code-m2-asistente-cad.git`
   (HTTPS también válido; preferir SSH).
-- **Estrategia:** `develop` es la rama de integración; **toda rama de trabajo sale
-  de `develop`** y vuelve por pull request. `main` solo recibe entregas.
+- **Estrategia:** `main` es la única rama de integración; **toda rama de trabajo sale
+  de `main`** y vuelve por pull request. Las entregas son etiquetas anotadas sobre
+  `main`. Un `Closes #N` en la PR cierra la issue al fusionar.
 - **Nombres de rama:** `feature/hu-XX-tema` (una rama por historia de usuario);
   utilidades con `fix/...`, `docs/...`, `chore/...`.
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) —
@@ -251,7 +264,7 @@ make check
 git add -A
 git commit -m "tipo(hu-XX): mensaje descriptivo"
 
-# 4. Subir y abrir PR a develop
+# 4. Subir y abrir PR a main
 git push -u origin feature/hu-XX-tema
 ```
 
@@ -279,11 +292,16 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-13 | Seguimiento de experimentos con MLflow (`seguimiento.py`, servicio `mlflow`, `make mlflow`); versión de modelo registrada y fin de `version="desconocida"` (HU-16) | Comparar DeepSeek contra la línea base Gemma sin revisar casos a mano y ligar cada evidencia al modelo que la produjo; el seguimiento es best-effort y nunca bloquea la respuesta |
 | 2026-11-14 | Integrar HU-16 en HU-15: el control de cancelación pasa a `control.py` y `seguimiento.py` queda para MLflow; la ruta SSE abre y cierra su corrida en el hilo del trabajo | Evitar el choque de nombres entre ambas HU y medir también las solicitudes SSE; MLflow guarda la corrida activa por hilo |
 | 2026-11-14 | Refactor de esta CONSTITUTION al estado real tras `v1.0` como historia propia (HU-22, SPEC-023), sin mover la etiqueta | La fuente única de verdad contradecía el tablero y las specs; una etiqueta publicada es inmutable, así que la corrección entra por `develop` |
+| 2026-11-20 | La constitución de Spec Kit (`.specify/memory/constitution.md`) remite a esta CONSTITUTION en lugar de ser una plantilla vacía (HU-56, SPEC-057) | `/speckit.plan` y `/speckit.analyze` validaban contra marcadores vacíos; una remisión sin copiar reglas mantiene una sola fuente de verdad |
+| 2026-11-20 | Retirar `develop`: `main` pasa a ser la única rama de integración, con CI, Dependabot y la protección que tenía `develop`; las entregas son etiquetas sobre `main` (HU-57, SPEC-058) | GitHub sólo cierra issues con `Closes #N` al fusionar en la rama por defecto (`main`); una sola rama de larga vida simplifica el flujo del equipo |
+| 2026-11-22 | HU-27: generar tipos frontend desde OpenAPI y comprobarlos en `make check`; compartir `EstadoTrabajo` entre HTTP y documentación SSE | Detectar divergencias del contrato en CI; generador compatible con TypeScript 6, offline tras instalación y sin cambiar el transporte |
 
 ## 10. Notas y tareas pendientes
 
 - [x] Crear `CONSTITUTION.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, plantillas de PR/issues, `.editorconfig`.
-- [ ] Proteger `develop` (CI verde + 1 aprobación) y `main` en GitHub.
+- [x] Proteger `main` en GitHub: check `test` en verde y actualizado, 1 aprobación,
+  conversaciones resueltas, sin force-push ni borrado, también para administradores (HU-57).
+- [ ] Eliminar la rama `develop` del remoto (HU-57).
 - [x] HU-16 (seguimiento con MLflow, responsable Luis Meza) implementada en
   `specs/009-hu-16-mlflow/`.
 - [x] Sustituir el marcador `version="desconocida"` del registro por la versión real del modelo servido.
