@@ -252,6 +252,20 @@ export type HealthHealthGetResponses = {
 
 export type HealthHealthGetResponse = HealthHealthGetResponses[keyof HealthHealthGetResponses];
 
+export type ReadyReadyGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/ready';
+};
+
+export type ReadyReadyGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type ConsultarRegistroRegistrosIdentificadorGetData = {
     body?: never;
     path: {

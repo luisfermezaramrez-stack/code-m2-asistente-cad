@@ -146,6 +146,12 @@ class GestorTrabajos:
         self._lock = Lock()
         self.capacidad = capacidad
 
+    def hay_trabajos_activos(self) -> bool:
+        """Indica si hay generaciones no terminales; evita limpiar durante CAD."""
+        with self._lock:
+            trabajos = tuple(self._trabajos.values())
+        return any(not trabajo.estado()["terminal"] for trabajo in trabajos)
+
     def crear(self, texto: str, procesador: Procesador, al_finalizar: AlFinalizar) -> Trabajo:
         with self._lock:
             if len(self._trabajos) >= self.capacidad:
