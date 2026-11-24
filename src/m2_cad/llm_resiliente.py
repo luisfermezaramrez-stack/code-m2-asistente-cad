@@ -23,6 +23,14 @@ import httpx
 _METRICAS: ContextVar[dict[str, int] | None] = ContextVar("hu25_metricas", default=None)
 _CACHE: OrderedDict[str, tuple[float, dict]] = OrderedDict()
 _CERROJO = Lock()
+# Sólo estos 5xx son transitorios; 501 y 505 no se reintentan.
+_ESTADOS_TRANSITORIOS = frozenset({500, 502, 503, 504})
+# La espera se corta en tramos para atender la cancelación del trabajo SSE.
+_PASO_ESPERA = 0.05
+
+
+class ConfiguracionInvalida(ValueError):
+    """Variable de entorno de HU-25 con un valor inválido."""
 
 
 def reiniciar_metricas() -> None:
@@ -39,9 +47,9 @@ def _config_entera(nombre: str, defecto: int, maximo: int) -> int:
     try:
         valor = int(os.getenv(nombre, str(defecto)))
     except ValueError as exc:
-        raise ValueError(f"{nombre} debe ser un entero.") from exc
+        raise ConfiguracionInvalida(f"{nombre} debe ser un entero.") from exc
     if not 0 <= valor <= maximo:
-        raise ValueError(f"{nombre} debe estar entre 0 y {maximo}.")
+        raise ConfiguracionInvalida(f"{nombre} debe estar entre 0 y {maximo}.")
     return valor
 
 
@@ -49,16 +57,29 @@ def _config_float(nombre: str, defecto: float, maximo: float) -> float:
     try:
         valor = float(os.getenv(nombre, str(defecto)))
     except ValueError as exc:
-        raise ValueError(f"{nombre} debe ser un número.") from exc
+        raise ConfiguracionInvalida(f"{nombre} debe ser un número.") from exc
     if not 0 <= valor <= maximo or not float("-inf") < valor < float("inf"):
-        raise ValueError(f"{nombre} debe estar entre 0 y {maximo}.")
+        raise ConfiguracionInvalida(f"{nombre} debe estar entre 0 y {maximo}.")
     return valor
 
 
+def _huella_credencial() -> str:
+    """Huella no reversible de la credencial activa; la clave nunca se guarda."""
+    clave = os.environ.get("LLM_API_KEY") or os.environ.get("DEEPSEEK_API_KEY") or ""
+    return hashlib.sha256(clave.encode("utf-8")).hexdigest()
+
+
 def _clave(cuerpo: dict, url: str) -> str:
-    """La clave incluye prompt, modelo, parámetros y endpoint (sólo hash)."""
+    """La clave incluye endpoint, prompt, parámetros y huella de la credencial."""
     datos = json.dumps(
-        {"url": url, "cuerpo": cuerpo}, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+        {
+            "url": url,
+            "cuerpo": cuerpo,
+            "credencial": _huella_credencial(),
+        },
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":"),
     )
     return hashlib.sha256(datos.encode("utf-8")).hexdigest()
 
@@ -104,27 +125,54 @@ def _guardar(clave: str, respuesta: dict, ttl: int, capacidad: int) -> None:
             _CACHE.popitem(last=False)
 
 
+def _esperar(segundos: float, cancelado: Callable[[], None] | None) -> None:
+    """Espera el backoff en tramos cortos para atender la cancelación del trabajo."""
+    if cancelado is None:
+        if segundos > 0:
+            time.sleep(segundos)
+        return
+    fin = time.monotonic() + segundos
+    while True:
+        cancelado()
+        restante = fin - time.monotonic()
+        if restante <= 0:
+            return
+        time.sleep(min(restante, _PASO_ESPERA))
+
+
 def consultar(
     cuerpo: dict,
     *,
     url: str,
     timeout: float,
     proveedor: Callable[..., dict],
+    cancelado: Callable[[], None] | None = None,
+    validador: Callable[[dict], object] | None = None,
 ) -> dict:
-    """Llama al proveedor, reintentando sólo 5xx, timeout y fallo de transporte.
+    """Llama al proveedor con un plazo total y reintentos acotados (HU-25).
 
-    429 NO se reintenta para preservar el mensaje y límite del proveedor.
-    Sólo cachea respuestas HTTP exitosas con contenido; no cachea errores.
+    - Reintenta sólo HTTP 500, 502, 503 y 504, timeout y fallo de transporte.
+      Cualquier 4xx (401, 402, 429, ...) y los 5xx permanentes no se reintentan.
+    - ``timeout`` es el plazo total de todos los intentos, no el de cada uno.
+    - ``cancelado`` se invoca antes de cada intento y durante la espera; debe
+      lanzar (por ejemplo, ``ControlGeneracion.comprobar_cancelacion``) para
+      detener los reintentos y evitar llamadas pagas adicionales.
+    - ``validador`` se ejecuta antes de guardar en caché; si lanza, la respuesta
+      no se cachea. Así una salida inválida del modelo no se reutiliza durante
+      el TTL.
     """
+    reiniciar_metricas()
+    metricas = _METRICAS.get()
+    assert metricas is not None
+    # Un trabajo cancelado no debe consumir ni siquiera una respuesta cacheada.
+    if cancelado is not None:
+        cancelado()
+
     reintentos_maximos = _config_entera("LLM_MAX_RETRIES", 2, 5)
     base = _config_float("LLM_RETRY_BASE_SECONDS", 0.25, 30)
     espera_maxima = _config_float("LLM_RETRY_MAX_SECONDS", 3.0, 120)
     ttl = _config_entera("LLM_CACHE_TTL_SECONDS", 1800, 2_592_000)
     capacidad = _config_entera("LLM_CACHE_MAX_ITEMS", 256, 10_000)
-
-    reiniciar_metricas()
-    metricas = _METRICAS.get()
-    assert metricas is not None
 
     clave = _clave(cuerpo, url) if ttl and capacidad else None
     if clave is not None:
@@ -134,22 +182,38 @@ def consultar(
             return guardada
         metricas["llm_cache_miss"] = 1
 
+    limite = time.monotonic() + max(0.0, timeout)
+    ultimo_error: Exception | None = None
     for intento in range(reintentos_maximos + 1):
+        if cancelado is not None:
+            cancelado()
+        restante = limite - time.monotonic()
+        if restante <= 0:
+            break
+        if intento:
+            metricas["llm_reintentos"] += 1
         try:
-            respuesta = proveedor(cuerpo, url=url, timeout=timeout)
+            respuesta = proveedor(cuerpo, url=url, timeout=min(timeout, restante))
+        except httpx.HTTPStatusError as exc:
+            ultimo_error = exc
+            if exc.response.status_code not in _ESTADOS_TRANSITORIOS:
+                raise
+            if intento >= reintentos_maximos:
+                raise
+        except httpx.TransportError as exc:
+            ultimo_error = exc
+            if intento >= reintentos_maximos:
+                raise
+        else:
+            if validador is not None:
+                validador(respuesta)
             if clave is not None:
                 _guardar(clave, respuesta, ttl, capacidad)
             return respuesta
-        except httpx.HTTPStatusError as exc:
-            transitorio = 500 <= exc.response.status_code < 600
-            if not transitorio or intento >= reintentos_maximos:
-                raise
-        except httpx.TransportError:
-            if intento >= reintentos_maximos:
-                raise
-        metricas["llm_reintentos"] += 1
         espera = min(espera_maxima, base * (2**intento) * random.uniform(0.5, 1.5))
-        if espera > 0:
-            time.sleep(espera)
+        espera = min(espera, max(0.0, limite - time.monotonic()))
+        _esperar(espera, cancelado)
 
-    raise AssertionError("Bucle de reintentos finalizado sin resultado.")
+    if ultimo_error is not None:
+        raise ultimo_error
+    raise httpx.ReadTimeout("El plazo total para el LLM se agotó antes del primer intento.")

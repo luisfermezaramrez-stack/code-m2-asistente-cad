@@ -32,7 +32,7 @@ def error_http(codigo):
     return httpx.HTTPStatusError("error del proveedor", request=solicitud, response=respuesta)
 
 
-def consultar(proveedor, *, texto="Placa de acero", temperatura=0.1):
+def consultar(proveedor, *, texto="Placa de acero", temperatura=0.1, timeout=1.0, **kwargs):
     return servicio.consultar(
         {
             "model": "deepseek-chat",
@@ -40,8 +40,9 @@ def consultar(proveedor, *, texto="Placa de acero", temperatura=0.1):
             "temperature": temperatura,
         },
         url="https://api.deepseek.com/chat/completions",
-        timeout=1.0,
+        timeout=timeout,
         proveedor=proveedor,
+        **kwargs,
     )
 
 
@@ -78,8 +79,9 @@ def test_ac2_cache_evitar_segunda_llamada_y_usage_cero():
     assert servicio.metricas_actuales()["llm_cache_hit"] == 1
 
 
-@pytest.mark.parametrize("codigo", [400, 401, 402, 404, 429])
-def test_ac3_errores_4xx_no_se_reintentan(codigo):
+@pytest.mark.parametrize("codigo", [400, 401, 402, 404, 429, 501, 505])
+def test_errores_no_transitorios_no_se_reintentan(codigo):
+    """AC3 y revisión: ningún 4xx ni los 5xx permanentes se reintentan."""
     llamadas = []
 
     def proveedor(*args, **kwargs):
@@ -91,6 +93,102 @@ def test_ac3_errores_4xx_no_se_reintentan(codigo):
     assert excinfo.value.response.status_code == codigo
     assert len(llamadas) == 1
     assert servicio.metricas_actuales()["llm_reintentos"] == 0
+
+
+@pytest.mark.parametrize("codigo", [500, 502, 504])
+def test_5xx_transitorios_se_reintentan(codigo):
+    llamadas = []
+
+    def proveedor(*args, **kwargs):
+        llamadas.append(1)
+        if len(llamadas) == 1:
+            raise error_http(codigo)
+        return respuesta_modelo()
+
+    consultar(proveedor)
+    assert len(llamadas) == 2
+    assert servicio.metricas_actuales()["llm_reintentos"] == 1
+
+
+def test_plazo_total_limita_los_reintentos(monkeypatch):
+    """Revisión 1: el timeout es un plazo global, no uno por intento."""
+    reloj = [1000.0]
+    monkeypatch.setattr(servicio.time, "monotonic", lambda: reloj[0])
+    llamadas = []
+
+    def proveedor(*args, **kwargs):
+        llamadas.append(kwargs["timeout"])
+        reloj[0] += 1.0
+        raise httpx.ReadTimeout("Timeout")
+
+    with pytest.raises(httpx.ReadTimeout):
+        consultar(proveedor, timeout=1.0)
+    assert len(llamadas) == 1
+
+
+def test_cancelacion_detiene_los_reintentos():
+    """Revisión 3: tras cancelar no se hace otra llamada paga al proveedor."""
+    llamadas = []
+    estado = {"cancelado": False}
+
+    def proveedor(*args, **kwargs):
+        llamadas.append(1)
+        estado["cancelado"] = True
+        raise error_http(503)
+
+    def cancelado():
+        if estado["cancelado"]:
+            raise RuntimeError("trabajo cancelado")
+
+    with pytest.raises(RuntimeError, match="trabajo cancelado"):
+        consultar(proveedor, cancelado=cancelado)
+    assert len(llamadas) == 1
+    assert servicio.metricas_actuales()["llm_reintentos"] == 0
+
+
+def test_cancelacion_antes_del_primer_intento_no_llama_proveedor():
+    def cancelado():
+        raise RuntimeError("trabajo cancelado")
+
+    with pytest.raises(RuntimeError, match="trabajo cancelado"):
+        consultar(lambda *args, **kwargs: pytest.fail("no debe llamarse"), cancelado=cancelado)
+
+
+def test_cache_no_guarda_respuesta_rechazada_por_validador():
+    """Revisión 2: una salida inválida no se reutiliza durante el TTL."""
+    llamadas = []
+
+    def proveedor(*args, **kwargs):
+        llamadas.append(1)
+        return respuesta_modelo()
+
+    def validador(respuesta):
+        raise ValueError("programa inválido")
+
+    for _ in range(2):
+        with pytest.raises(ValueError, match="programa inválido"):
+            consultar(proveedor, validador=validador)
+    assert len(llamadas) == 2
+    assert len(servicio._CACHE) == 0
+
+
+def test_cache_distingue_credencial_sin_guardarla(monkeypatch):
+    """Revisión 7: rotar la clave invalida la caché; la clave no se almacena."""
+    llamadas = []
+
+    def proveedor(*args, **kwargs):
+        llamadas.append(1)
+        return respuesta_modelo()
+
+    monkeypatch.setenv("LLM_API_KEY", "clave-a")
+    consultar(proveedor)
+    consultar(proveedor)
+    assert len(llamadas) == 1
+    monkeypatch.setenv("LLM_API_KEY", "clave-b")
+    consultar(proveedor)
+    assert len(llamadas) == 2
+    assert "clave-a" not in repr(servicio._CACHE)
+    assert "clave-b" not in repr(servicio._CACHE)
 
 
 def test_timeout_reintenta_y_termina_con_error():
@@ -164,5 +262,5 @@ def test_cache_no_almacena_api_key_ni_headers():
 
 def test_configuracion_invalida_falla_sin_llamar_proveedor(monkeypatch):
     monkeypatch.setenv("LLM_MAX_RETRIES", "999")
-    with pytest.raises(ValueError, match="LLM_MAX_RETRIES"):
+    with pytest.raises(servicio.ConfiguracionInvalida, match="LLM_MAX_RETRIES"):
         consultar(lambda *args, **kwargs: respuesta_modelo())

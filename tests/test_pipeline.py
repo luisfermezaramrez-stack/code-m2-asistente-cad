@@ -392,9 +392,11 @@ def test_hu14_tiempo_de_espera_en_espanol(monkeypatch):
         raise httpx.ReadTimeout("timed out")
 
     _entorno_deepseek(monkeypatch)
+    monkeypatch.setenv("LLM_MAX_RETRIES", "0")
+    monkeypatch.setenv("LLM_RETRY_BASE_SECONDS", "0")
     monkeypatch.setattr(pipeline.llm, "chat", chat_lento)
 
-    with pytest.raises(pipeline.ModeloNoDisponible, match="a tiempo"):
+    with pytest.raises(pipeline.ModeloNoDisponible, match="plazo total"):
         pipeline.planificar_con_llm("un espaciador")
 
 
