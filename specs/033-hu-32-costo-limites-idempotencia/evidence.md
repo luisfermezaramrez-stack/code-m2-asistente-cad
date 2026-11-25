@@ -55,6 +55,7 @@ expiración de ventana, costo no finito y ausencia de clave.
 | `npm --prefix frontend run typecheck` | sin errores |
 | `npm --prefix frontend run build` | build correcto |
 | `pre-commit run` sobre los archivos del cambio | todos los hooks pasan |
+| CI del PR #131 (`make check` + arranque integrado) | verde, run `45697911049` |
 
 > Nota local: `make check` invoca `uv run --locked`, que en este macOS x86_64
 > intenta resolver `nlopt==2.11.0` (sin wheel para esta plataforma). Las mismas
