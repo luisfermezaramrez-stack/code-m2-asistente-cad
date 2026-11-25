@@ -1,0 +1,79 @@
+# Pipeline de GitLab CI: paridad de verificación con GitHub Actions.
+#
+# GitHub es la fuente de verdad del código y quien gobierna PRs y releases; este
+# repositorio en GitLab es el espejo de solo lectura que sincroniza
+# `.github/workflows/espejo-gitlab.yml`. El pipeline repite aquí las mismas
+# comprobaciones que `.github/workflows/ci.yml` para dejar evidencia verificable
+# en GitLab, sin introducir una segunda puerta de integración: los cambios siguen
+# entrando por `main` en GitHub.
+#
+# Se ejecuta solo con push a `main`, con un lanzamiento manual y con un pipeline
+# programado, porque el espejo replica todas las ramas y cada push forzado
+# dispararía una ejecución que consume minutos de runner sin aportar señal nueva.
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+
+stages:
+  - test
+
+variables:
+  # Versión de uv fijada, igual que en GitHub Actions y en el Dockerfile.
+  UV_VERSION: "0.13.5"
+  # python-solvespace 3.0.8 no publica wheels para Linux y su mimalloc incluido
+  # usa ATOMIC_VAR_INIT, símbolo eliminado en C23: se compila en C17 igual que en
+  # Docker y en GitHub Actions.
+  CFLAGS: "-std=gnu17"
+  # llama-cpp-python 0.3.36 solo publica sdist: se compila aquí con 193 objetos
+  # C++ y los runners compartidos pequeños tienen 8 GB. Con el paralelismo por
+  # defecto (una unidad por vCPU) dos traducciones pesadas a la vez agotan la RAM
+  # y cc1plus muere con "Killed signal"; dos compilaciones simultáneas sí entran.
+  CMAKE_BUILD_PARALLEL_LEVEL: "2"
+  # Cachés dentro del directorio del proyecto para que el runner pueda guardarlas.
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
+  npm_config_cache: "$CI_PROJECT_DIR/.cache/npm"
+
+default:
+  image: node:24-bookworm
+  interruptible: true
+  cache:
+    key:
+      files:
+        - uv.lock
+        - frontend/package-lock.json
+    paths:
+      - .cache/uv
+      - .cache/npm
+    policy: pull-push
+
+verify:
+  stage: test
+  timeout: 45m
+  before_script:
+    # Bibliotecas nativas del kernel CAD: los wheels manylinux de OpenCascade y
+    # VTK enlazan contra GL/X11 y fallan al importar sin ellas.
+    - apt-get update -qq
+    - >-
+      apt-get install -y -qq --no-install-recommends
+      libgl1 libglu1-mesa libxrender1 libxext6 libsm6
+    # git, make, gcc y g++ ya vienen en la imagen (buildpack-deps de node).
+    - curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh
+    - ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv
+    - ln -sf "$HOME/.local/bin/uvx" /usr/local/bin/uvx
+    # `.python-version` es la única fuente de verdad de la versión de Python
+    # (CONSTITUTION.md); se lee el archivo en vez de repetir el número aquí.
+    - uv python install "$(cat .python-version)"
+    - command -v git make gcc g++ node npm uv
+
+  script:
+    # vendor/constraint-kit está gitignored y lo exige [tool.uv.sources].
+    - bash scripts/vendor-constraint-kit.sh
+    - uv sync --locked --dev
+    - make frontend-install
+    # Ruff + Vitest + TypeScript + build Vue + pytest con cobertura >= 70 %.
+    - make check
+    # Arranque integrado HTTP con modelo simulado: CAD real, sin red ni GPU.
+    - uv run --no-sync python scripts/verify_hu15_deployment.py --simulate-model
