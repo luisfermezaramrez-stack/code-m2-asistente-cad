@@ -80,7 +80,9 @@ def entorno_json(monkeypatch, tmp_path):
             familia="spacer",
         )
 
-    monkeypatch.setattr(pipeline, "_planificador_con_uso", lambda medir_uso: planificador)
+    monkeypatch.setattr(
+        pipeline, "_planificador_con_uso", lambda medir_uso, control=None: planificador
+    )
     monkeypatch.setattr(pipeline.dsl, "check", verificar)
     monkeypatch.setattr(pipeline, "construir_pieza", construir)
 

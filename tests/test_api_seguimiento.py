@@ -164,6 +164,32 @@ def test_fallo_tecnico_cierra_la_corrida_con_la_clase_del_error(tmp_path, monkey
     assert corridas[0].data.tags["error"] == "ErrorVerificacion"
 
 
+def test_fallo_del_llm_no_registra_tokens_ni_costo_en_cero(tmp_path, monkeypatch):
+    """Revisión 5: en error sólo se registran las métricas llm_*."""
+    pytest.importorskip("cadquery")
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api, pipeline
+
+    def fallar(texto, medir_uso=None):
+        if medir_uso is not None:
+            medir_uso({"llm_reintentos": 2, "llm_cache_hit": 0, "llm_cache_miss": 1})
+        raise pipeline.ModeloNoDisponible("El modelo no respondió dentro del plazo total.")
+
+    monkeypatch.setenv("LLM_BASE_URL", "http://llama:8080")
+    monkeypatch.setattr(pipeline, "generar_pieza", fallar)
+
+    with TestClient(api.app) as client:
+        respuesta = client.post("/generar", json={"texto": "Placa de 120 mm"})
+
+    assert respuesta.status_code == 503
+    corrida = _corridas(tmp_path)[0]
+    assert corrida.data.metrics["llm_reintentos"] == pytest.approx(2.0)
+    assert "tokens_entrada" not in corrida.data.metrics
+    assert "tokens_salida" not in corrida.data.metrics
+    assert "costo_usd" not in corrida.data.metrics
+
+
 def test_sin_modelo_configurado_registra_la_corrida_como_error(tmp_path, monkeypatch):
     """AC3: el 503 por falta de API key también cierra la corrida en error."""
     from fastapi.testclient import TestClient

@@ -33,7 +33,7 @@ from pathlib import Path
 import httpx
 from constraint_kit import bom, builder, dsl, llm
 
-from m2_cad import MARCA_PRELIMINAR
+from m2_cad import MARCA_PRELIMINAR, llm_resiliente
 from m2_cad.control import ControlGeneracion
 from m2_cad.observabilidad import redactar
 from m2_cad.registro import _sanitizar
@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 RUTA_SALIDA = Path("outputs")
 NOMBRE_PIEZA = "pieza"
+# Plazo total de la llamada al LLM, repartido entre todos los reintentos (HU-25).
 TIEMPO_ESPERA_LLM = 120.0
 TEMPERATURA_LLM = 0.1
 
@@ -339,13 +340,27 @@ def planificar_con_llm(texto: str) -> dict:
     return _programa_de(_respuesta_modelo(texto))
 
 
-def _planificador_con_uso(medir_uso: Callable[[dict], None] | None) -> Callable[[str], dict]:
+def _planificador_con_uso(
+    medir_uso: Callable[[dict], None] | None,
+    control: ControlGeneracion | None = None,
+) -> Callable[[str], dict]:
     """Planificador por defecto que informa el `usage` del proveedor (HU-16, AC2)."""
 
     def planificar(texto: str) -> dict:
-        respuesta = _respuesta_modelo(texto)
+        llm_resiliente.reiniciar_metricas()
+        try:
+            respuesta = _respuesta_modelo(texto, control=control)
+        except Exception:
+            if medir_uso is not None:
+                medir_uso(llm_resiliente.metricas_actuales())
+            raise
         if medir_uso is not None:
-            medir_uso(respuesta.get("usage") or {})
+            medir_uso(
+                {
+                    **(respuesta.get("usage") or {}),
+                    **llm_resiliente.metricas_actuales(),
+                }
+            )
         return _programa_de(respuesta)
 
     return planificar
@@ -371,8 +386,11 @@ def _programa_de(respuesta: dict) -> dict:
     return programa
 
 
-def _respuesta_modelo(texto: str) -> dict:
-    """Llama al modelo servido con el prompt del sistema y la solicitud."""
+def _respuesta_modelo(texto: str, *, control: ControlGeneracion | None = None) -> dict:
+    """Llama al modelo servido con el prompt del sistema y la solicitud.
+
+    `control` permite detener los reintentos si el trabajo SSE se cancela.
+    """
     url = llm.base_url("planner")
     con_clave = os.environ.get("LLM_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
     if "api.deepseek.com" in url and not con_clave:
@@ -388,10 +406,19 @@ def _respuesta_modelo(texto: str) -> dict:
         "response_format": {"type": "json_object"},
     }
     try:
-        return llm.chat(cuerpo, url=url, timeout=TIEMPO_ESPERA_LLM)
+        return llm_resiliente.consultar(
+            cuerpo,
+            url=url,
+            timeout=TIEMPO_ESPERA_LLM,
+            proveedor=llm.chat,
+            cancelado=control.comprobar_cancelacion if control is not None else None,
+            validador=_programa_de,
+        )
+    except llm_resiliente.ConfiguracionInvalida as exc:
+        raise ModeloNoDisponible(f"La configuración del LLM es inválida: {exc}") from exc
     except httpx.TimeoutException as exc:
         raise ModeloNoDisponible(
-            f"El modelo no respondió a tiempo (más de {TIEMPO_ESPERA_LLM:.0f} s)."
+            f"El modelo no respondió dentro del plazo total de {TIEMPO_ESPERA_LLM:.0f} s."
         ) from exc
     except httpx.HTTPStatusError as exc:
         codigo = exc.response.status_code
@@ -428,7 +455,7 @@ def generar_pieza(
     if control is not None:
         control.informar("generando")
     if planificar is None:
-        planificar = _planificador_con_uso(medir_uso)
+        planificar = _planificador_con_uso(medir_uso, control)
     logger.info("pipeline: generando programa")
     try:
         programa = planificar(texto)

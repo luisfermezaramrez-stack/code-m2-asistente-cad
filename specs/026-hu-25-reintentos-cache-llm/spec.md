@@ -6,7 +6,8 @@
 - **Responsable**: Juan Camilo Pérez
 - **Depende de**: —
 - **Rama**: `feature/hu-25-reintentos-cache-llm`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: Implementada y corregida tras la revisión del PR #126; `plan.md`, `tasks.md`
+  y `evidence.md` actualizados
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §3
 - **Auditoría**: corregida según
   [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
@@ -41,25 +42,35 @@ una falla momentánea ni pagar dos veces la misma respuesta.
 ### Funcionales
 
 - **RF-1**: hasta N reintentos con backoff exponencial y jitter, sólo ante errores
-  transitorios (5xx, timeout y fallo de conexión).
-- **RF-2**: los errores no transitorios (401, 402 y demás 4xx) no se reintentan y conservan
-  sus mensajes actuales (`MENSAJES_HTTP`, `src/m2_cad/pipeline.py:96-100`).
-- **RF-3**: agotados los reintentos, el error final se informa como hoy
-  (`ModeloNoDisponible`).
-- **RF-4**: caché de respuestas indexada por hash(prompt + modelo + parámetros) con TTL
-  configurable.
+  transitorios (**HTTP 500, 502, 503 y 504**, timeout y fallo de conexión). El `timeout`
+  es un **plazo total** compartido por todos los intentos, no uno por intento.
+- **RF-2**: los errores no transitorios (todos los 4xx, incluidos 401, 402 y 429, y los
+  5xx permanentes como 501 y 505) no se reintentan y conservan sus mensajes actuales
+  (`MENSAJES_HTTP`, `src/m2_cad/pipeline.py:96-100`).
+- **RF-3**: agotados los reintentos o el plazo total, el error final se informa como hoy
+  (`ModeloNoDisponible`) y el mensaje refleja el plazo global.
+- **RF-4**: caché de respuestas indexada por hash(endpoint + prompt + modelo + parámetros
+  + huella no reversible de la credencial activa) con TTL configurable.
 - **RF-5**: métricas de número de reintentos y de aciertos/fallos de caché, registradas en
-  el seguimiento existente.
+  el seguimiento existente. En una corrida fallida sólo se registran las claves `llm_*`:
+  no se inventan tokens ni costo en 0.
+- **RF-6**: si el trabajo SSE se cancela, el bucle de reintentos se detiene antes de
+  iniciar otra llamada paga al proveedor.
+- **RF-7**: una configuración inválida (`LLM_MAX_RETRIES=abc`, fuera de rango, etc.) se
+  informa como `ModeloNoDisponible` (HTTP 503) con un mensaje claro, no como un 500 opaco.
+- **RF-8**: sólo se guardan en caché respuestas cuyo programa se extrae correctamente; una
+  salida JSON truncada o inválida no se reutiliza durante el TTL.
 
 ### No funcionales
 
 - **RNF-1**: las pruebas no usan red, API key ni GPU: el proveedor se simula.
 - **RNF-2**: N, el backoff y el TTL se configuran por variable de entorno con valores por
   defecto seguros.
-- **RNF-3**: la caché no almacena la API key ni cabeceras.
+- **RNF-3**: la caché no almacena la API key ni cabeceras; la credencial sólo participa
+  como huella SHA-256 dentro de la clave, nunca en claro.
 
-> **Supuesto**: si 429 se trata como transitorio (excepción a RF-2) se decide en `plan.md`;
-> hoy tiene mensaje propio en `MENSAJES_HTTP`.
+> **Decisión**: 429 no es transitorio: conserva su mensaje de `MENSAJES_HTTP` y no se
+> reintenta. Tampoco se reintentan 501 ni 505 (ver `plan.md`).
 
 > **Supuesto**: el reintento se implementa en `m2_cad` alrededor de `llm.chat`, sin
 > modificar el `constraint-kit` vendoreado.
@@ -90,6 +101,27 @@ una falla momentánea ni pagar dos veces la misma respuesta.
 > (`src/m2_cad/pipeline.py:96-100,391-394`). Se conserva como prueba de no regresión del
 > mecanismo de reintentos, no como trabajo nuevo.
 
+### AC4 — Cancelación
+
+- **Dado** un trabajo SSE cancelado antes o durante el backoff
+- **Cuando** el bucle intenta continuar
+- **Entonces** no se inicia otra llamada al proveedor y el trabajo termina como
+  `cancelado` por un punto seguro.
+
+### AC5 — Configuración inválida
+
+- **Dado** `LLM_MAX_RETRIES=abc` o un valor fuera de rango
+- **Cuando** se procesa una solicitud
+- **Entonces** la API responde 503 con `ModeloNoDisponible` y un mensaje que nombra la
+  variable, en lugar de un 500 genérico.
+
+### AC6 — Respuesta inválida no cacheada
+
+- **Dado** un proveedor que devuelve una sola vez JSON truncado o inválido
+- **Cuando** se repite la misma descripción
+- **Entonces** se vuelve a consultar al proveedor (no hay acierto de caché) y la primera
+  respuesta inválida no queda almacenada.
+
 ## Fuera de alcance
 
 - Topes de costo, límites de uso e idempotencia por cliente
@@ -101,3 +133,5 @@ una falla momentánea ni pagar dos veces la misma respuesta.
 
 - Solicitudes con 5xx transitorio que llegan al usuario como error: 0 en pruebas.
 - Tokens pagados por solicitudes repetidas dentro del TTL: 0.
+- Llamadas pagas iniciadas después de cancelar el trabajo SSE: 0.
+- Respuestas inválidas reutilizadas desde la caché: 0.
