@@ -3,7 +3,7 @@
 - **Fecha:** 25 de noviembre de 2026
 - **Issue:** #92 · **Rama:** `feature/hu-32-costo-limites-idempotencia`
 - **Spec:** [SPEC-033](spec.md) · [Plan](plan.md) · [Tareas](tasks.md)
-- **Pull request:** pendiente de apertura contra `main`
+- **Pull request:** [#131](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/131) contra `main`
 
 ## 1. qué se entregó
 

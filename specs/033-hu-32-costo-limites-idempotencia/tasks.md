@@ -21,4 +21,4 @@ local antes de pasar a la siguiente.
 - [x] T8 · Ruff (check + formato), `api-types-check`, 424 pytest (94,54 %) y
   frontend (50 Vitest + typecheck + build). Equivalente local de `make check`
   con `uv run --no-sync` por el wheel de `nlopt` en macOS x86_64.
-- [ ] T9 · Escribir `evidence.md` (hecho) y abrir PR a `main` (pendiente).
+- [x] T9 · Escribir `evidence.md` y abrir PR #131 a `main`.
