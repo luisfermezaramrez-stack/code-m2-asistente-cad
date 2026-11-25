@@ -39,6 +39,9 @@
   cobertura total **91,86 %** (mínimo 70 %). En ejecuciones intermedias el test de
   sobrecarga de MLflow (<50 ms p95) fue intermitente bajo carga local; pasó aislado y en
   la ejecución final de la suite completa, sin cambio de código.
+- `uv run --no-sync python scripts/verify_hu15_deployment.py --simulate-model`: arranque
+  HTTP integrado en verde; fija `M2_COLA_HABILITADA=0` porque parchea el pipeline simulado
+  dentro del proceso de la API (el worker real se cubre en las pruebas de HU-45).
 - `npm --prefix frontend test`: 50 pruebas Vitest en 3 archivos.
 - `npm --prefix frontend run typecheck` y `npm --prefix frontend run build`: verdes.
 - Pruebas sin red, API key ni GPU: procesador simulado, `MLFLOW_TRACKING_ENABLED=0` y

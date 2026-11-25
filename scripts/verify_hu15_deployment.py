@@ -156,6 +156,10 @@ def main() -> None:
         puerto = socket_libre.getsockname()[1]
     with tempfile.TemporaryDirectory(prefix="hu15-smoke-") as temporal:
         env = {**os.environ, "PYTHONPATH": str(raiz / "src")}
+        # HU-45: este smoke HG-15 parchea el pipeline en el proceso de la API, así que
+        # ejecuta SSE en proceso; el worker real se valida en test_hu45_cola_persistente.py.
+        env["M2_COLA_HABILITADA"] = "0"
+        env["M2_COLA_PATH"] = str(Path(temporal) / "cola.json")
         # Secreto efimero solo para el subprocess de validacion local/CI.
         if not env.get("M2_DOWNLOAD_SECRET"):
             env["M2_DOWNLOAD_SECRET"] = secrets.token_hex(32)
