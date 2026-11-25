@@ -3,7 +3,7 @@
 - **Fecha**: 2026-11-25
 - **Rama**: `feature/hu-45-cola-persistente`, creada desde `origin/main`
 - **Issue**: [#105](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/105)
-- **PR**: pendiente de apertura
+- **PR**: [#132](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/132)
 - **Especificación**: [spec.md](./spec.md) · [plan.md](./plan.md) · [tasks.md](./tasks.md)
 
 ## Alcance entregado
