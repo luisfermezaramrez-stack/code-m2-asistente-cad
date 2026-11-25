@@ -173,8 +173,13 @@ def _preparar_medicion(pipeline, medido: dict) -> Callable[[dict], None]:
     )
 
     def medir_uso(uso: dict) -> None:
-        medido["tokens_entrada"] = int(uso.get("prompt_tokens") or 0)
-        medido["tokens_salida"] = int(uso.get("completion_tokens") or 0)
+        # En la ruta de error sólo llegan métricas llm_*: no inventar tokens ni costo.
+        if "prompt_tokens" in uso or "completion_tokens" in uso:
+            medido["tokens_entrada"] = int(uso.get("prompt_tokens") or 0)
+            medido["tokens_salida"] = int(uso.get("completion_tokens") or 0)
+        for clave in ("llm_reintentos", "llm_cache_hit", "llm_cache_miss"):
+            if clave in uso:
+                medido[clave] = int(uso.get(clave) or 0)
 
     return medir_uso
 
@@ -371,17 +376,28 @@ def medir_solicitud(
         familia=medido.get("familia"),
         temperatura=medido.get("temperatura"),
     )
-    corrida.registrar_metricas(
-        latencia_ms=latencia_ms,
-        tokens_entrada=medido.get("tokens_entrada"),
-        tokens_salida=medido.get("tokens_salida"),
-        costo_usd=seguimiento.costo_usd(
-            medido.get("tokens_entrada"),
-            medido.get("tokens_salida"),
+    tokens_entrada = medido.get("tokens_entrada")
+    tokens_salida = medido.get("tokens_salida")
+    # Sin usage no se registra costo 0.0: distorsionaría los promedios de MLflow.
+    costo_usd = (
+        None
+        if tokens_entrada is None and tokens_salida is None
+        else seguimiento.costo_usd(
+            tokens_entrada,
+            tokens_salida,
             precio_entrada=configuracion.precio_entrada,
             precio_salida=configuracion.precio_salida,
-        ),
+        )
+    )
+    corrida.registrar_metricas(
+        latencia_ms=latencia_ms,
+        tokens_entrada=tokens_entrada,
+        tokens_salida=tokens_salida,
+        costo_usd=costo_usd,
         verificacion_ok=1 if estado == "entregada" else 0,
+        llm_reintentos=medido.get("llm_reintentos"),
+        llm_cache_hit=medido.get("llm_cache_hit"),
+        llm_cache_miss=medido.get("llm_cache_miss"),
     )
     corrida.registrar_artefactos(*(medido.get("artefactos") or []))
     modelo = medido.get("modelo")

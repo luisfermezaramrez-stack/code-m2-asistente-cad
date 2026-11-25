@@ -99,6 +99,7 @@ code-m2-asistente-cad/
 ├── src/m2_cad/                 # paquete propio (src-layout)
 │   ├── api.py                  # FastAPI: POST /generar, GET /health (HU-06)
 │   ├── pipeline.py             # orquesta solicitud→DSL→verificación→B-rep (HU-04)
+│   ├── llm_resiliente.py       # reintentos, plazo total y caché del LLM (HU-25)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
 │   ├── evaluacion.py           # evaluador HTTP HU-07: reporte por familia y enlaces CSV/STEP
 │   ├── registro.py             # registro CSV con exclusión de PII (HU-06)
@@ -295,6 +296,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-20 | La constitución de Spec Kit (`.specify/memory/constitution.md`) remite a esta CONSTITUTION en lugar de ser una plantilla vacía (HU-56, SPEC-057) | `/speckit.plan` y `/speckit.analyze` validaban contra marcadores vacíos; una remisión sin copiar reglas mantiene una sola fuente de verdad |
 | 2026-11-20 | Retirar `develop`: `main` pasa a ser la única rama de integración, con CI, Dependabot y la protección que tenía `develop`; las entregas son etiquetas sobre `main` (HU-57, SPEC-058) | GitHub sólo cierra issues con `Closes #N` al fusionar en la rama por defecto (`main`); una sola rama de larga vida simplifica el flujo del equipo |
 | 2026-11-22 | HU-27: generar tipos frontend desde OpenAPI y comprobarlos en `make check`; compartir `EstadoTrabajo` entre HTTP y documentación SSE | Detectar divergencias del contrato en CI; generador compatible con TypeScript 6, offline tras instalación y sin cambiar el transporte |
+| 2026-11-24 | HU-25: reintentos con plazo total, caché validada, cancelación cooperativa y configuración inválida como 503 en `llm_resiliente.py` | Corregir la revisión del PR #126: evitar esperas multiplicadas, respuestas inválidas cacheadas, llamadas pagas tras cancelar, 500 por configuración inválida y métricas de error distorsionadas |
 
 ## 10. Notas y tareas pendientes
 
@@ -307,6 +309,7 @@ git push -u origin feature/hu-XX-tema
 - [x] Sustituir el marcador `version="desconocida"` del registro por la versión real del modelo servido.
 - [x] HU-05, 07, 10–13 y 15 cerradas; entrega `v1.0` publicada en `main` (HU-20, ver `specs/`).
 - [x] Inyectar la configuración del modelo en el contenedor `m2-cad` (`DEEPSEEK_API_KEY`, `LLM_MODEL`; HU-14).
+- [x] HU-25 (reintentos y caché del LLM, SPEC-026) implementada y corregida tras la revisión del PR #126; validación integral en Docker pendiente.
 - [ ] Mantener la cobertura ≥ 70 % al añadir módulos.
 - [x] Regenerar el diagrama de arquitectura (`docs/arquitectura.*`) con Archify sin la API Gemini ni llama.cpp (HU-19, PR #69).
 
