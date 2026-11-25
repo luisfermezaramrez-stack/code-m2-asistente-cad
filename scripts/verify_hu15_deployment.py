@@ -9,6 +9,7 @@ import argparse
 import json
 import os
 import re
+import secrets
 import socket
 import subprocess
 import sys
@@ -72,6 +73,8 @@ def comprobar(client: httpx.Client, origen: str) -> dict:
     assert client.get("/api/no-existe").headers["content-type"] == "application/json"
     headers = {"Accept": "text/event-stream", "Origin": origen}
     with client.stream("POST", "/generar", json={"texto": "espaciador"}, headers=headers) as stream:
+        token = stream.headers["x-download-token"]
+        assert token
         assert stream.headers["x-accel-buffering"] == "no"
         assert "no-transform" in stream.headers["cache-control"]
         assert "content-encoding" not in stream.headers
@@ -79,11 +82,14 @@ def comprobar(client: httpx.Client, origen: str) -> dict:
         recibidos = list(eventos(stream))
     assert [e["estado"] for e in recibidos] == ["validando", "generando", "verificado"]
     id_ = recibidos[-1]["solicitud_id"]
+    assert token not in str(recibidos)  # No filtrar el token en eventos SSE.
+    autorizacion = {"X-Download-Token": token}
     tamanos = {}
     for formato in ("step", "glb", "csv"):
         url = f"/generaciones/{id_}/archivos/{formato}"
-        assert client.head(url).status_code == 200
-        archivo = client.get(url)
+        assert client.head(url).status_code == 403
+        assert client.head(url, headers=autorizacion).status_code == 200
+        archivo = client.get(url, headers=autorizacion)
         assert archivo.status_code == 200 and archivo.content
         if formato == "glb":
             assert archivo.content[:4] == b"glTF"
@@ -150,6 +156,9 @@ def main() -> None:
         puerto = socket_libre.getsockname()[1]
     with tempfile.TemporaryDirectory(prefix="hu15-smoke-") as temporal:
         env = {**os.environ, "PYTHONPATH": str(raiz / "src")}
+        # Secreto efimero solo para el subprocess de validacion local/CI.
+        if not env.get("M2_DOWNLOAD_SECRET"):
+            env["M2_DOWNLOAD_SECRET"] = secrets.token_hex(32)
         proceso = subprocess.Popen(
             [
                 sys.executable,

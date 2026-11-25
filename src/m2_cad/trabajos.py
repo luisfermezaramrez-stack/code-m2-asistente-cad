@@ -6,6 +6,7 @@ import logging
 import time
 import uuid
 from collections.abc import AsyncIterator, Callable
+from contextvars import copy_context
 from queue import Empty, Queue
 from threading import Lock, Thread
 
@@ -18,6 +19,7 @@ from m2_cad.control import (
     GeneracionCancelada,
     SolicitudDeclinada,
 )
+from m2_cad.observabilidad import contexto_solicitud
 
 logger = logging.getLogger(__name__)
 Procesador = Callable[[str, ControlGeneracion], dict[str, str]]
@@ -70,46 +72,49 @@ class Trabajo:
 
     def ejecutar(self, texto: str, procesador: Procesador, al_finalizar: AlFinalizar) -> None:
         """No confirma cancelación hasta que el procesador sale por un punto seguro."""
-        try:
-            self.control.comprobar_cancelacion()
-            resultado = procesador(texto, self.control)
-            if resultado.get("resultado") == "declinacion":
-                raise SolicitudDeclinada(resultado.get("motivo", "Solicitud fuera de catálogo."))
-            if self.estado()["estado"] != "generando":
-                raise ValueError("El procesador no informó las etapas reales.")
-            terminal = {"estado": "verificado", "resultado": resultado}
-        except GeneracionCancelada:
-            terminal = {
-                "estado": "cancelado",
-                "motivo": "El pipeline local se detuvo en un punto seguro.",
-                "pipeline_detenido": True,
-                "cancelacion_remota_confirmada": False,
-            }
-        except SolicitudDeclinada as exc:
-            terminal = {"estado": "declinado", "motivo": str(exc), "codigo_http": 422}
-        except HTTPException as exc:
-            terminal = {
-                "estado": "error",
-                "motivo": str(exc.detail),
-                "codigo_http": exc.status_code,
-            }
-        except Exception:
-            logger.exception("Fallo en generación SSE %s", self.id)
-            terminal = {
-                "estado": "error",
-                "motivo": "No fue posible completar la generación.",
-                "codigo_http": 500,
-            }
-        try:
-            al_finalizar({"solicitud_id": self.id, **terminal})
-        except Exception:
-            logger.exception("Fallo de registro SSE %s", self.id)
-            terminal = {
-                "estado": "error",
-                "motivo": "No fue posible registrar el resultado.",
-                "codigo_http": 500,
-            }
-        self._publicar(**terminal)
+        with contexto_solicitud(job_id=self.id):
+            try:
+                self.control.comprobar_cancelacion()
+                resultado = procesador(texto, self.control)
+                if resultado.get("resultado") == "declinacion":
+                    raise SolicitudDeclinada(
+                        resultado.get("motivo", "Solicitud fuera de catálogo.")
+                    )
+                if self.estado()["estado"] != "generando":
+                    raise ValueError("El procesador no informó las etapas reales.")
+                terminal = {"estado": "verificado", "resultado": resultado}
+            except GeneracionCancelada:
+                terminal = {
+                    "estado": "cancelado",
+                    "motivo": "El pipeline local se detuvo en un punto seguro.",
+                    "pipeline_detenido": True,
+                    "cancelacion_remota_confirmada": False,
+                }
+            except SolicitudDeclinada as exc:
+                terminal = {"estado": "declinado", "motivo": str(exc), "codigo_http": 422}
+            except HTTPException as exc:
+                terminal = {
+                    "estado": "error",
+                    "motivo": str(exc.detail),
+                    "codigo_http": exc.status_code,
+                }
+            except Exception:
+                logger.exception("Fallo en generación SSE %s", self.id)
+                terminal = {
+                    "estado": "error",
+                    "motivo": "No fue posible completar la generación.",
+                    "codigo_http": 500,
+                }
+            try:
+                al_finalizar({"solicitud_id": self.id, **terminal})
+            except Exception:
+                logger.exception("Fallo de registro SSE %s", self.id)
+                terminal = {
+                    "estado": "error",
+                    "motivo": "No fue posible registrar el resultado.",
+                    "codigo_http": 500,
+                }
+            self._publicar(**terminal)
 
     async def eventos(self, request: Request) -> AsyncIterator[str]:
         """Desconectar solicita cancelación; el hilo conserva su vida hasta salir."""
@@ -146,6 +151,12 @@ class GestorTrabajos:
         self._lock = Lock()
         self.capacidad = capacidad
 
+    def hay_trabajos_activos(self) -> bool:
+        """Indica si hay generaciones no terminales; evita limpiar durante CAD."""
+        with self._lock:
+            trabajos = tuple(self._trabajos.values())
+        return any(not trabajo.estado()["terminal"] for trabajo in trabajos)
+
     def crear(self, texto: str, procesador: Procesador, al_finalizar: AlFinalizar) -> Trabajo:
         with self._lock:
             if len(self._trabajos) >= self.capacidad:
@@ -162,9 +173,12 @@ class GestorTrabajos:
                 del self._trabajos[terminado]
             trabajo = Trabajo()
             self._trabajos[trabajo.id] = trabajo
+        # Un Thread nuevo arranca con contexto vacío: copiar el de la solicitud
+        # conserva el request_id en todos los registros del hilo del trabajo.
+        contexto = copy_context()
         Thread(
-            target=trabajo.ejecutar,
-            args=(texto, procesador, al_finalizar),
+            target=contexto.run,
+            args=(trabajo.ejecutar, texto, procesador, al_finalizar),
             daemon=True,
             name=f"cad-{trabajo.id}",
         ).start()

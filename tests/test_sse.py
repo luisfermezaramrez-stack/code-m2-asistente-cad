@@ -144,6 +144,8 @@ def test_hu14_sse_usa_espanol_y_clave_sin_url_y_registra_no_aplica(
         monkeypatch.delenv(variable, raising=False)
     clave = "clave-solo-prueba-hu14"
     monkeypatch.setenv(variable_clave, clave)
+    monkeypatch.setenv("LLM_MAX_RETRIES", "2")
+    monkeypatch.setenv("LLM_RETRY_BASE_SECONDS", "0")
     texto = "Espaciador de acero de 14 mm"
     llamadas = []
 
@@ -174,7 +176,7 @@ def test_hu14_sse_usa_espanol_y_clave_sin_url_y_registra_no_aplica(
     eventos = leer_eventos(respuesta.text)
     esperado = salida if salida in {"verificado", "declinado"} else "error"
     assert [e["estado"] for e in eventos] == ["validando", "generando", esperado]
-    assert len(llamadas) == 1
+    assert len(llamadas) == (3 if salida == "timeout" else 1)
     assert clave not in respuesta.text
     assert "traduccion" not in eventos[-1].get("resultado", {})
     if esperado == "error":
@@ -454,14 +456,15 @@ def test_archivos_reales_independientes_y_head(entorno, tmp_path):
                 "/generar", json={"texto": "Placa"}, headers={"Accept": "text/event-stream"}
             )
             id_ = response.headers["x-solicitud-id"]
+            autorizacion = {"X-Download-Token": response.headers["x-download-token"]}
             base = f"/generaciones/{id_}/archivos"
-            assert client.get(f"{base}/step").content == step.read_bytes()
-            assert client.get(f"{base}/csv").content == csv.read_bytes()
-            head = client.head(f"{base}/step")
+            assert client.get(f"{base}/step", headers=autorizacion).content == step.read_bytes()
+            assert client.get(f"{base}/csv", headers=autorizacion).content == csv.read_bytes()
+            head = client.head(f"{base}/step", headers=autorizacion)
             assert head.status_code == 200 and head.content == b""
             assert "pieza.step" in head.headers["content-disposition"]
-            assert client.head(f"{base}/glb").status_code == 404
-            assert client.get(f"{base}/desconocido").status_code == 404
+            assert client.head(f"{base}/glb", headers=autorizacion).status_code == 404
+            assert client.get(f"{base}/desconocido", headers=autorizacion).status_code == 404
     finally:
         api.app.dependency_overrides.pop(api.obtener_directorio_salidas, None)
 
@@ -488,7 +491,11 @@ def test_descargas_no_exponen_archivos_ajenos_o_extension_incorrecta(entorno, tm
                 "/generar", json={"texto": "Placa"}, headers={"Accept": "text/event-stream"}
             )
             id_ = response.headers["x-solicitud-id"]
-            assert client.get(f"/generaciones/{id_}/archivos/step").status_code == 404
+            autorizacion = {"X-Download-Token": response.headers["x-download-token"]}
+            assert (
+                client.get(f"/generaciones/{id_}/archivos/step", headers=autorizacion).status_code
+                == 404
+            )
     finally:
         api.app.dependency_overrides.pop(api.obtener_directorio_salidas, None)
 
@@ -511,5 +518,6 @@ def test_descarga_resuelve_rutas_relativas_con_raiz_real(entorno, tmp_path, monk
             "/generar", json={"texto": "Placa"}, headers={"Accept": "text/event-stream"}
         )
         id_ = response.headers["x-solicitud-id"]
-        archivo = client.get(f"/generaciones/{id_}/archivos/step")
+        autorizacion = {"X-Download-Token": response.headers["x-download-token"]}
+        archivo = client.get(f"/generaciones/{id_}/archivos/step", headers=autorizacion)
         assert archivo.status_code == 200 and archivo.content == b"STEP real de prueba"

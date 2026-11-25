@@ -1,11 +1,15 @@
 """API REST para la generación preliminar de componentes CAD (HU-06)."""
 
 import ast
+import asyncio
 import csv
+import logging
 import os
+import tempfile
 import time
 import uuid
 from collections.abc import Callable
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Annotated
 
@@ -16,16 +20,55 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from m2_cad import seguimiento
+from m2_cad.contratos import EstadoTrabajo
 from m2_cad.control import ControlGeneracion, SolicitudDeclinada
+from m2_cad.observabilidad import (
+    configurar_logging,
+    contexto_solicitud,
+    job_id_actual,
+    request_id_actual,
+)
 from m2_cad.registro import RUTA_DEFAULT, SIN_TRADUCCION, registrar
+from m2_cad.retencion_salidas import depurar_outputs, leer_politica
+from m2_cad.seguridad_descargas import emitir_token, exigir_token, validar_uuid
 from m2_cad.trabajos import GestorTrabajos, RespuestaSSE
 from m2_cad.web import configurar_web
 
 Procesador = Callable[[str, dict | None], dict[str, str]]
 ProcesadorSSE = Callable[[str, ControlGeneracion, dict | None], dict[str, str]]
 
+
+async def _limpieza_periodica(politica) -> None:
+    """Limpieza no invasiva: no se ejecuta si existe un trabajo en proceso."""
+    while True:
+        try:
+            if not gestor_trabajos.hay_trabajos_activos():
+                await asyncio.to_thread(depurar_outputs, Path("outputs"), dias=politica.dias)
+        except Exception:
+            logger.exception("No se pudo aplicar la política de retención.")
+        await asyncio.sleep(politica.intervalo_segundos)
+
+
+@asynccontextmanager
+async def _ciclo_aplicacion(_: FastAPI):
+    """Activa retención solo cuando está configurada; finaliza el limpiador al cerrar."""
+    politica = leer_politica()
+    tarea = asyncio.create_task(_limpieza_periodica(politica)) if politica else None
+    try:
+        yield
+    finally:
+        if tarea is not None:
+            tarea.cancel()
+            with suppress(asyncio.CancelledError):
+                await tarea
+
+
+logger = logging.getLogger(__name__)
+configurar_logging()  # RF-1: configuración central desde la importación del módulo.
+
 app = FastAPI(
     title="M2 CAD Assistant API",
+    lifespan=_ciclo_aplicacion,
     version="0.1.0",
     description="Servicio de generación preliminar de componentes CAD.",
 )
@@ -94,6 +137,40 @@ def _modelo_configurado() -> bool:
     )
 
 
+def _registro_disponible() -> bool:
+    """Comprueba acceso al registro sin crearlo ni alterar su contenido."""
+    ruta = Path(obtener_ruta_registro())
+    try:
+        if ruta.exists() and not ruta.is_file():
+            return False
+        # El temporal verifica escritura efectiva, incluso si el CSV aún no existe.
+        with tempfile.TemporaryFile(dir=ruta.parent) as temporal:
+            temporal.write(b"ready")
+        if ruta.exists():
+            with ruta.open("rb") as archivo:
+                archivo.read(1)
+    except OSError:
+        return False
+    return True
+
+
+@app.get("/ready")
+def ready() -> JSONResponse:
+    """Disponibilidad operativa local; /health conserva el contrato de vida."""
+    dependencias = {
+        "modelo": "ok" if _modelo_configurado() else "no_disponible",
+        "registro": "ok" if _registro_disponible() else "no_disponible",
+    }
+    disponible = all(estado == "ok" for estado in dependencias.values())
+    return JSONResponse(
+        status_code=200 if disponible else 503,
+        content={
+            "status": "ok" if disponible else "no_disponible",
+            "dependencias": dependencias,
+        },
+    )
+
+
 def _preparar_medicion(pipeline, medido: dict) -> Callable[[dict], None]:
     """Anota modelo y versión, y devuelve el receptor del `usage` (HU-16, AC2)."""
     medido.update(
@@ -103,8 +180,13 @@ def _preparar_medicion(pipeline, medido: dict) -> Callable[[dict], None]:
     )
 
     def medir_uso(uso: dict) -> None:
-        medido["tokens_entrada"] = int(uso.get("prompt_tokens") or 0)
-        medido["tokens_salida"] = int(uso.get("completion_tokens") or 0)
+        # En la ruta de error sólo llegan métricas llm_*: no inventar tokens ni costo.
+        if "prompt_tokens" in uso or "completion_tokens" in uso:
+            medido["tokens_entrada"] = int(uso.get("prompt_tokens") or 0)
+            medido["tokens_salida"] = int(uso.get("completion_tokens") or 0)
+        for clave in ("llm_reintentos", "llm_cache_hit", "llm_cache_miss"):
+            if clave in uso:
+                medido[clave] = int(uso.get(clave) or 0)
 
     return medir_uso
 
@@ -222,6 +304,7 @@ def _cabeceras_registro(request: Request, identificador: str) -> dict[str, str]:
 @app.get("/registros/{identificador}")
 def consultar_registro(identificador: str) -> dict[str, str]:
     """Consulta una fila existente, sin escribir ni duplicar el registro (HU-07 AC3)."""
+    identificador = validar_uuid(identificador)
     ruta = obtener_ruta_registro()
     if ruta.exists():
         with ruta.open(encoding="utf-8", newline="") as archivo:
@@ -232,8 +315,9 @@ def consultar_registro(identificador: str) -> dict[str, str]:
 
 
 @app.get("/registros/{identificador}/step")
-def descargar_step(identificador: str) -> FileResponse:
+def descargar_step(identificador: str, request: Request) -> FileResponse:
     """Enlaza el STEP del registro persistente, incluso tras reiniciar los trabajos."""
+    exigir_token(identificador, request.headers.get("X-Download-Token"))
     fila = consultar_registro(identificador)
     try:
         resultado = ast.literal_eval(fila["resultado"])
@@ -260,6 +344,8 @@ async def registrar_entrada_invalida(request: Request, exc: RequestValidationErr
     respuesta = await request_validation_exception_handler(request, exc)
     if request.method == "POST" and request.url.path == "/generar":
         identificador = _identificador(request)
+        with contexto_solicitud(request_id=identificador):
+            logger.warning("entrada inválida rechazada en POST /generar")
         cuerpo = exc.body if isinstance(exc.body, dict) else {}
         registrar(
             texto=cuerpo.get("texto", "entrada inválida"),
@@ -299,17 +385,28 @@ def medir_solicitud(
         familia=medido.get("familia"),
         temperatura=medido.get("temperatura"),
     )
-    corrida.registrar_metricas(
-        latencia_ms=latencia_ms,
-        tokens_entrada=medido.get("tokens_entrada"),
-        tokens_salida=medido.get("tokens_salida"),
-        costo_usd=seguimiento.costo_usd(
-            medido.get("tokens_entrada"),
-            medido.get("tokens_salida"),
+    tokens_entrada = medido.get("tokens_entrada")
+    tokens_salida = medido.get("tokens_salida")
+    # Sin usage no se registra costo 0.0: distorsionaría los promedios de MLflow.
+    costo_usd = (
+        None
+        if tokens_entrada is None and tokens_salida is None
+        else seguimiento.costo_usd(
+            tokens_entrada,
+            tokens_salida,
             precio_entrada=configuracion.precio_entrada,
             precio_salida=configuracion.precio_salida,
-        ),
+        )
+    )
+    corrida.registrar_metricas(
+        latencia_ms=latencia_ms,
+        tokens_entrada=tokens_entrada,
+        tokens_salida=tokens_salida,
+        costo_usd=costo_usd,
         verificacion_ok=1 if estado == "entregada" else 0,
+        llm_reintentos=medido.get("llm_reintentos"),
+        llm_cache_hit=medido.get("llm_cache_hit"),
+        llm_cache_miss=medido.get("llm_cache_miss"),
     )
     corrida.registrar_artefactos(*(medido.get("artefactos") or []))
     modelo = medido.get("modelo")
@@ -325,6 +422,9 @@ def medir_solicitud(
         )
         corrida.registrar_tags(modelo_registrado=referencia)
     corrida.finalizar(estado=estado, motivo_declinacion=motivo_declinacion, error=error)
+    # RF-3/AC1: el cierre del seguimiento se registra aquí, fuera de la medición
+    # de sobrecarga de `seguimiento.Corrida.finalizar` (AC6 de HU-16).
+    logger.info("seguimiento: cerrando corrida (%s)", estado)
 
 
 _ESTADOS_CORRIDA_SSE = {
@@ -375,7 +475,12 @@ def _generar_sse(
         corrida = seguimiento.iniciar_corrida(
             configuracion.experimento_generacion,
             nombre=solicitud_id,
-            tags={"solicitud_id": solicitud_id, "transporte": "sse"},
+            tags={
+                "solicitud_id": solicitud_id,
+                "request_id": request_id_actual() or solicitud_id,
+                "job_id": job_id_actual() or solicitud_id,
+                "transporte": "sse",
+            },
             configuracion=configuracion,
         )
         medir_solicitud(
@@ -387,38 +492,34 @@ def _generar_sse(
             motivo_declinacion=terminal.get("motivo") if estado == "declinada" else None,
             error=f"HTTP {terminal.get('codigo_http', 500)}" if estado == "error" else None,
         )
+        logger.info("generación terminada en %s", estado)
 
     trabajo = gestor.crear(solicitud.texto, procesar, registrar_terminal)
+    with contexto_solicitud(job_id=trabajo.id):
+        logger.info("trabajo SSE creado")
     respuesta = RespuestaSSE(trabajo, request)
     respuesta.headers.update(_cabeceras_registro(request, trabajo.id))
+    respuesta.headers["X-Download-Token"] = emitir_token(trabajo.id)
+    respuesta.headers["Cache-Control"] = "no-store, no-transform"
     return respuesta
 
 
-@app.post(
-    "/generar",
-    response_model=dict[str, str],
-    responses={200: {"content": {"text/event-stream": {"schema": {"type": "string"}}}}},
-)
-def generar(
+def _generar_json(
     solicitud: SolicitudGenerar,
     request: Request,
     response: Response,
-    procesador: Annotated[Procesador, Depends(obtener_procesador)],
-    procesador_sse: Annotated[ProcesadorSSE, Depends(obtener_procesador_sse)],
-    gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
-    configuracion: Annotated[seguimiento.Configuracion, Depends(obtener_configuracion_seguimiento)],
-) -> dict[str, str] | StreamingResponse:
-    """Procesa una solicitud CAD validada, la registra (AC3/AC4) y la mide (HU-16)."""
-    inicio = time.perf_counter()
-    if _acepta_sse(request):
-        return _generar_sse(solicitud, request, procesador_sse, gestor, configuracion, inicio)
-    solicitud_id = _identificador(request)
+    procesador: Procesador,
+    configuracion: seguimiento.Configuracion,
+    solicitud_id: str,
+    inicio: float,
+) -> dict[str, str]:
+    """Ruta JSON: registro y corrida MLflow con el contexto de la solicitud activo."""
     cabeceras = _cabeceras_registro(request, solicitud_id)
     medido: dict[str, object] = {}
     corrida = seguimiento.iniciar_corrida(
         configuracion.experimento_generacion,
         nombre=solicitud_id,
-        tags={"solicitud_id": solicitud_id},
+        tags={"solicitud_id": solicitud_id, "request_id": solicitud_id},
         configuracion=configuracion,
     )
     try:
@@ -445,6 +546,7 @@ def generar(
             motivo_declinacion=motivo,
             error=error,
         )
+        logger.warning("generación terminada en %s", estado)
         exc.headers = {**(exc.headers or {}), **cabeceras}
         raise
     except BaseException as exc:
@@ -469,6 +571,7 @@ def generar(
             latencia_ms=latencia_ms,
             error=type(exc).__name__,
         )
+        logger.warning("generación terminada en error (%s)", type(exc).__name__)
         if isinstance(exc, Exception):
             raise HTTPException(500, "Fallo técnico del pipeline.", headers=cabeceras) from exc
         raise
@@ -485,14 +588,52 @@ def generar(
     )
     medir_solicitud(corrida, medido, configuracion, estado="entregada", latencia_ms=latencia_ms)
     response.headers.update(cabeceras)
+    response.headers["X-Download-Token"] = emitir_token(solicitud_id)
+    response.headers["Cache-Control"] = "no-store"
     if respuesta.get("step"):
         response.headers["X-Step-URL"] = str(
             request.url_for("descargar_step", identificador=solicitud_id)
         )
+    logger.info("solicitud entregada")
     return respuesta
 
 
-@app.get("/generaciones/{solicitud_id}")
+@app.post(
+    "/generar",
+    response_model=dict[str, str],
+    responses={
+        200: {
+            "content": {
+                "text/event-stream": {
+                    "schema": {"type": "string"},
+                    "x-event-data-schema": {"$ref": "#/components/schemas/EstadoTrabajo"},
+                }
+            }
+        }
+    },
+)
+def generar(
+    solicitud: SolicitudGenerar,
+    request: Request,
+    response: Response,
+    procesador: Annotated[Procesador, Depends(obtener_procesador)],
+    procesador_sse: Annotated[ProcesadorSSE, Depends(obtener_procesador_sse)],
+    gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
+    configuracion: Annotated[seguimiento.Configuracion, Depends(obtener_configuracion_seguimiento)],
+) -> dict[str, str] | StreamingResponse:
+    """Procesa una solicitud CAD validada, la registra (AC3/AC4) y la mide (HU-16)."""
+    solicitud_id = _identificador(request)  # RF-5: reutiliza X-Request-ID válido.
+    with contexto_solicitud(request_id=solicitud_id):
+        inicio = time.perf_counter()
+        logger.info("solicitud recibida: POST /generar")
+        if _acepta_sse(request):
+            return _generar_sse(solicitud, request, procesador_sse, gestor, configuracion, inicio)
+        return _generar_json(
+            solicitud, request, response, procesador, configuracion, solicitud_id, inicio
+        )
+
+
+@app.get("/generaciones/{solicitud_id}", response_model=EstadoTrabajo)
 def consultar_generacion(
     solicitud_id: str,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
@@ -501,7 +642,13 @@ def consultar_generacion(
     return gestor.obtener(solicitud_id).estado()
 
 
-@app.delete("/generaciones/{solicitud_id}")
+@app.delete(
+    "/generaciones/{solicitud_id}",
+    response_model=EstadoTrabajo,
+    responses={
+        202: {"model": EstadoTrabajo, "description": "Cancelación solicitada, no confirmada."}
+    },
+)
 def cancelar_generacion(
     solicitud_id: str,
     response: Response,
@@ -522,10 +669,12 @@ def obtener_directorio_salidas() -> Path:
 def descargar_archivo(
     solicitud_id: str,
     formato: str,
+    request: Request,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
     salidas: Annotated[Path, Depends(obtener_directorio_salidas)],
 ) -> FileResponse:
     """Entrega solo artefactos existentes del resultado verificado de este trabajo."""
+    exigir_token(solicitud_id, request.headers.get("X-Download-Token"))
     estado = gestor.obtener(solicitud_id).estado()
     if estado["estado"] != "verificado" or formato not in {"step", "glb", "csv"}:
         raise HTTPException(404, "Archivo no disponible.")

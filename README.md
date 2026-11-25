@@ -155,6 +155,18 @@ Abrir **http://127.0.0.1:8000/**: FastAPI sirve el build, API, SSE y descargas e
 el mismo origen. No se inicia otro servidor frontend. El desarrollo con HMR
 se explica en [frontend/README.md](frontend/README.md).
 
+### Tipos del API (HU-27)
+
+Después de modificar el contrato FastAPI, ejecutar `make api-types` y versionar
+`frontend/src/generated/api.ts` con el cambio. El esquema se obtiene de
+`app.openapi()` (el mismo que `/openapi.json`), sin arrancar el servidor, usar
+claves, GPU ni red una vez instaladas las dependencias Python/npm.
+
+`make api-types-check` compara los tipos sin modificarlos; también se ejecuta en
+`make check` y en CI. Si detecta una diferencia, falla e indica `make api-types`.
+`api.ts` consume los tipos generados y conserva `parseJob` para validar datos
+HTTP/SSE en ejecución. Plan y alcance: [SPEC-028](specs/028-hu-27-tipos-openapi/plan.md).
+
 Variables del modelo:
 
 | Variable | Uso | Valor por defecto |
@@ -162,10 +174,16 @@ Variables del modelo:
 | `DEEPSEEK_API_KEY` | API key de DeepSeek (obligatoria) | — |
 | `LLM_MODEL` | Modelo de DeepSeek | `deepseek-v4-pro` |
 | `LLM_BASE_URL` | Otro servidor compatible con OpenAI (por ejemplo, llama.cpp) | `https://api.deepseek.com` |
+| `LLM_MAX_RETRIES` | Reintentos adicionales ante 500/502/503/504, timeout o conexión (0–5) | `2` |
+| `LLM_RETRY_BASE_SECONDS` / `LLM_RETRY_MAX_SECONDS` | Base y tope del backoff exponencial | `0.25` / `3` |
+| `LLM_CACHE_TTL_SECONDS` / `LLM_CACHE_MAX_ITEMS` | TTL y capacidad de la caché de respuestas (0 desactiva) | `1800` / `256` |
 
 Sin API key, `/generar` responde 503 con «El modelo no está configurado: falta
 DEEPSEEK_API_KEY.». Los errores 401, 402, 429 y los tiempos de espera de DeepSeek se
-informan en español y nunca incluyen la key.
+informan en español y nunca incluyen la key. Los 500/502/503/504, los timeouts y los
+fallos de conexión se reintentan hasta 2 veces dentro de un plazo total de 120 s; una
+respuesta idéntica se reutiliza desde la caché local durante 30 min sin volver a pagar
+tokens.
 
 Banco HU-02 contra el modelo real (HU-14, AC6 y AC7; gasta tokens):
 
@@ -286,8 +304,19 @@ Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 | `MLFLOW_EXPERIMENT_NAME` / `MLFLOW_EXPERIMENT_BANCO` | Nombres de experimento | `m2-cad-generacion` / `m2-cad-banco` | igual |
 | `MLFLOW_PRECIO_ENTRADA` / `MLFLOW_PRECIO_SALIDA` | USD por millón de tokens para `costo_usd` | `0` | `0` |
 | `LLM_MODEL_VERSION` | Versión publicada por el proveedor (AC7) | id del modelo servido | id del modelo servido |
+| `M2_LOG_LEVEL` | Nivel del logging JSON de `m2_cad` (HU-24) | `INFO` | `INFO` (o el valor del entorno) |
+| `LLM_MAX_RETRIES` | Reintentos del LLM ante 5xx transitorios/timeout (HU-25) | `2` | `2` |
+| `LLM_RETRY_BASE_SECONDS` / `LLM_RETRY_MAX_SECONDS` | Backoff exponencial (HU-25) | `0.25` / `3` | igual |
+| `LLM_CACHE_TTL_SECONDS` / `LLM_CACHE_MAX_ITEMS` | Caché de respuestas del LLM (HU-25) | `1800` / `256` | igual |
 
 Copia `.env.example` a `.env` para ejecutar fuera de Docker.
+
+Los registros del paquete `m2_cad` se emiten en JSON con `nivel`, `modulo`, `mensaje`,
+`marca_tiempo` y, cuando aplica, `request_id` y `job_id`. El `request_id` se reutiliza del
+encabezado `X-Request-ID` cuando es un UUID válido y, si no, se genera uno nuevo. Ese mismo
+id se etiqueta en la corrida de MLflow, de modo que una sola búsqueda reconstruye la
+solicitud. Las claves, tokens Bearer, cabeceras `Authorization` y datos personales se
+redactan antes de escribir el log.
 
 > **Nota:** para la línea base heredada con Gemma, `LLM_BASE_URL` apunta al servidor
 > llama.cpp (`http://llama:8080` dentro de Compose) y hace falta el GGUF; ver abajo.

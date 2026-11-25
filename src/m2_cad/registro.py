@@ -9,11 +9,12 @@ Especificación: specs/004-registro-solicitudes/spec.md
 - AC4: excluye nombres y correos (Ley 1581 de 2012).
 """
 
-import csv
 import re
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+
+from m2_cad.persistencia_registro import anexar_sin_duplicar
 
 CAMPOS = [
     "id",
@@ -82,14 +83,4 @@ def registrar(
         "version": _a_valor_conocido(version, "desconocida"),
     }
 
-    ruta = Path(ruta)
-    ruta.parent.mkdir(parents=True, exist_ok=True)
-    archivo_nuevo = not ruta.exists()
-
-    with open(ruta, "a", newline="", encoding="utf-8") as archivo:
-        escritor = csv.DictWriter(archivo, fieldnames=CAMPOS)
-        if archivo_nuevo:
-            escritor.writeheader()
-        escritor.writerow(fila)
-
-    return fila
+    return anexar_sin_duplicar(Path(ruta), fila, CAMPOS)

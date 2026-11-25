@@ -6,7 +6,7 @@ import { useGeneration } from './useGeneration'
 const GlbViewer = defineAsyncComponent(() => import('./GlbViewer.vue'))
 const flow = useGeneration()
 const { description, timeoutSeconds, job, stages, artifacts, busy, checking, cancelling, loadingFiles,
-  message, inputError, filesError, disconnected, canCancel, canCheck } = flow
+  message, inputError, filesError, disconnected, canCancel, canCheck, downloadToken } = flow
 const input = ref<HTMLTextAreaElement>()
 const labels: Record<Stage, string> = {
   iniciando: 'Esperando información', validando: 'Validando solicitud', generando: 'Generando pieza',
@@ -80,7 +80,7 @@ async function submit() {
         </section>
         <section class="panel" aria-labelledby="preview-title">
           <h2 id="preview-title">Vista 3D</h2>
-          <GlbViewer v-if="glb" :key="glb.url" :url="glb.url" />
+          <GlbViewer v-if="glb" :key="glb.url" :url="glb.url" :token="downloadToken" />
           <div v-else class="viewport">
             <h3>{{ job?.estado === 'verificado' ? 'Vista 3D no disponible' : 'Aún no hay una pieza' }}</h3>
             <p class="muted">{{ job?.estado === 'verificado' ? 'Puedes descargar el STEP si está disponible, aunque no exista una vista 3D.' : 'El modelo aparecerá cuando la pieza esté lista y exista un archivo de vista 3D.' }}</p>
@@ -91,10 +91,10 @@ async function submit() {
           <p v-if="loadingFiles" role="status">Comprobando archivos disponibles…</p>
           <p v-if="filesError" role="status" class="field-error">{{ filesError }}</p>
           <div v-if="artifacts.length" class="downloads">
-            <a v-for="file in artifacts" :key="file.format" class="download" :href="file.url" :download="`pieza.${file.format}`">
+            <button v-for="file in artifacts" :key="file.format" type="button" class="download" :data-download-url="file.url" :data-download-filename="`pieza.${file.format}`" @click="flow.download(file)">
               <strong>{{ file.format === 'csv' ? 'Materiales (CSV)' : file.format.toUpperCase() }}</strong>
               <span>Descargar {{ file.format === 'csv' ? 'lista de materiales' : file.format.toUpperCase() }}</span>
-            </a>
+            </button>
           </div>
           <p v-else-if="!loadingFiles" class="muted">No hay archivos disponibles.</p>
           <p v-if="job?.estado === 'verificado' && !loadingFiles && !hasStep" class="help">No hay archivo STEP disponible.</p>

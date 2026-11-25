@@ -70,6 +70,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Build backend** | `hatchling` (wheel desde `src/m2_cad`) |
 | **API** | [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` |
 | **UI** | Vue 3 Composition API + TypeScript + Vite, Node 24, npm lockfile |
+| **Contrato frontend/API** | Tipos generados desde `app.openapi()` con `@hey-api/openapi-ts` (sólo TypeScript, sin SDK); `make api-types` y `make api-types-check` (HU-27) |
 | **Kernel CAD** | `constraint-kit` (vendoreado en `vendor/`) con CadQuery 2.7.0, build123d 0.10.0, bd_warehouse 0.2.0, Z3, python-solvespace, OpenCascade (LGPL 2.1) |
 | **LLM** | DeepSeek `deepseek-v4-pro` por API (`https://api.deepseek.com`), requiere `DEEPSEEK_API_KEY` (HU-14) |
 | **LLM heredado** | `gemma-4-12b-constraintkit` GGUF Q6_K (~9,8 GB) por llama.cpp (`:8080`, CUDA); solo línea base HU-01 (`docker-compose.gemma.yml`) |
@@ -100,12 +101,14 @@ code-m2-asistente-cad/
 ├── src/m2_cad/                 # paquete propio (src-layout)
 │   ├── api.py                  # FastAPI: POST /generar, GET /health (HU-06)
 │   ├── pipeline.py             # orquesta solicitud→DSL→verificación→B-rep (HU-04)
+│   ├── llm_resiliente.py       # reintentos, plazo total y caché del LLM (HU-25)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
 │   ├── evaluacion.py           # evaluador HTTP HU-07: reporte por familia y enlaces CSV/STEP
 │   ├── registro.py             # registro CSV con exclusión de PII (HU-06)
 │   ├── trabajos.py             # SSE, registro en memoria y cancelación cooperativa
 │   ├── control.py              # puntos seguros de cancelación del pipeline (HU-15)
 │   ├── seguimiento.py          # MLflow: una corrida por solicitud y por caso del banco (HU-16)
+│   ├── observabilidad.py       # logs JSON, request_id/job_id y redacción de secretos (HU-24)
 │   └── web.py                  # Vue/estáticos, CORS restringido y errores JSON
 ├── frontend/                   # Vue, TypeScript, Vite y pruebas Vitest
 ├── design/                     # referencia y fuente única de tokens (tokens.css)
@@ -177,9 +180,21 @@ code-m2-asistente-cad/
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
 | Servicio | Vue/FastAPI + DeepSeek externo | `make up` / `make down` |
 
-`make check` ejecuta Ruff, Vitest, TypeScript, build y pytest con cobertura;
+`make check` ejecuta Ruff, comprobación de tipos OpenAPI, Vitest, TypeScript, build y pytest con cobertura;
 CI reproduce estos controles desde lockfiles. Las pruebas con dobles se
 identifican como simuladas y no prueban inferencia real.
+
+HU-27 define `EstadoTrabajo` en `contratos.py`, compartido por GET/DELETE de
+generaciones y documentado para el JSON `data` de SSE con `x-event-data-schema`.
+Los campos opcionales usan `NotRequired`: no se insertan valores `null` ni se
+cambian los cuerpos HTTP/SSE. `scripts/generate_api_types.py` obtiene el esquema
+sin iniciar servicios y ejecuta el generador Node instalado desde el lockfile;
+`frontend/src/generated/api.ts` se versiona y el cliente importa sus tipos.
+`parseJob` sigue validando datos en ejecución. El generador admite TypeScript 6;
+el mínimo Node del paquete frontend es 22.18 (CI y Docker usan Node 24).
+La generación es offline tras la
+instalación, determinista y normalizada a UTF-8/LF. Si el contrato diverge,
+`make api-types-check` falla sin escribir e indica `make api-types`.
 
 FastAPI sirve HTML/assets, JSON, SSE y archivos desde un mismo origen; las rutas
 API desconocidas devuelven JSON, nunca el índice Vue. CORS admite solo orígenes
@@ -283,6 +298,9 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-14 | Refactor de esta CONSTITUTION al estado real tras `v1.0` como historia propia (HU-22, SPEC-023), sin mover la etiqueta | La fuente única de verdad contradecía el tablero y las specs; una etiqueta publicada es inmutable, así que la corrección entra por `develop` |
 | 2026-11-20 | La constitución de Spec Kit (`.specify/memory/constitution.md`) remite a esta CONSTITUTION en lugar de ser una plantilla vacía (HU-56, SPEC-057) | `/speckit.plan` y `/speckit.analyze` validaban contra marcadores vacíos; una remisión sin copiar reglas mantiene una sola fuente de verdad |
 | 2026-11-20 | Retirar `develop`: `main` pasa a ser la única rama de integración, con CI, Dependabot y la protección que tenía `develop`; las entregas son etiquetas sobre `main` (HU-57, SPEC-058) | GitHub sólo cierra issues con `Closes #N` al fusionar en la rama por defecto (`main`); una sola rama de larga vida simplifica el flujo del equipo |
+| 2026-11-22 | HU-27: generar tipos frontend desde OpenAPI y comprobarlos en `make check`; compartir `EstadoTrabajo` entre HTTP y documentación SSE | Detectar divergencias del contrato en CI; generador compatible con TypeScript 6, offline tras instalación y sin cambiar el transporte |
+| 2026-11-24 | HU-25: reintentos con plazo total, caché validada, cancelación cooperativa y configuración inválida como 503 en `llm_resiliente.py` | Corregir la revisión del PR #126: evitar esperas multiplicadas, respuestas inválidas cacheadas, llamadas pagas tras cancelar, 500 por configuración inválida y métricas de error distorsionadas |
+| 2026-11-24 | HU-24: logging central en JSON con `request_id`/`job_id` correlacionados y redacción de secretos | Reconstruir cada solicitud con un solo id sin filtrar credenciales; el contexto se copia al hilo SSE y se etiqueta en MLflow |
 
 ## 10. Notas y tareas pendientes
 
@@ -295,6 +313,7 @@ git push -u origin feature/hu-XX-tema
 - [x] Sustituir el marcador `version="desconocida"` del registro por la versión real del modelo servido.
 - [x] HU-05, 07, 10–13 y 15 cerradas; entrega `v1.0` publicada en `main` (HU-20, ver `specs/`).
 - [x] Inyectar la configuración del modelo en el contenedor `m2-cad` (`DEEPSEEK_API_KEY`, `LLM_MODEL`; HU-14).
+- [x] HU-25 (reintentos y caché del LLM, SPEC-026) implementada y corregida tras la revisión del PR #126; validación integral en Docker pendiente.
 - [ ] Mantener la cobertura ≥ 70 % al añadir módulos.
 - [x] Regenerar el diagrama de arquitectura (`docs/arquitectura.*`) con Archify sin la API Gemini ni llama.cpp (HU-19, PR #69).
 

@@ -7,7 +7,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 
-const props = defineProps<{ url: string }>()
+const props = defineProps<{ url: string; token: string }>()
 const host = ref<HTMLDivElement>()
 const error = ref('')
 const loading = ref(true)
@@ -30,7 +30,7 @@ function dispose(object: Object3D) {
   })
 }
 
-watch(() => [props.url, host.value] as const, async ([url, element], _old, onCleanup) => {
+watch(() => [props.url, props.token, host.value] as const, async ([url, token, element], _old, onCleanup) => {
   cleanup()
   if (!element) return
   const control = new AbortController()
@@ -70,7 +70,7 @@ watch(() => [props.url, host.value] as const, async ([url, element], _old, onCle
     controls.addEventListener('change', render)
     element.append(renderer.domElement)
     renderer.domElement.setAttribute('aria-hidden', 'true')
-    const response = await fetch(url, { signal: control.signal })
+    const response = await fetch(url, { signal: control.signal, headers: { 'X-Download-Token': token } })
     if (!response.ok) throw new Error('No se pudo cargar el modelo.')
     const manager = new LoadingManager()
     manager.setURLModifier((resource) => {
