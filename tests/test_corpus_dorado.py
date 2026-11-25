@@ -262,3 +262,18 @@ def test_write_congela_lo_observado_y_es_idempotente(tmp_path):
 
     regenerar()
     assert alterada.read_text(encoding="utf-8") == congelado
+
+
+def test_runner_rechaza_corpus_invalido_con_exit_dos(tmp_path):
+    """S2 y S11 a través del script: un caso sin resultado es error de corpus, no divergencia."""
+    sin_resultado = _corpus_minimo(tmp_path, lambda casos: casos[0].pop("resultado"))
+    corrida = subprocess.run(
+        [sys.executable, "-B", str(RUNNER), "--corpus", str(sin_resultado)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert corrida.returncode == 2
+    assert "no declara resultado" in corrida.stderr
+    assert "acepta-plate-hu02-p01" in corrida.stderr
