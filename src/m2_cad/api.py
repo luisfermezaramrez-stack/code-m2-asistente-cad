@@ -22,6 +22,12 @@ from pydantic import BaseModel, Field, field_validator
 from m2_cad import seguimiento
 from m2_cad.contratos import EstadoTrabajo
 from m2_cad.control import ControlGeneracion, SolicitudDeclinada
+from m2_cad.observabilidad import (
+    configurar_logging,
+    contexto_solicitud,
+    job_id_actual,
+    request_id_actual,
+)
 from m2_cad.registro import RUTA_DEFAULT, SIN_TRADUCCION, registrar
 from m2_cad.retencion_salidas import depurar_outputs, leer_politica
 from m2_cad.seguridad_descargas import emitir_token, exigir_token, validar_uuid
@@ -58,6 +64,7 @@ async def _ciclo_aplicacion(_: FastAPI):
 
 
 logger = logging.getLogger(__name__)
+configurar_logging()  # RF-1: configuración central desde la importación del módulo.
 
 app = FastAPI(
     title="M2 CAD Assistant API",
@@ -337,6 +344,8 @@ async def registrar_entrada_invalida(request: Request, exc: RequestValidationErr
     respuesta = await request_validation_exception_handler(request, exc)
     if request.method == "POST" and request.url.path == "/generar":
         identificador = _identificador(request)
+        with contexto_solicitud(request_id=identificador):
+            logger.warning("entrada inválida rechazada en POST /generar")
         cuerpo = exc.body if isinstance(exc.body, dict) else {}
         registrar(
             texto=cuerpo.get("texto", "entrada inválida"),
@@ -413,6 +422,9 @@ def medir_solicitud(
         )
         corrida.registrar_tags(modelo_registrado=referencia)
     corrida.finalizar(estado=estado, motivo_declinacion=motivo_declinacion, error=error)
+    # RF-3/AC1: el cierre del seguimiento se registra aquí, fuera de la medición
+    # de sobrecarga de `seguimiento.Corrida.finalizar` (AC6 de HU-16).
+    logger.info("seguimiento: cerrando corrida (%s)", estado)
 
 
 _ESTADOS_CORRIDA_SSE = {
@@ -463,7 +475,12 @@ def _generar_sse(
         corrida = seguimiento.iniciar_corrida(
             configuracion.experimento_generacion,
             nombre=solicitud_id,
-            tags={"solicitud_id": solicitud_id, "transporte": "sse"},
+            tags={
+                "solicitud_id": solicitud_id,
+                "request_id": request_id_actual() or solicitud_id,
+                "job_id": job_id_actual() or solicitud_id,
+                "transporte": "sse",
+            },
             configuracion=configuracion,
         )
         medir_solicitud(
@@ -475,12 +492,109 @@ def _generar_sse(
             motivo_declinacion=terminal.get("motivo") if estado == "declinada" else None,
             error=f"HTTP {terminal.get('codigo_http', 500)}" if estado == "error" else None,
         )
+        logger.info("generación terminada en %s", estado)
 
     trabajo = gestor.crear(solicitud.texto, procesar, registrar_terminal)
+    with contexto_solicitud(job_id=trabajo.id):
+        logger.info("trabajo SSE creado")
     respuesta = RespuestaSSE(trabajo, request)
     respuesta.headers.update(_cabeceras_registro(request, trabajo.id))
     respuesta.headers["X-Download-Token"] = emitir_token(trabajo.id)
     respuesta.headers["Cache-Control"] = "no-store, no-transform"
+    return respuesta
+
+
+def _generar_json(
+    solicitud: SolicitudGenerar,
+    request: Request,
+    response: Response,
+    procesador: Procesador,
+    configuracion: seguimiento.Configuracion,
+    solicitud_id: str,
+    inicio: float,
+) -> dict[str, str]:
+    """Ruta JSON: registro y corrida MLflow con el contexto de la solicitud activo."""
+    cabeceras = _cabeceras_registro(request, solicitud_id)
+    medido: dict[str, object] = {}
+    corrida = seguimiento.iniciar_corrida(
+        configuracion.experimento_generacion,
+        nombre=solicitud_id,
+        tags={"solicitud_id": solicitud_id, "request_id": solicitud_id},
+        configuracion=configuracion,
+    )
+    try:
+        respuesta = procesador(solicitud.texto, medido)
+    except HTTPException as exc:
+        latencia_ms = (time.perf_counter() - inicio) * 1000
+        estado, motivo, error = _clasificar(exc)
+        registrar(
+            texto=solicitud.texto,
+            traduccion=SIN_TRADUCCION,
+            resultado=None,
+            latencia_ms=latencia_ms,
+            error=str(exc.detail),
+            version=seguimiento.version_modelo(),
+            ruta=obtener_ruta_registro(),
+            identificador=solicitud_id,
+        )
+        medir_solicitud(
+            corrida,
+            medido,
+            configuracion,
+            estado=estado,
+            latencia_ms=latencia_ms,
+            motivo_declinacion=motivo,
+            error=error,
+        )
+        logger.warning("generación terminada en %s", estado)
+        exc.headers = {**(exc.headers or {}), **cabeceras}
+        raise
+    except BaseException as exc:
+        # Un fallo no previsto también cierra la corrida (AC3): MLflow guarda la
+        # corrida activa por hilo y una en RUNNING bloquearía las siguientes.
+        latencia_ms = (time.perf_counter() - inicio) * 1000
+        registrar(
+            texto=solicitud.texto,
+            traduccion=SIN_TRADUCCION,
+            resultado=None,
+            latencia_ms=latencia_ms,
+            error=type(exc).__name__,
+            version=seguimiento.version_modelo(),
+            ruta=obtener_ruta_registro(),
+            identificador=solicitud_id,
+        )
+        medir_solicitud(
+            corrida,
+            medido,
+            configuracion,
+            estado="error",
+            latencia_ms=latencia_ms,
+            error=type(exc).__name__,
+        )
+        logger.warning("generación terminada en error (%s)", type(exc).__name__)
+        if isinstance(exc, Exception):
+            raise HTTPException(500, "Fallo técnico del pipeline.", headers=cabeceras) from exc
+        raise
+
+    latencia_ms = (time.perf_counter() - inicio) * 1000
+    registrar(
+        texto=solicitud.texto,
+        traduccion=SIN_TRADUCCION,
+        resultado=respuesta,
+        latencia_ms=latencia_ms,
+        version=seguimiento.version_modelo(),
+        ruta=obtener_ruta_registro(),
+        identificador=solicitud_id,
+    )
+    medir_solicitud(corrida, medido, configuracion, estado="entregada", latencia_ms=latencia_ms)
+    response.headers.update(cabeceras)
+    response.headers["X-Download-Token"] = emitir_token(solicitud_id)
+    response.headers["Cache-Control"] = "no-store"
+    if respuesta.get("step"):
+        response.headers["X-Step-URL"] = str(
+            request.url_for("descargar_step", identificador=solicitud_id)
+        )
+    logger.info("solicitud entregada")
     return respuesta
 
 
@@ -508,89 +622,15 @@ def generar(
     configuracion: Annotated[seguimiento.Configuracion, Depends(obtener_configuracion_seguimiento)],
 ) -> dict[str, str] | StreamingResponse:
     """Procesa una solicitud CAD validada, la registra (AC3/AC4) y la mide (HU-16)."""
-    inicio = time.perf_counter()
-    if _acepta_sse(request):
-        return _generar_sse(solicitud, request, procesador_sse, gestor, configuracion, inicio)
-    solicitud_id = _identificador(request)
-    cabeceras = _cabeceras_registro(request, solicitud_id)
-    medido: dict[str, object] = {}
-    corrida = seguimiento.iniciar_corrida(
-        configuracion.experimento_generacion,
-        nombre=solicitud_id,
-        tags={"solicitud_id": solicitud_id},
-        configuracion=configuracion,
-    )
-    try:
-        respuesta = procesador(solicitud.texto, medido)
-    except HTTPException as exc:
-        latencia_ms = (time.perf_counter() - inicio) * 1000
-        estado, motivo, error = _clasificar(exc)
-        registrar(
-            texto=solicitud.texto,
-            traduccion=SIN_TRADUCCION,
-            resultado=None,
-            latencia_ms=latencia_ms,
-            error=str(exc.detail),
-            version=seguimiento.version_modelo(),
-            ruta=obtener_ruta_registro(),
-            identificador=solicitud_id,
+    solicitud_id = _identificador(request)  # RF-5: reutiliza X-Request-ID válido.
+    with contexto_solicitud(request_id=solicitud_id):
+        inicio = time.perf_counter()
+        logger.info("solicitud recibida: POST /generar")
+        if _acepta_sse(request):
+            return _generar_sse(solicitud, request, procesador_sse, gestor, configuracion, inicio)
+        return _generar_json(
+            solicitud, request, response, procesador, configuracion, solicitud_id, inicio
         )
-        medir_solicitud(
-            corrida,
-            medido,
-            configuracion,
-            estado=estado,
-            latencia_ms=latencia_ms,
-            motivo_declinacion=motivo,
-            error=error,
-        )
-        exc.headers = {**(exc.headers or {}), **cabeceras}
-        raise
-    except BaseException as exc:
-        # Un fallo no previsto también cierra la corrida (AC3): MLflow guarda la
-        # corrida activa por hilo y una en RUNNING bloquearía las siguientes.
-        latencia_ms = (time.perf_counter() - inicio) * 1000
-        registrar(
-            texto=solicitud.texto,
-            traduccion=SIN_TRADUCCION,
-            resultado=None,
-            latencia_ms=latencia_ms,
-            error=type(exc).__name__,
-            version=seguimiento.version_modelo(),
-            ruta=obtener_ruta_registro(),
-            identificador=solicitud_id,
-        )
-        medir_solicitud(
-            corrida,
-            medido,
-            configuracion,
-            estado="error",
-            latencia_ms=latencia_ms,
-            error=type(exc).__name__,
-        )
-        if isinstance(exc, Exception):
-            raise HTTPException(500, "Fallo técnico del pipeline.", headers=cabeceras) from exc
-        raise
-
-    latencia_ms = (time.perf_counter() - inicio) * 1000
-    registrar(
-        texto=solicitud.texto,
-        traduccion=SIN_TRADUCCION,
-        resultado=respuesta,
-        latencia_ms=latencia_ms,
-        version=seguimiento.version_modelo(),
-        ruta=obtener_ruta_registro(),
-        identificador=solicitud_id,
-    )
-    medir_solicitud(corrida, medido, configuracion, estado="entregada", latencia_ms=latencia_ms)
-    response.headers.update(cabeceras)
-    response.headers["X-Download-Token"] = emitir_token(solicitud_id)
-    response.headers["Cache-Control"] = "no-store"
-    if respuesta.get("step"):
-        response.headers["X-Step-URL"] = str(
-            request.url_for("descargar_step", identificador=solicitud_id)
-        )
-    return respuesta
 
 
 @app.get("/generaciones/{solicitud_id}", response_model=EstadoTrabajo)
