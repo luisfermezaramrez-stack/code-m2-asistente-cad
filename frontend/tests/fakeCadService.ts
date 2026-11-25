@@ -1,6 +1,7 @@
 /** Doble explícito de FastAPI para pruebas. Nunca se importa desde src/. */
 import { vi } from 'vitest'
 import type { Format, Job, Stage } from '../src/api'
+import type { EstadoSesion } from '../src/auth'
 
 export function event(state: Stage, sequence: number, extra: Partial<Job> = {}): Job {
   return {
@@ -15,11 +16,22 @@ export class FakeCadService {
   files = new Set<Format>(['step', 'glb', 'csv'])
   posts: { body: unknown; signal: AbortSignal; controller: ReadableStreamDefaultController<Uint8Array> }[] = []
   deleteResult: Job | undefined
+  sesion: EstadoSesion = { requerido: false, autenticado: false, usuario: null }
   postStatus = 200
   postDetail: unknown = 'Solicitud inválida'
   getStatus = 200
   fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = String(input)
+    if (url === '/auth/me') return Response.json(this.sesion)
+    if (url === '/auth/login') {
+      const { usuario } = JSON.parse(String(init?.body)) as { usuario: string; clave: string }
+      this.sesion = { requerido: true, autenticado: true, usuario }
+      return Response.json({ autenticado: true, usuario })
+    }
+    if (url === '/auth/logout') {
+      this.sesion = { requerido: true, autenticado: false, usuario: null }
+      return Response.json({ autenticado: false })
+    }
     if (url === '/generar') {
       if (this.postStatus !== 200) return Response.json({ detail: this.postDetail }, { status: this.postStatus })
       const signal = init?.signal as AbortSignal

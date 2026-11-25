@@ -156,9 +156,11 @@ def main() -> None:
         puerto = socket_libre.getsockname()[1]
     with tempfile.TemporaryDirectory(prefix="hu15-smoke-") as temporal:
         env = {**os.environ, "PYTHONPATH": str(raiz / "src")}
-        # Secreto efimero solo para el subprocess de validacion local/CI.
+        # Secretos efimeros solo para el subprocess de validacion local/CI.
         if not env.get("M2_DOWNLOAD_SECRET"):
             env["M2_DOWNLOAD_SECRET"] = secrets.token_hex(32)
+        # El smoke HG-15 ejerce la API heredada; HU-53 se valida en sus pruebas.
+        env["M2_AUTH_ENABLED"] = "0"
         proceso = subprocess.Popen(
             [
                 sys.executable,

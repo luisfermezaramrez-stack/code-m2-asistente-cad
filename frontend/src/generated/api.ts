@@ -6,6 +6,22 @@ export type ClientOptions = {
 };
 
 /**
+ * Credenciales
+ *
+ * Credenciales HU-53; la clave nunca se registra ni se devuelve.
+ */
+export type Credenciales = {
+    /**
+     * Clave
+     */
+    clave: string;
+    /**
+     * Usuario
+     */
+    usuario: string;
+};
+
+/**
  * EstadoTrabajo
  *
  * JSON de consulta, cancelación y data SSE; opcional significa campo ausente.
@@ -106,6 +122,75 @@ export type ValidationError = {
      */
     type: string;
 };
+
+export type IniciarSesionAuthLoginPostData = {
+    body: Credenciales;
+    path?: never;
+    query?: never;
+    url: '/auth/login';
+};
+
+export type IniciarSesionAuthLoginPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IniciarSesionAuthLoginPostError = IniciarSesionAuthLoginPostErrors[keyof IniciarSesionAuthLoginPostErrors];
+
+export type IniciarSesionAuthLoginPostResponses = {
+    /**
+     * Response Iniciar Sesion Auth Login Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean | string;
+    };
+};
+
+export type IniciarSesionAuthLoginPostResponse = IniciarSesionAuthLoginPostResponses[keyof IniciarSesionAuthLoginPostResponses];
+
+export type CerrarSesionAuthLogoutPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/logout';
+};
+
+export type CerrarSesionAuthLogoutPostResponses = {
+    /**
+     * Response Cerrar Sesion Auth Logout Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean;
+    };
+};
+
+export type CerrarSesionAuthLogoutPostResponse = CerrarSesionAuthLogoutPostResponses[keyof CerrarSesionAuthLogoutPostResponses];
+
+export type EstadoSesionActualAuthMeGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/me';
+};
+
+export type EstadoSesionActualAuthMeGetResponses = {
+    /**
+     * Response Estado Sesion Actual Auth Me Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean | string | null;
+    };
+};
+
+export type EstadoSesionActualAuthMeGetResponse = EstadoSesionActualAuthMeGetResponses[keyof EstadoSesionActualAuthMeGetResponses];
 
 export type CancelarGeneracionGeneracionesSolicitudIdDeleteData = {
     body?: never;

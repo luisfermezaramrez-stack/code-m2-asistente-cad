@@ -39,6 +39,9 @@ outputs/
 data/outputs/
 artifacts/
 registro*.csv
+# Estado transaccional y candados locales: se regeneran en cada ejecución.
+data/*.lock
+data/cola.json
 
 # ===== Archify (carpeta de trabajo del diagrama; la fuente versionada es docs/arquitectura.json) =====
 .archify/

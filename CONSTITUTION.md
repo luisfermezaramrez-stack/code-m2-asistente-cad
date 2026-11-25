@@ -38,7 +38,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
   responsable.
 - No reemplaza un CAD comercial ni busca competir con Revit/BIM.
 - No reentrena modelos ni sirve como plataforma de fine-tuning.
-- No es un servicio multiusuario: sin autenticación, sin concurrencia garantizada.
+- No es multi-tenant: hay usuarios con sesión propia (HU-53), sin organizaciones ni
+  facturación por usuario; la concurrencia no está garantizada.
 
 ## 2. Alcance
 
@@ -51,6 +52,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
   entrega STEP/GLB/CSV.
 - API REST (`POST /generar`, `GET /health`), progreso SSE, consulta/cancelación
   en `/generaciones/{id}` y Vue 3 con resultados descargables (HU-15).
+- Acceso con sesión por usuario: `/auth/login`, `/auth/logout`, `/auth/me`; salud
+  abierta y recursos de datos con dueño (HU-53).
 - Registro trazable de solicitudes (texto, resultado, latencia, error, versión)
   con exclusión de datos personales (Ley 1581 de 2012).
 - Línea base heredada Gemma/llama.cpp solo con overlay explícito.
@@ -59,7 +62,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 
 - Entrada por imagen o voz; ensamblajes multi-pieza complejos.
 - Cálculo de resistencia, fatiga o cumplimiento normativo.
-- Reentrenamiento del modelo; despliegue multi-tenant; autenticación.
+- Reentrenamiento del modelo; despliegue multi-tenant; OIDC, roles finos y
+  facturación por usuario.
 
 ## 3. Stack técnico
 
@@ -69,6 +73,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Gestor de paquetes y entorno** | [`uv`](https://docs.astral.sh/uv/) — prohibido `pip` y `requirements.txt` |
 | **Build backend** | `hatchling` (wheel desde `src/m2_cad`) |
 | **API** | [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` |
+| **Autenticación** | Sesión local con cookie `HttpOnly` firmada HMAC-SHA256 y claves PBKDF2-SHA256 (HU-53); sin OIDC ni dependencias nuevas |
 | **UI** | Vue 3 Composition API + TypeScript + Vite, Node 24, npm lockfile |
 | **Contrato frontend/API** | Tipos generados desde `app.openapi()` con `@hey-api/openapi-ts` (sólo TypeScript, sin SDK); `make api-types` y `make api-types-check` (HU-27) |
 | **Kernel CAD** | `constraint-kit` (vendoreado en `vendor/`) con CadQuery 2.7.0, build123d 0.10.0, bd_warehouse 0.2.0, Z3, python-solvespace, OpenCascade (LGPL 2.1) |
@@ -299,6 +304,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-22 | HU-27: generar tipos frontend desde OpenAPI y comprobarlos en `make check`; compartir `EstadoTrabajo` entre HTTP y documentación SSE | Detectar divergencias del contrato en CI; generador compatible con TypeScript 6, offline tras instalación y sin cambiar el transporte |
 | 2026-11-24 | HU-25: reintentos con plazo total, caché validada, cancelación cooperativa y configuración inválida como 503 en `llm_resiliente.py` | Corregir la revisión del PR #126: evitar esperas multiplicadas, respuestas inválidas cacheadas, llamadas pagas tras cancelar, 500 por configuración inválida y métricas de error distorsionadas |
 | 2026-11-24 | HU-24: logging central en JSON con `request_id`/`job_id` correlacionados y redacción de secretos | Reconstruir cada solicitud con un solo id sin filtrar credenciales; el contexto se copia al hilo SSE y se etiqueta en MLflow |
+| 2026-11-25 | HU-53: sesión local con cookie firmada y usuarios PBKDF2 por entorno; activa por defecto, modo local explícito | Controlar acceso y costo en despliegue público sin red, OIDC ni dependencias nuevas; dueño en trabajos y registro con respuestas 404 ajenas |
 
 ## 10. Notas y tareas pendientes
 

@@ -180,7 +180,7 @@ class TrabajoSSESimulado:
 
 
 class GestorSSESimulado:
-    def crear(self, texto, procesador, al_finalizar):
+    def crear(self, texto, procesador, al_finalizar, usuario=None):
         return TrabajoSSESimulado()
 
 

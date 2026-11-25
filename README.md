@@ -26,6 +26,7 @@ construirlo.
 - [Requisitos](#requisitos)
 - [Versiones](#versiones)
 - [Instalación y uso](#instalación-y-uso)
+- [Acceso y usuarios (HU-53)](#acceso-y-usuarios-hu-53)
 - [Entorno en la nube (Lambda)](#entorno-en-la-nube-lambda)
 - [Metas (objetivos 1–4)](#metas-objetivos-14)
 - [Informe final](docs/informe-final.md)
@@ -154,6 +155,32 @@ uv run --locked uvicorn m2_cad.api:app --app-dir src --host 127.0.0.1 --port 800
 Abrir **http://127.0.0.1:8000/**: FastAPI sirve el build, API, SSE y descargas en
 el mismo origen. No se inicia otro servidor frontend. El desarrollo con HMR
 se explica en [frontend/README.md](frontend/README.md).
+
+### Acceso y usuarios (HU-53)
+
+La autenticación está **activa por defecto** (`M2_AUTH_ENABLED=1`). La SPA muestra
+un formulario de acceso, envía `POST /auth/login` y conserva la sesión en una cookie
+`HttpOnly` / `SameSite=Lax` firmada con HMAC-SHA256; `GET /auth/me` informa si hay
+sesión y `POST /auth/logout` la cierra. `/health` y `/ready` siguen abiertos para
+monitoreo; el resto de rutas de datos (generar, consultar, cancelar, descargar y
+registros) devuelve 401 sin sesión y 404 cuando el recurso pertenece a otro usuario.
+El token de descarga de HU-36 se exige además de la sesión.
+
+Los usuarios se definen en `M2_AUTH_USERS` con hashes PBKDF2-SHA256, nunca en el
+repositorio. Para generar uno:
+
+```bash
+make hash-clave          # pide la clave por prompt oculto
+# M2_CLAVE_NUEVA='mi-clave' make hash-clave   # sólo para automatización local
+```
+
+Copie el hash resultante en `M2_AUTH_USERS` como
+`'{"ana":"pbkdf2_sha256$..."}'` y defina `M2_AUTH_SECRET` con un secreto aleatorio
+de al menos 32 bytes. Para desarrollo local sin sesión, fijar explícitamente
+`M2_AUTH_ENABLED=0`; en ese modo las solicitudes se registran como `anónimo`.
+El CSV de registro incorpora la columna `usuario`; los archivos anteriores se
+migran automáticamente sin borrar filas. Plan y decisiones:
+[SPEC-054](specs/054-hu-53-autenticacion/plan.md).
 
 ### Tipos del API (HU-27)
 
@@ -299,6 +326,12 @@ Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 | `LLM_BASE_URL` | Pipeline → servidor compatible con OpenAI | `https://api.deepseek.com` | — (valor por defecto del código) |
 | `M2_FRONTEND_DIST` | FastAPI → build Vue | `frontend/dist` | `/app/frontend/dist` |
 | `M2_CORS_ORIGINS` | CORS exacto de FastAPI | localhost/127.0.0.1 en 8000 | mismo valor por defecto |
+| `M2_DOWNLOAD_SECRET` | Firma de tokens de descarga (HU-36) | secreto aleatorio local | `${M2_DOWNLOAD_SECRET:?}` |
+| `M2_AUTH_ENABLED` | Activa la sesión HU-53 | `0` en desarrollo local | `1` |
+| `M2_AUTH_SECRET` | Firma HMAC de la cookie de sesión | secreto aleatorio local | `${M2_AUTH_SECRET:?}` |
+| `M2_AUTH_USERS` | JSON usuario → hash PBKDF2 (HU-53) | dos usuarios de prueba locales | `${M2_AUTH_USERS:?}` |
+| `M2_AUTH_COOKIE_SECURE` | Exige HTTPS para la cookie | `0` en HTTP local | `1` |
+| `M2_AUTH_TTL_SECONDS` | Vigencia de la sesión | `86400` | `86400` (o el valor del entorno) |
 | `MLFLOW_TRACKING_URI` | Seguimiento → servidor MLflow o file store (HU-16) | `file:./mlruns` | `http://mlflow:5000` |
 | `MLFLOW_TRACKING_ENABLED` | `0` apaga el seguimiento (no-op) | `1` | `${MLFLOW_TRACKING_ENABLED:-1}` |
 | `MLFLOW_EXPERIMENT_NAME` / `MLFLOW_EXPERIMENT_BANCO` | Nombres de experimento | `m2-cad-generacion` / `m2-cad-banco` | igual |

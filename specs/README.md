@@ -81,6 +81,6 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [051](051-hu-50-cortes-visor-3d/) | HU-50 · Cortes y secciones en el visor 3D | 3 | Carlos | #110 | — | Spec-first | Propuesta (opcional) |
 | [052](052-hu-51-panorama-metricas/) | HU-51 · Panorama de métricas sobre MLflow | 3 | Juan Camilo | #111 | — | Spec-first | Propuesta (opcional) |
 | [053](053-hu-52-ab-prompts-modelos/) | HU-52 · Comparación A/B de prompts y modelos | 3 | Juan Camilo | #112 | — | Spec-first | Propuesta (opcional) |
-| [054](054-hu-53-autenticacion/) | HU-53 · Autenticación y usuarios | 3 | Juan Camilo | #113 | — | Spec-first | Propuesta (opcional) |
+| [054](054-hu-53-autenticacion/) | HU-53 · Autenticación y usuarios | 3 | Juan Camilo | #113 | en creación | Spec-first | En revisión |
 | [055](055-hu-54-sitio-documentacion/) | HU-54 · Sitio de documentación publicado | 3 | Carlos | #114 | — | Spec-first | Propuesta (opcional) |
 | [056](056-hu-55-releases-automaticos/) | HU-55 · Releases automáticos con changelog | 3 | Carlos | #115 | — | Spec-first | Propuesta (opcional) |

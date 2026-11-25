@@ -38,9 +38,9 @@ describe('SPA conectada a FastAPI simulado', () => {
     expect(wrapper.text()).not.toMatch(/MAQUETA|SSE|localhost|simulado/)
   })
 
-  it.each(['', '   ', 'x'.repeat(1001)])('valida entrada y enfoca el campo sin llamar a servicios', async (text) => {
+  it.each(['', '   ', 'x'.repeat(1001)])('valida entrada y enfoca el campo sin generar', async (text) => {
     await start(text)
-    expect(service.fetch).not.toHaveBeenCalled()
+    expect(service.fetch.mock.calls.filter(([url]) => String(url) === '/generar')).toHaveLength(0)
     expect(wrapper.get('[role="alert"]').text()).toContain('entre 1 y 1000')
     expect(document.activeElement).toBe(wrapper.get('textarea').element)
   })

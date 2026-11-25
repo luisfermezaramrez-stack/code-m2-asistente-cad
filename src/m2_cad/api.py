@@ -20,6 +20,17 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from m2_cad import seguimiento
+from m2_cad.autenticacion import (
+    ANONIMO,
+    autenticacion_activa,
+    borrar_cookie,
+    emitir_sesion,
+    estado_sesion,
+    fijar_cookie,
+    garantizar_propietario,
+    usuario_actual,
+    verificar_usuario,
+)
 from m2_cad.contratos import EstadoTrabajo
 from m2_cad.control import ControlGeneracion, SolicitudDeclinada
 from m2_cad.observabilidad import (
@@ -94,10 +105,41 @@ class SolicitudGenerar(BaseModel):
         return valor.strip()
 
 
+class Credenciales(BaseModel):
+    """Credenciales HU-53; la clave nunca se registra ni se devuelve."""
+
+    usuario: str = Field(min_length=1, max_length=64)
+    clave: str = Field(min_length=1, max_length=256)
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
-    """Comprueba que el proceso de la API está disponible."""
+    """Comprueba que el proceso de la API está disponible (AC4: sin credenciales)."""
     return {"status": "ok"}
+
+
+@app.post("/auth/login")
+def iniciar_sesion(credenciales: Credenciales, response: Response) -> dict[str, bool | str]:
+    """AC1: emite una cookie firmada sólo para credenciales válidas."""
+    if not autenticacion_activa():
+        raise HTTPException(404, "La autenticación no está activada.")
+    if not verificar_usuario(credenciales.usuario, credenciales.clave):
+        raise HTTPException(401, "Usuario o clave incorrectos.")
+    fijar_cookie(response, emitir_sesion(credenciales.usuario))
+    return {"autenticado": True, "usuario": credenciales.usuario}
+
+
+@app.post("/auth/logout")
+def cerrar_sesion(response: Response) -> dict[str, bool]:
+    """Elimina la cookie de sesión; el cliente debe volver a autenticarse."""
+    borrar_cookie(response)
+    return {"autenticado": False}
+
+
+@app.get("/auth/me")
+def estado_sesion_actual(request: Request) -> dict[str, bool | str | None]:
+    """Expone a la SPA si la sesión es necesaria y cuál es el usuario activo."""
+    return estado_sesion(request)
 
 
 def procesador_no_disponible(texto: str) -> dict[str, str]:
@@ -301,9 +343,8 @@ def _cabeceras_registro(request: Request, identificador: str) -> dict[str, str]:
     }
 
 
-@app.get("/registros/{identificador}")
-def consultar_registro(identificador: str) -> dict[str, str]:
-    """Consulta una fila existente, sin escribir ni duplicar el registro (HU-07 AC3)."""
+def _leer_registro(identificador: str) -> dict[str, str]:
+    """Devuelve la fila existente sin escribir ni duplicar el registro (HU-07 AC3)."""
     identificador = validar_uuid(identificador)
     ruta = obtener_ruta_registro()
     if ruta.exists():
@@ -314,11 +355,27 @@ def consultar_registro(identificador: str) -> dict[str, str]:
     raise HTTPException(404, "Registro no encontrado.")
 
 
+@app.get("/registros/{identificador}")
+def consultar_registro(
+    identificador: str,
+    usuario: Annotated[str, Depends(usuario_actual)],
+) -> dict[str, str]:
+    """Consulta una fila propia, sin revelar la de otros usuarios (HU-53, AC2)."""
+    fila = _leer_registro(identificador)
+    garantizar_propietario(usuario, fila.get("usuario"))
+    return fila
+
+
 @app.get("/registros/{identificador}/step")
-def descargar_step(identificador: str, request: Request) -> FileResponse:
-    """Enlaza el STEP del registro persistente, incluso tras reiniciar los trabajos."""
+def descargar_step(
+    identificador: str,
+    request: Request,
+    usuario: Annotated[str, Depends(usuario_actual)],
+) -> FileResponse:
+    """Enlaza el STEP propio del registro persistente, incluso tras reiniciar."""
     exigir_token(identificador, request.headers.get("X-Download-Token"))
-    fila = consultar_registro(identificador)
+    fila = _leer_registro(identificador)
+    garantizar_propietario(usuario, fila.get("usuario"))
     try:
         resultado = ast.literal_eval(fila["resultado"])
         ruta = Path(resultado["step"]).resolve()
@@ -446,6 +503,7 @@ def _generar_sse(
     gestor: GestorTrabajos,
     configuracion: seguimiento.Configuracion,
     inicio: float,
+    usuario: str,
 ) -> RespuestaSSE:
     """Ruta SSE: registro CSV y corrida MLflow al alcanzar el estado terminal (HU-15/16).
 
@@ -469,6 +527,7 @@ def _generar_sse(
             version=seguimiento.version_modelo(),
             ruta=ruta_registro,
             identificador=terminal["solicitud_id"],
+            usuario=usuario,
         )
         estado = _ESTADOS_CORRIDA_SSE.get(terminal["estado"], "error")
         solicitud_id = terminal["solicitud_id"]
@@ -480,6 +539,7 @@ def _generar_sse(
                 "request_id": request_id_actual() or solicitud_id,
                 "job_id": job_id_actual() or solicitud_id,
                 "transporte": "sse",
+                "usuario": usuario,
             },
             configuracion=configuracion,
         )
@@ -494,7 +554,7 @@ def _generar_sse(
         )
         logger.info("generación terminada en %s", estado)
 
-    trabajo = gestor.crear(solicitud.texto, procesar, registrar_terminal)
+    trabajo = gestor.crear(solicitud.texto, procesar, registrar_terminal, usuario)
     with contexto_solicitud(job_id=trabajo.id):
         logger.info("trabajo SSE creado")
     respuesta = RespuestaSSE(trabajo, request)
@@ -512,6 +572,7 @@ def _generar_json(
     configuracion: seguimiento.Configuracion,
     solicitud_id: str,
     inicio: float,
+    usuario: str,
 ) -> dict[str, str]:
     """Ruta JSON: registro y corrida MLflow con el contexto de la solicitud activo."""
     cabeceras = _cabeceras_registro(request, solicitud_id)
@@ -519,7 +580,7 @@ def _generar_json(
     corrida = seguimiento.iniciar_corrida(
         configuracion.experimento_generacion,
         nombre=solicitud_id,
-        tags={"solicitud_id": solicitud_id, "request_id": solicitud_id},
+        tags={"solicitud_id": solicitud_id, "request_id": solicitud_id, "usuario": usuario},
         configuracion=configuracion,
     )
     try:
@@ -536,6 +597,7 @@ def _generar_json(
             version=seguimiento.version_modelo(),
             ruta=obtener_ruta_registro(),
             identificador=solicitud_id,
+            usuario=usuario,
         )
         medir_solicitud(
             corrida,
@@ -562,6 +624,7 @@ def _generar_json(
             version=seguimiento.version_modelo(),
             ruta=obtener_ruta_registro(),
             identificador=solicitud_id,
+            usuario=usuario,
         )
         medir_solicitud(
             corrida,
@@ -585,6 +648,7 @@ def _generar_json(
         version=seguimiento.version_modelo(),
         ruta=obtener_ruta_registro(),
         identificador=solicitud_id,
+        usuario=usuario,
     )
     medir_solicitud(corrida, medido, configuracion, estado="entregada", latencia_ms=latencia_ms)
     response.headers.update(cabeceras)
@@ -620,6 +684,7 @@ def generar(
     procesador_sse: Annotated[ProcesadorSSE, Depends(obtener_procesador_sse)],
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
     configuracion: Annotated[seguimiento.Configuracion, Depends(obtener_configuracion_seguimiento)],
+    usuario: Annotated[str, Depends(usuario_actual)],
 ) -> dict[str, str] | StreamingResponse:
     """Procesa una solicitud CAD validada, la registra (AC3/AC4) y la mide (HU-16)."""
     solicitud_id = _identificador(request)  # RF-5: reutiliza X-Request-ID válido.
@@ -627,9 +692,11 @@ def generar(
         inicio = time.perf_counter()
         logger.info("solicitud recibida: POST /generar")
         if _acepta_sse(request):
-            return _generar_sse(solicitud, request, procesador_sse, gestor, configuracion, inicio)
+            return _generar_sse(
+                solicitud, request, procesador_sse, gestor, configuracion, inicio, usuario
+            )
         return _generar_json(
-            solicitud, request, response, procesador, configuracion, solicitud_id, inicio
+            solicitud, request, response, procesador, configuracion, solicitud_id, inicio, usuario
         )
 
 
@@ -637,9 +704,12 @@ def generar(
 def consultar_generacion(
     solicitud_id: str,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
+    usuario: Annotated[str, Depends(usuario_actual)],
 ) -> dict:
     """Consulta la confirmación terminal incluso después de perder la conexión SSE."""
-    return gestor.obtener(solicitud_id).estado()
+    trabajo = gestor.obtener(solicitud_id)
+    garantizar_propietario(usuario, getattr(trabajo, "usuario", ANONIMO))
+    return trabajo.estado()
 
 
 @app.delete(
@@ -653,9 +723,12 @@ def cancelar_generacion(
     solicitud_id: str,
     response: Response,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
+    usuario: Annotated[str, Depends(usuario_actual)],
 ) -> dict:
     """202 pide detenerse; solo un estado terminal confirma el desenlace real."""
-    estado = gestor.obtener(solicitud_id).cancelar()
+    trabajo = gestor.obtener(solicitud_id)
+    garantizar_propietario(usuario, getattr(trabajo, "usuario", ANONIMO))
+    estado = trabajo.cancelar()
     response.status_code = 200 if estado["terminal"] else 202
     return estado
 
@@ -672,10 +745,13 @@ def descargar_archivo(
     request: Request,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
     salidas: Annotated[Path, Depends(obtener_directorio_salidas)],
+    usuario: Annotated[str, Depends(usuario_actual)],
 ) -> FileResponse:
-    """Entrega solo artefactos existentes del resultado verificado de este trabajo."""
+    """Entrega solo artefactos propios y verificados; el token de HU-36 sigue vigente."""
     exigir_token(solicitud_id, request.headers.get("X-Download-Token"))
-    estado = gestor.obtener(solicitud_id).estado()
+    trabajo = gestor.obtener(solicitud_id)
+    garantizar_propietario(usuario, getattr(trabajo, "usuario", ANONIMO))
+    estado = trabajo.estado()
     if estado["estado"] != "verificado" or formato not in {"step", "glb", "csv"}:
         raise HTTPException(404, "Archivo no disponible.")
     resultado = estado.get("resultado", {})
