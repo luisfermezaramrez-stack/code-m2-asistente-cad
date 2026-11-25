@@ -3,7 +3,7 @@
 - **Fecha:** 2026-11-25
 - **Rama:** `feature/hu-31-api-v1`
 - **Base:** `origin/main` en `80d7850` (FAST-forward local)
-- **PR:** pendiente de apertura
+- **PR:** [#130](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/130) (abierta, en revisión)
 
 ## 1. Criterios de aceptación
 
