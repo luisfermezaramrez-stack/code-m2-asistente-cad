@@ -5,7 +5,7 @@
         precommit-install precommit build up down clean bench bench-report \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
-        mlflow api-types api-types-check
+        mlflow api-types api-types-check api-contract api-contract-check
 
 help: ## Lista los objetivos disponibles
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -42,18 +42,24 @@ cov: frontend-build ## Corre pytest con reporte de cobertura
 	uv run --locked pytest --cov=src/m2_cad --cov-report=term-missing
 
 lint: ## Ruff con reglas E, F, I, B
-	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py
+	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py scripts/generate_api_contract.py
 
 format: ## Aplica ruff format
 	uv run ruff format src tests
 
-check: lint api-types-check frontend-check cov ## Ruff, contrato OpenAPI, SPA y cobertura (CI)
+check: lint api-contract-check api-types-check frontend-check cov ## Ruff, contratos, SPA y cobertura (CI)
 
 api-types: ## HU-27: genera TypeScript desde app.openapi() sin servidor ni red
 	uv run --locked python scripts/generate_api_types.py
 
 api-types-check: ## HU-27: falla si los tipos OpenAPI versionados están desactualizados
 	uv run --locked python scripts/generate_api_types.py --check
+
+api-contract: ## HU-31: genera el contrato OpenAPI v1 congelado
+	uv run --locked python scripts/generate_api_contract.py
+
+api-contract-check: ## HU-31: falla si el contrato congelado está desactualizado
+	uv run --locked python scripts/generate_api_contract.py --check
 
 frontend-install: ## Instala dependencias Node exactamente desde el lockfile
 	npm --prefix frontend ci

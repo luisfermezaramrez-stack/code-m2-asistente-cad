@@ -57,9 +57,9 @@ def test_openapi_comparte_modelo_entre_consulta_cancelacion_y_data_sse():
     paths = schema["paths"]
     reference = {"$ref": "#/components/schemas/EstadoTrabajo"}
     for method, code in [("get", "200"), ("delete", "200"), ("delete", "202")]:
-        response = paths["/generaciones/{solicitud_id}"][method]["responses"][code]
+        response = paths["/v1/generaciones/{solicitud_id}"][method]["responses"][code]
         assert response["content"]["application/json"]["schema"] == reference
-    content = paths["/generar"]["post"]["responses"]["200"]["content"]
+    content = paths["/v1/generar"]["post"]["responses"]["200"]["content"]
     assert content["text/event-stream"]["x-event-data-schema"] == reference
     assert content["text/event-stream"]["schema"] == {"type": "string"}
 

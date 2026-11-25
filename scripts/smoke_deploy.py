@@ -69,7 +69,7 @@ def clasificar(respuesta: httpx.Response) -> tuple[str, str]:
 def enviar(cliente: httpx.Client, fila: dict) -> dict:
     inicio = time.perf_counter()
     try:
-        respuesta = cliente.post("/generar", json={"texto": fila["solicitud"]})
+        respuesta = cliente.post("/v1/generar", json={"texto": fila["solicitud"]})
         estado_http = str(respuesta.status_code)
         resultado, detalle = clasificar(respuesta)
     except httpx.HTTPError as exc:

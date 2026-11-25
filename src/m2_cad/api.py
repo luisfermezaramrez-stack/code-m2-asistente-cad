@@ -13,10 +13,10 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from m2_cad import seguimiento
@@ -66,13 +66,18 @@ async def _ciclo_aplicacion(_: FastAPI):
 logger = logging.getLogger(__name__)
 configurar_logging()  # RF-1: configuración central desde la importación del módulo.
 
+VERSION_API = "1.0.0"
+PREFIJO_V1 = "/v1"
+SUNSET_RUTAS_PLANAS = "Tue, 23 Feb 2027 00:00:00 GMT"
+
 app = FastAPI(
     title="M2 CAD Assistant API",
     lifespan=_ciclo_aplicacion,
-    version="0.1.0",
+    version=VERSION_API,
     description="Servicio de generación preliminar de componentes CAD.",
 )
 gestor_trabajos = GestorTrabajos()
+router = APIRouter(prefix=PREFIJO_V1)
 
 
 class SolicitudGenerar(BaseModel):
@@ -94,7 +99,7 @@ class SolicitudGenerar(BaseModel):
         return valor.strip()
 
 
-@app.get("/health")
+@router.get("/health")
 def health() -> dict[str, str]:
     """Comprueba que el proceso de la API está disponible."""
     return {"status": "ok"}
@@ -154,7 +159,7 @@ def _registro_disponible() -> bool:
     return True
 
 
-@app.get("/ready")
+@router.get("/ready")
 def ready() -> JSONResponse:
     """Disponibilidad operativa local; /health conserva el contrato de vida."""
     dependencias = {
@@ -301,7 +306,7 @@ def _cabeceras_registro(request: Request, identificador: str) -> dict[str, str]:
     }
 
 
-@app.get("/registros/{identificador}")
+@router.get("/registros/{identificador}")
 def consultar_registro(identificador: str) -> dict[str, str]:
     """Consulta una fila existente, sin escribir ni duplicar el registro (HU-07 AC3)."""
     identificador = validar_uuid(identificador)
@@ -314,7 +319,7 @@ def consultar_registro(identificador: str) -> dict[str, str]:
     raise HTTPException(404, "Registro no encontrado.")
 
 
-@app.get("/registros/{identificador}/step")
+@router.get("/registros/{identificador}/step")
 def descargar_step(identificador: str, request: Request) -> FileResponse:
     """Enlaza el STEP del registro persistente, incluso tras reiniciar los trabajos."""
     exigir_token(identificador, request.headers.get("X-Download-Token"))
@@ -342,7 +347,7 @@ def descargar_step(identificador: str, request: Request) -> FileResponse:
 async def registrar_entrada_invalida(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Registra una entrada rechazada una vez, sin arrancar pipeline ni corrida MLflow."""
     respuesta = await request_validation_exception_handler(request, exc)
-    if request.method == "POST" and request.url.path == "/generar":
+    if request.method == "POST" and request.url.path in {"/generar", f"{PREFIJO_V1}/generar"}:
         identificador = _identificador(request)
         with contexto_solicitud(request_id=identificador):
             logger.warning("entrada inválida rechazada en POST /generar")
@@ -598,7 +603,7 @@ def _generar_json(
     return respuesta
 
 
-@app.post(
+@router.post(
     "/generar",
     response_model=dict[str, str],
     responses={
@@ -633,7 +638,7 @@ def generar(
         )
 
 
-@app.get("/generaciones/{solicitud_id}", response_model=EstadoTrabajo)
+@router.get("/generaciones/{solicitud_id}", response_model=EstadoTrabajo)
 def consultar_generacion(
     solicitud_id: str,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
@@ -642,7 +647,7 @@ def consultar_generacion(
     return gestor.obtener(solicitud_id).estado()
 
 
-@app.delete(
+@router.delete(
     "/generaciones/{solicitud_id}",
     response_model=EstadoTrabajo,
     responses={
@@ -664,8 +669,8 @@ def obtener_directorio_salidas() -> Path:
     return Path("outputs").resolve()
 
 
-@app.get("/generaciones/{solicitud_id}/archivos/{formato}")
-@app.head("/generaciones/{solicitud_id}/archivos/{formato}", include_in_schema=False)
+@router.get("/generaciones/{solicitud_id}/archivos/{formato}")
+@router.head("/generaciones/{solicitud_id}/archivos/{formato}", include_in_schema=False)
 def descargar_archivo(
     solicitud_id: str,
     formato: str,
@@ -704,6 +709,51 @@ def descargar_archivo(
         headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
     )
 
+
+def _cabeceras_deprecacion(destino: str) -> dict[str, str]:
+    """Anuncia la sustitución de una ruta plana por su equivalente `/v1` (RF-5)."""
+    return {
+        "Deprecation": "true",
+        "Sunset": SUNSET_RUTAS_PLANAS,
+        "Link": f'<{destino}>; rel="successor-version"',
+    }
+
+
+async def _redirigir_a_v1(request: Request) -> RedirectResponse:
+    """Conserva método, cuerpo y query al pasar una ruta plana a `/v1` (RF-2)."""
+    destino = str(request.url.replace(path=f"{PREFIJO_V1}{request.url.path}"))
+    return RedirectResponse(
+        destino,
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        headers=_cabeceras_deprecacion(destino),
+    )
+
+
+_RUTAS_PLANAS = (
+    ("/health", ("GET",)),
+    ("/ready", ("GET",)),
+    ("/registros/{identificador}", ("GET",)),
+    ("/registros/{identificador}/step", ("GET",)),
+    ("/generar", ("POST",)),
+    ("/generaciones/{solicitud_id}", ("GET", "DELETE")),
+    ("/generaciones/{solicitud_id}/archivos/{formato}", ("GET", "HEAD")),
+)
+
+app.include_router(router)
+
+for _ruta, _metodos in _RUTAS_PLANAS:
+    for _metodo in _metodos:
+        _nombre = (
+            f"legado_{_metodo.lower()}_"
+            f"{_ruta.strip('/').replace('/', '_').replace('{', '').replace('}', '')}"
+        )
+        app.add_api_route(
+            _ruta,
+            _redirigir_a_v1,
+            methods=[_metodo],
+            name=_nombre,
+            include_in_schema=False,
+        )
 
 # Rutas estáticas explícitas; las rutas API desconocidas conservan su 404 JSON.
 configurar_web(app)
