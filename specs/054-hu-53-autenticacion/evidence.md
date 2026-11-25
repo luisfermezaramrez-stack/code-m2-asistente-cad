@@ -4,7 +4,7 @@
 **Issue:** #113
 **Especificación:** SPEC-054 (dependencia arquitectónica: SPEC-037)
 **Rama:** `feature/hu-53-autenticacion`
-**PR:** pendiente de creación
+**PR:** [#133](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/133)
 
 ## 1. Implementación
 
@@ -75,7 +75,9 @@ heredada; HU-53 configura sus propios secretos en cada prueba.
 - No se probó OIDC: quedó fuera de alcance por diseño (SPEC-054 y `CONSTITUTION.md`).
 - No se ejecutó despliegue Docker real con usuarios cargados; la configuración de
   Compose exige `M2_AUTH_SECRET` y `M2_AUTH_USERS` en el entorno.
-- El resultado de CI y el enlace del PR se registran tras la publicación de la rama.
+- El PR #133 fue abierto el 25 de noviembre de 2026. GitHub Actions (`CI / test`)
+  finalizó en **SUCCESS** para el commit de código `5f7220b`; el commit posterior
+  sólo documenta el enlace del PR.
 
 ## 6. Conclusión
 

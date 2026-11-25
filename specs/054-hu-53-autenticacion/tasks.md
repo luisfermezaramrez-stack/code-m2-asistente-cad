@@ -19,5 +19,5 @@ Orden de ejecución; la evidencia final vive en [evidence.md](./evidence.md).
   expiración/firma de cookie y modo local.
 - [ ] T8 · Documentar `.env.example`, `README.md`, `Makefile`, `CONSTITUTION.md`,
   `specs/README.md` y el smoke HTTP en la misma rama.
-- [ ] T9 · Ejecutar Ruff, pytest con cobertura, `api-types`, Vitest/typecheck/build y
-  pre-commit; abrir PR y escribir `evidence.md`.
+- [x] T9 · Ejecutar Ruff, pytest con cobertura, `api-types`, Vitest/typecheck/build y
+  pre-commit; abrir PR #133 y escribir `evidence.md`.
