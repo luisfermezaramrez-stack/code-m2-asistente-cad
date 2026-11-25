@@ -334,3 +334,55 @@ parámetros explícitos, no treinta solicitudes resueltas mediante inferencia.
   `tests/test_registro.py`: `.as_posix()` mantiene la misma expectativa y permite
   ejecutar la prueba en Windows sin cambiar el comportamiento del registro.
 - Sin cambios de dependencias, pesos del LLM, GPU ni instalación de compiladores.
+
+## Corpus dorado del núcleo (HU-23 · SPEC-024)
+
+`corpus_dorado.json` congela lo que el núcleo determinista produce hoy —aceptado, con la
+huella del STEP, o declinado— para detectar cualquier divergencia geométrica en cada PR,
+incluso por debajo de la tolerancia de ±2 % con la que el banco compara volumen y caja.
+El job de CI `Corpus dorado del núcleo determinista` lo ejecuta en cada PR; en local:
+
+```bash
+make corpus-dorado
+```
+
+### Formato
+
+```json
+{
+  "version": 1,
+  "casos": [
+    {"id": "acepta-plate-hu02-p01", "fuente": "HU02-P01", "resultado": "acepta", "sha256": "…"},
+    {"id": "declina-hu02-n01", "programa": {"unsupported": "…"}, "resultado": "declina"}
+  ]
+}
+```
+
+- `resultado`: obligatorio, `acepta` o `declina`. **Un caso sin resultado declarado es un
+  error del corpus, no un caso aceptado.**
+- `fuente` o `programa`, nunca los dos ni ninguno: `fuente` cita una fila del banco y el
+  programa se deriva de sus `medidas`; `programa` es explícito, y es la única forma válida
+  para las filas negativas, que no tienen parámetros.
+- `sha256`: obligatorio en `acepta`, prohibido en `declina`. Cubre el STEP **normalizado**:
+  sólo se neutralizan la marca de tiempo de `FILE_NAME`, los GUID que OpenCascade asigna a
+  cada `PRODUCT` y el contador de `NEXT_ASSEMBLY_USAGE_OCCURRENCE`, que cambian entre
+  corridas del mismo programa. Cualquier cambio de geometría, tolerancias o entidades
+  cambia la huella.
+- `id` único. Claves desconocidas y versiones distintas de `1` se rechazan.
+
+### Regeneración
+
+Sólo se regenera cuando el cambio geométrico es intencional, para que la actualización
+quede visible en el diff de la PR:
+
+```bash
+uv run --no-sync python -B scripts/verify_corpus_dorado.py --write
+git diff data/corpus_dorado.json
+```
+
+- **Caso nuevo**: agregar `id`, `fuente` o `programa`, y `resultado`; la huella se congela
+  con `--write`.
+- **Cambio geométrico intencional** (parche de `constraint-kit`, versión fijada, generador):
+  `--write` reescribe las huellas afectadas y la PR tiene que justificar el cambio.
+- **Divergencia no intencional**: no regenerar. El runner nombra el caso y muestra la huella
+  esperada y la obtenida; regenerar en ese caso borra la señal que la historia existe para dar.
