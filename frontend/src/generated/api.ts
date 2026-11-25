@@ -66,6 +66,42 @@ export type HttpValidationError = {
 };
 
 /**
+ * RespuestaUso
+ *
+ * Gasto acumulado del día y topes vigentes (HU-32, RF-5).
+ */
+export type RespuestaUso = {
+    /**
+     * Costo Usd
+     */
+    costo_usd: number;
+    /**
+     * Fecha
+     */
+    fecha: string;
+    /**
+     * Generaciones
+     */
+    generaciones: number;
+    /**
+     * Limite Solicitudes Ventana
+     */
+    limite_solicitudes_ventana: number;
+    /**
+     * Moneda
+     */
+    moneda: string;
+    /**
+     * Presupuesto Diario Usd
+     */
+    presupuesto_diario_usd: number;
+    /**
+     * Ventana Segundos
+     */
+    ventana_segundos: number;
+};
+
+/**
  * SolicitudGenerar
  *
  * Define y valida la entrada del servicio CAD.
@@ -205,6 +241,12 @@ export type DescargarArchivoGeneracionesSolicitudIdArchivosFormatoGetResponses =
 
 export type GenerarGenerarPostData = {
     body: SolicitudGenerar;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
     path?: never;
     query?: never;
     url: '/generar';
@@ -212,9 +254,17 @@ export type GenerarGenerarPostData = {
 
 export type GenerarGenerarPostErrors = {
     /**
+     * La clave de idempotencia ya se usó con otra solicitud.
+     */
+    409: unknown;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
+    /**
+     * Límite por ventana excedido o presupuesto diario agotado.
+     */
+    429: unknown;
 };
 
 export type GenerarGenerarPostError = GenerarGenerarPostErrors[keyof GenerarGenerarPostErrors];
@@ -327,3 +377,19 @@ export type DescargarStepRegistrosIdentificadorStepGetResponses = {
      */
     200: unknown;
 };
+
+export type ConsultarUsoUsoGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/uso';
+};
+
+export type ConsultarUsoUsoGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: RespuestaUso;
+};
+
+export type ConsultarUsoUsoGetResponse = ConsultarUsoUsoGetResponses[keyof ConsultarUsoUsoGetResponses];
