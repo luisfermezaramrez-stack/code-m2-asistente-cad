@@ -4,6 +4,7 @@
 .PHONY: help install lock vendor test cov lint format check \
         precommit-install precommit build up down clean bench bench-report \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup \
+        corpus-dorado \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
         mlflow api-types api-types-check
 
@@ -32,6 +33,9 @@ kernel-test: kernel-image ## Corre las 113 pruebas del kernel en el contenedor d
 		-w /tmp/constraint-kit -e PYTHONPATH=/tmp/constraint-kit -e HOME=/tmp \
 		cadkit:0.1 python3 tests/test_kernel.py
 
+corpus-dorado: ## HU-23: compara el núcleo determinista con el corpus dorado (sin GPU ni red)
+	uv run --no-sync python -B scripts/verify_corpus_dorado.py
+
 bench: ## HU-14 AC7: corre el banco HU-02 contra el modelo (gasta tokens; IDS=...)
 	uv run python -m m2_cad.banco $(if $(IDS),--ids $(IDS))
 
@@ -42,7 +46,8 @@ cov: frontend-build ## Corre pytest con reporte de cobertura
 	uv run --locked pytest --cov=src/m2_cad --cov-report=term-missing
 
 lint: ## Ruff con reglas E, F, I, B
-	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py
+	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py \
+		scripts/verify_corpus_dorado.py
 
 format: ## Aplica ruff format
 	uv run ruff format src tests
