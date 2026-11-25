@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | `src/m2_cad/corpus_dorado.py` | Nuevo: normalización del STEP, huella sha256, esquema del corpus y comparación | RF-1..RF-4, AC1–AC3 |
 | `data/corpus_dorado.json` | Nuevo: corpus congelado (pares programa → resultado) | RF-1, RF-2 |
-| `scripts/verify_corpus_dorado.py` | Nuevo: runner CLI `--check` (por defecto) y `--write` (regeneración) | RF-3, RF-5, AC4 |
+| `scripts/verify_corpus_dorado.py` | Nuevo: runner CLI: verifica por defecto y `--write` regenera | RF-3, RF-5, AC4 |
 | `tests/test_corpus_dorado.py` | Nuevo: normalización, esquema, divergencias y corpus real en verde | AC1–AC4 |
 | `.github/workflows/ci.yml` | Paso nuevo después de `make check`, antes del arranque HU-15 | RF-4, AC4 |
 | `Makefile` | Objetivo `corpus-dorado`; el script nuevo entra en la lista de `lint` | RF-4, RNF-3 |

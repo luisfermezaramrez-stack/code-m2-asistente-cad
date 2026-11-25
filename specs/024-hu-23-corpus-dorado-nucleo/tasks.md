@@ -14,7 +14,7 @@ Cada tarea se marca `[x]` al cerrarse, con su evidencia.
 - [x] T03 — Corpus versionado `data/corpus_dorado.json` con las seis familias del catálogo
       y declinaciones explícitas (RF-1, RF-2). · Depende de: T02
       · Evidencia: `cbd2b75`; 15 casos (12 aceptados, 3 declinados).
-- [x] T04 — Runner `scripts/verify_corpus_dorado.py` con `--check` y `--write` (RF-3,
+- [x] T04 — Runner `scripts/verify_corpus_dorado.py`: verifica por defecto y `--write` (RF-3,
       RF-5). · Depende de: T03
       · Evidencia: `05249b8`; `make corpus-dorado` sale 0 con 15 casos sin divergencias.
 - [x] T05 — Pruebas AC1, AC2 y AC4 sobre corpus temporales y sobre el corpus real, más
