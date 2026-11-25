@@ -40,6 +40,10 @@ data/outputs/
 artifacts/
 registro*.csv
 
+# ===== HU-45: estado local de la cola persistente y locks SPEC-031 =====
+data/cola.json
+data/*.lock
+
 # ===== Archify (carpeta de trabajo del diagrama; la fuente versionada es docs/arquitectura.json) =====
 .archify/
 

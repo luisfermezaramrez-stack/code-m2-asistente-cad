@@ -4,6 +4,12 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def _desactivar_cola_en_pruebas_heredadas(monkeypatch):
+    """Las pruebas SSE previas ejecutan en proceso; HU-45 la activa en su fixture."""
+    monkeypatch.setenv("M2_COLA_HABILITADA", "0")
+
+
+@pytest.fixture(autouse=True)
 def aislar_cache_hu25_entre_pruebas():
     """Cada test empieza sin respuestas de escenarios previos.
 

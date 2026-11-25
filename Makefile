@@ -2,7 +2,7 @@
 # Uso: `make <objetivo>` — `make help` lista todo.
 
 .PHONY: help install lock vendor test cov lint format check \
-        precommit-install precommit build up down clean bench bench-report \
+        precommit-install precommit build up down clean bench bench-report worker \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
         mlflow api-types api-types-check
@@ -48,6 +48,9 @@ format: ## Aplica ruff format
 	uv run ruff format src tests
 
 check: lint api-types-check frontend-check cov ## Ruff, contrato OpenAPI, SPA y cobertura (CI)
+
+worker: ## HU-45: consume la cola persistente en un proceso separado de la API
+	uv run --no-sync python -m m2_cad.worker
 
 api-types: ## HU-27: genera TypeScript desde app.openapi() sin servidor ni red
 	uv run --locked python scripts/generate_api_types.py

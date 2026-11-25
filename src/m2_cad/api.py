@@ -10,6 +10,7 @@ import time
 import uuid
 from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
+from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated
 
@@ -20,6 +21,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from m2_cad import seguimiento
+from m2_cad.cola_trabajos import ColaTrabajos
 from m2_cad.contratos import EstadoTrabajo
 from m2_cad.control import ControlGeneracion, SolicitudDeclinada
 from m2_cad.observabilidad import (
@@ -42,7 +44,7 @@ async def _limpieza_periodica(politica) -> None:
     """Limpieza no invasiva: no se ejecuta si existe un trabajo en proceso."""
     while True:
         try:
-            if not gestor_trabajos.hay_trabajos_activos():
+            if not (gestor_trabajos.hay_trabajos_activos() or cola_trabajos.hay_trabajos_activos()):
                 await asyncio.to_thread(depurar_outputs, Path("outputs"), dias=politica.dias)
         except Exception:
             logger.exception("No se pudo aplicar la política de retención.")
@@ -51,7 +53,8 @@ async def _limpieza_periodica(politica) -> None:
 
 @asynccontextmanager
 async def _ciclo_aplicacion(_: FastAPI):
-    """Activa retención solo cuando está configurada; finaliza el limpiador al cerrar."""
+    """Abre la cola al arrancar y detiene la retención al cerrar (HU-45, RF-4)."""
+    cola_trabajos.abrir()
     politica = leer_politica()
     tarea = asyncio.create_task(_limpieza_periodica(politica)) if politica else None
     try:
@@ -73,6 +76,7 @@ app = FastAPI(
     description="Servicio de generación preliminar de componentes CAD.",
 )
 gestor_trabajos = GestorTrabajos()
+cola_trabajos = ColaTrabajos()
 
 
 class SolicitudGenerar(BaseModel):
@@ -276,6 +280,11 @@ def obtener_gestor_trabajos() -> GestorTrabajos:
     return gestor_trabajos
 
 
+def obtener_cola_trabajos() -> ColaTrabajos:
+    """Cola persistente de SSE; sustituible en pruebas (HU-45)."""
+    return cola_trabajos
+
+
 def obtener_configuracion_seguimiento() -> seguimiento.Configuracion:
     """Configuración de MLflow de esta solicitud (HU-16); las pruebas la sustituyen."""
     return seguimiento.Configuracion.desde_entorno()
@@ -434,6 +443,12 @@ _ESTADOS_CORRIDA_SSE = {
 }
 
 
+def _usa_cola_persistente() -> bool:
+    """El despliegue usa cola/worker; las pruebas heredadas pueden desactivarla."""
+    valor = os.environ.get("M2_COLA_HABILITADA", "1").strip().lower()
+    return valor not in {"0", "false", "no", "off"}
+
+
 def _acepta_sse(request: Request) -> bool:
     tipos = [tipo.split(";")[0].strip() for tipo in request.headers.get("accept", "").split(",")]
     return "text/event-stream" in tipos
@@ -444,8 +459,10 @@ def _generar_sse(
     request: Request,
     procesador_sse: ProcesadorSSE,
     gestor: GestorTrabajos,
+    cola: ColaTrabajos,
     configuracion: seguimiento.Configuracion,
     inicio: float,
+    request_id: str,
 ) -> RespuestaSSE:
     """Ruta SSE: registro CSV y corrida MLflow al alcanzar el estado terminal (HU-15/16).
 
@@ -494,7 +511,17 @@ def _generar_sse(
         )
         logger.info("generación terminada en %s", estado)
 
-    trabajo = gestor.crear(solicitud.texto, procesar, registrar_terminal)
+    if _usa_cola_persistente() and procesador_sse is procesar_con_progreso:
+        # Despliegue: la API sólo encola; el worker ejecuta y registra (HU-45, AC3).
+        trabajo = cola.encolar(
+            solicitud.texto,
+            request_id=request_id,
+            configuracion=asdict(configuracion),
+            ruta_registro=obtener_ruta_registro(),
+        )
+    else:
+        # Compatibilidad con la batería SSE heredada que inyecta su propio procesador.
+        trabajo = gestor.crear(solicitud.texto, procesar, registrar_terminal)
     with contexto_solicitud(job_id=trabajo.id):
         logger.info("trabajo SSE creado")
     respuesta = RespuestaSSE(trabajo, request)
@@ -619,6 +646,7 @@ def generar(
     procesador: Annotated[Procesador, Depends(obtener_procesador)],
     procesador_sse: Annotated[ProcesadorSSE, Depends(obtener_procesador_sse)],
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
+    cola: Annotated[ColaTrabajos, Depends(obtener_cola_trabajos)],
     configuracion: Annotated[seguimiento.Configuracion, Depends(obtener_configuracion_seguimiento)],
 ) -> dict[str, str] | StreamingResponse:
     """Procesa una solicitud CAD validada, la registra (AC3/AC4) y la mide (HU-16)."""
@@ -627,7 +655,16 @@ def generar(
         inicio = time.perf_counter()
         logger.info("solicitud recibida: POST /generar")
         if _acepta_sse(request):
-            return _generar_sse(solicitud, request, procesador_sse, gestor, configuracion, inicio)
+            return _generar_sse(
+                solicitud,
+                request,
+                procesador_sse,
+                gestor,
+                cola,
+                configuracion,
+                inicio,
+                solicitud_id,
+            )
         return _generar_json(
             solicitud, request, response, procesador, configuracion, solicitud_id, inicio
         )
@@ -637,8 +674,14 @@ def generar(
 def consultar_generacion(
     solicitud_id: str,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
+    cola: Annotated[ColaTrabajos, Depends(obtener_cola_trabajos)],
 ) -> dict:
     """Consulta la confirmación terminal incluso después de perder la conexión SSE."""
+    try:
+        return cola.estado(solicitud_id)
+    except HTTPException as exc:
+        if exc.status_code != status.HTTP_404_NOT_FOUND:
+            raise
     return gestor.obtener(solicitud_id).estado()
 
 
@@ -653,9 +696,15 @@ def cancelar_generacion(
     solicitud_id: str,
     response: Response,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
+    cola: Annotated[ColaTrabajos, Depends(obtener_cola_trabajos)],
 ) -> dict:
     """202 pide detenerse; solo un estado terminal confirma el desenlace real."""
-    estado = gestor.obtener(solicitud_id).cancelar()
+    try:
+        estado = cola.cancelar(solicitud_id)
+    except HTTPException as exc:
+        if exc.status_code != status.HTTP_404_NOT_FOUND:
+            raise
+        estado = gestor.obtener(solicitud_id).cancelar()
     response.status_code = 200 if estado["terminal"] else 202
     return estado
 
