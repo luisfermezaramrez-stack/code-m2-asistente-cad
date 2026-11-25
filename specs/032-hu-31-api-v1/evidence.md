@@ -54,6 +54,9 @@ $ npm --prefix frontend run build
 `make check` queda cubierto por el equivalente local de sus seis pasos: Ruff,
 `api-contract-check`, `api-types-check`, Vitest, TypeScript/build y pytest con cobertura.
 
+CI del PR #130: run `45693889918` ✅ en 1 m 3 s, con todos los pasos verdes,
+incluido el arranque integrado HTTP con modelo simulado y CAD real.
+
 ## 3. Aislamiento
 
 - Sin red, API key ni GPU: el procesador se inyecta por `Callable`, MLflow se
