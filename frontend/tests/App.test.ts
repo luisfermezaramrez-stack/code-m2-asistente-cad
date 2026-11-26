@@ -1,6 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../src/App.vue'
+import { THEME_STORAGE_KEY } from '../src/design/theme'
 import { FakeCadService, event } from './fakeCadService'
 
 let service: FakeCadService
@@ -36,6 +37,17 @@ describe('SPA conectada a FastAPI simulado', () => {
     expect(wrapper.text()).toContain('Sin solicitud')
     expect(wrapper.findAll('button.download')).toHaveLength(0)
     expect(wrapper.text()).not.toMatch(/MAQUETA|SSE|localhost|simulado/)
+  })
+
+  it('permite elegir tema desde la cabecera y persiste la preferencia', async () => {
+    const toggle = wrapper.get('button.theme-toggle')
+    expect(toggle.text()).toBe('Usar tema oscuro')
+
+    await toggle.trigger('click')
+
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
+    expect(toggle.text()).toBe('Usar tema claro')
   })
 
   it.each(['', '   ', 'x'.repeat(1001)])('valida entrada y enfoca el campo sin llamar a servicios', async (text) => {

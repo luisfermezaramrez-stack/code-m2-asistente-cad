@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
+import { activeTheme } from './design/theme'
 import { ACESFilmicToneMapping, Box3, Color, DirectionalLight, HemisphereLight, PerspectiveCamera, PMREMGenerator,
   Scene, Spherical, Vector3, WebGLRenderer, type WebGLRenderTarget,
   type Object3D, type Mesh, type Material, LoadingManager } from 'three'
@@ -15,6 +16,7 @@ let cleanup = () => {}
 let turn = (_horizontal: number, _vertical = 0) => {}
 let zoom = (_factor: number) => {}
 let reset = () => {}
+let refreshBackground = () => {}
 
 function dispose(object: Object3D) {
   object.traverse((child) => {
@@ -43,7 +45,7 @@ watch(() => [props.url, props.token, host.value] as const, async ([url, token, e
   error.value = ''; loading.value = true
   cleanup = () => {
     if (!active) return
-    active = false; control.abort(); observer?.disconnect(); controls?.dispose()
+    active = false; control.abort(); observer?.disconnect(); controls?.dispose(); refreshBackground = () => {}
     if (model) dispose(model)
     environment?.dispose(); renderer?.dispose(); renderer?.domElement.remove()
   }
@@ -67,6 +69,12 @@ watch(() => [props.url, props.token, host.value] as const, async ([url, token, e
     const camera = new PerspectiveCamera(40, 1, 0.01, 10000)
     controls = new OrbitControls(camera, renderer.domElement)
     const render = () => { if (active) renderer?.render(scene, camera) }
+    refreshBackground = () => {
+      const value = getComputedStyle(document.documentElement).getPropertyValue('--color-viewer-background').trim()
+      if (!value) return
+      scene.background = new Color(value)
+      render()
+    }
     controls.addEventListener('change', render)
     element.append(renderer.domElement)
     renderer.domElement.setAttribute('aria-hidden', 'true')
@@ -116,6 +124,8 @@ watch(() => [props.url, props.token, host.value] as const, async ([url, token, e
     }
   }
 }, { flush: 'post', immediate: true })
+
+watch(activeTheme, () => refreshBackground())
 
 function key(event: KeyboardEvent) {
   const actions: Record<string, () => void> = {

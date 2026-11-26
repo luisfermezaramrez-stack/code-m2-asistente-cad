@@ -21,6 +21,7 @@ construirlo.
 - [Qué resuelve](#qué-resuelve)
 - [Alcance](#alcance)
 - [Arquitectura](#arquitectura)
+- [Sistema de diseño](#sistema-de-diseño)
 - [Cómo funciona](#cómo-funciona)
 - [Estructura](#estructura)
 - [Requisitos](#requisitos)
@@ -70,6 +71,13 @@ pipeline, la verificación y los entregables STEP/GLB/CSV — los dos contenedor
 Docker Compose (`m2-cad` y `mlflow`) y la API externa de DeepSeek. Cada componente
 cita su código en una revisión fija; se regenera con Archify
 ([SPEC-020](specs/020-diagrama-arquitectura/spec.md)).
+
+## Sistema de diseño
+
+Los tokens, la escala tipográfica y los temas claro/oscuro están documentados en
+[`docs/diseno-v2.md`](docs/diseno-v2.md). La fuente única es
+`frontend/src/design/tokens.css`; la preferencia de tema se guarda en el navegador
+y respeta `prefers-color-scheme` cuando no hay elección explícita.
 
 La gestión del proyecto vive en el
 [tablero Kanban de GitHub Projects](https://github.com/users/luisfermezaramrez-stack/projects/1/views/1)

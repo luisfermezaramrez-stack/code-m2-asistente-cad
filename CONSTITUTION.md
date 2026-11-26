@@ -110,8 +110,9 @@ code-m2-asistente-cad/
 │   ├── seguimiento.py          # MLflow: una corrida por solicitud y por caso del banco (HU-16)
 │   ├── observabilidad.py       # logs JSON, request_id/job_id y redacción de secretos (HU-24)
 │   └── web.py                  # Vue/estáticos, CORS restringido y errores JSON
+├── frontend/src/design/        # tokens.css y resolución de tema del frontend
 ├── frontend/                   # Vue, TypeScript, Vite y pruebas Vitest
-├── design/                     # referencia y fuente única de tokens (tokens.css)
+├── design/                     # referencia histórica de HU-15 (no importada por la app)
 ├── tests/                      # pytest: dataset, banco, pipeline, API, registro, seguimiento, SSE, web
 ├── data/
 │   ├── test_cases.csv          # banco de 40 solicitudes
@@ -120,7 +121,7 @@ code-m2-asistente-cad/
 ├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
 ├── specs/                      # specs SDD 001–023 (Spec Kit, Retroactiva, Spec-first); índice en specs/README.md
 ├── scripts/                    # fetch-model, verify-serve, vendor, cloud (Lambda/Vast.ai)
-├── docs/                       # documentación y diagrama de arquitectura
+├── docs/                       # documentación, sistema de diseño y diagrama de arquitectura
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
 ├── .github/                    # CI, labels, Dependabot, plantillas de PR e issues
 ├── .opencode/rules/            # reglas para agentes (tgrep)
@@ -165,6 +166,9 @@ code-m2-asistente-cad/
   - Los pesos del modelo (`.gguf`, `.safetensors`, …) **nunca se versionan**;
     `vendor/` está gitignored y se restaura con `make vendor`.
   - Cada solicitud escribe sus entregables en `outputs/<uuid>/`, sin colisiones.
+  - La fuente única de tokens del frontend es `frontend/src/design/tokens.css`; los
+    componentes solo consumen variables CSS. El tema se resuelve en `frontend/src/design/theme.ts`
+    y se documenta en `docs/diseno-v2.md`.
 
 ## 6. Calidad y automatización
 

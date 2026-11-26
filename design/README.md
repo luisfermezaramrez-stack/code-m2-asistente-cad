@@ -1,6 +1,11 @@
 # HU-15 · Propuesta visual pendiente de aprobación
 
-Abre `design/index.html` directamente en un navegador. No necesita instalación,
+Referencia histórica: desde HU-34 la fuente única de tokens de la aplicación es
+`frontend/src/design/tokens.css`. Esta maqueta conserva la propuesta original de HU-15;
+el sistema de diseño vigente está en [`docs/diseno-v2.md`](../docs/diseno-v2.md).
+
+Abre `design/index.html` directamente en un navegador.
+ No necesita instalación,
 servidor ni conexión a Internet. Las hojas CSS deben permanecer junto al HTML.
 La maqueta permite escribir y abrir/cerrar muestras; los botones de generación,
 cancelación y las descargas son representaciones sin acción.
