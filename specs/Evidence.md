@@ -3,6 +3,7 @@
 - **Fecha:** 2026-11-25
 - **Spec:** [SPEC-030](030-hu-29-runbook-operativo/spec.md)
 - **Rama:** `feature/hu-29-runbook-operativo`
+- **PR:** [#136](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/136)
 - **Worktree:** `C:\Users\cetd9\AppData\Local\Temp\opencode\hu29-runbook`
 - **Base:** `origin/main` en `cf7e908ff4cf69e61844a850f846d7807c3d3c2c`
 - **Alcance:** ocho escenarios de RF-1, enlace desde README y convivencia con HU-28 sin cambios.

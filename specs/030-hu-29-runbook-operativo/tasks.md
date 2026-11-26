@@ -17,8 +17,8 @@
 - [x] T12 — Ejecutar los comandos de diagnóstico con contenedor real y sin mostrar la API key
   (AC2). El puerto 8000 estaba ocupado; se validó en 8001 con un override temporal. El humo real
   no se ejecutó por no disponer de clave/autorización de gasto.
-- [ ] T13 — Ejecutar controles finales (`git diff --check`, Ruff, pytest), abrir PR, actualizar
-  `specs/README.md` con su número y cerrar #89.
+- [x] T13 — Ejecutar controles finales (`git diff --check`, Ruff, pytest), abrir PR #136,
+  actualizar `specs/README.md` con su número y vincular #89.
 
 ## Evidencia
 
@@ -35,3 +35,4 @@ Detalle completo en [`specs/Evidence.md`](../Evidence.md). Resumen:
 - Ruff: `All checks passed!`.
 - Pytest con build frontend y `M2_DOWNLOAD_SECRET` ficticio: `413 passed, 5 failed`; los cinco
   fallos son de entorno Windows/carga local y se detallan en la evidencia.
+- Repetición sin esos cinco casos: `413 passed, 5 deselected`.

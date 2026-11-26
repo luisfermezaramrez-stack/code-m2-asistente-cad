@@ -57,7 +57,7 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [027](027-hu-26-declinacion-legible/) | HU-26 · Motivo de declinación legible y etiquetado por causa | 0 | Luis Meza | #86 | — | Spec-first | Propuesta |
 | [028](028-hu-27-tipos-openapi/) | HU-27 · Tipos del frontend generados desde OpenAPI | 0 | Carlos | #87 | — | Spec-first | Propuesta |
 | [029](029-hu-28-escaneo-seguridad/) | HU-28 · Escaneo de dependencias y secretos en CI | 0 | Carlos | #88 | — | Spec-first | Propuesta |
-| [030](030-hu-29-runbook-operativo/) | HU-29 · Runbook operativo | 0 | Carlos | #89 | — | Spec-first | Propuesta |
+| [030](030-hu-29-runbook-operativo/) | HU-29 · Runbook operativo | 0 | Carlos | #89 | #136 | Spec-first | En revisión |
 | [031](031-hu-30-persistencia-registro/) | HU-30 · Persistencia transaccional, retención y backup del registro | 1 | Juan Camilo | #90 | — | Spec-first | Propuesta |
 | [032](032-hu-31-api-v1/) | HU-31 · API `/v1` versionada con contrato congelado | 1 | Juan Camilo | #91 | — | Spec-first | Propuesta |
 | [033](033-hu-32-costo-limites-idempotencia/) | HU-32 · Control de costo, límites de uso e idempotencia | 1 | Juan Camilo | #92 | — | Spec-first | Propuesta |
