@@ -13,8 +13,8 @@ El frontend consume las rutas canónicas desde la misma HU.
    publicado sólo contiene rutas `/v1` (AC3).
 2. Las rutas planas se registran fuera del schema con `include_in_schema=False` y responden
    `307` a su equivalente `/v1`, conservando método, cuerpo y query string (AC1/RF-2).
-3. Cada redirección añade `Deprecation: true`, `Sunset` y `Link: <...v1...>; rel="successor-version"`
-   para anunciar la política (RF-5).
+3. Cada redirección añade `Deprecation: @1795564800` (RFC 9745, fecha de publicación de v1),
+   `Sunset` y `Link: <...v1...>; rel="successor-version"` para anunciar la política (RF-5).
 4. `app.openapi()` se serializa de forma determinista en `contracts/openapi-v1.json`.
 5. `contrato_api.py` carga el contrato congelado y lo compara con el generado; el test de
    contrato falla si aparece, desaparece o cambia una ruta o un campo del schema (AC2/RF-4).
@@ -63,9 +63,11 @@ se versionan y se conservan (RNF-2).
 
 ## 6. Política de deprecación
 
-- Convivencia: **90 días** desde la publicación de v1 (`Sunset: Tue, 23 Feb 2027 00:00:00 GMT`).
-- Anuncio: cabeceras `Deprecation: true` y `Link: <ruta /v1>; rel="successor-version"` en
-  toda respuesta de una ruta plana, incluidas las redirecciones.
+- Convivencia: **90 días** desde la publicación de v1 (`Sunset: Tue, 23 Feb 2027 00:00:00 GMT`),
+  ampliable con `M2_SUNSET_RUTAS_PLANAS` si se retrasa el despliegue.
+- Anuncio: cabeceras `Deprecation: @1795564800` (RFC 9745) y
+  `Link: <ruta /v1>; rel="successor-version"` en toda respuesta de una ruta plana,
+  incluidas las redirecciones. La compatibilidad requiere que el cliente siga el `307`.
 - Tras el `Sunset` se retiran las rutas planas y se incrementa la versión mayor del contrato.
 - Detalle publicado en `docs/versionado-api.md` y enlazado desde el README.
 

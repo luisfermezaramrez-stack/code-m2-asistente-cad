@@ -21,20 +21,31 @@ generados consumen estas rutas. `/openapi.json` y `/docs` describen únicamente 
 
 Las rutas sin prefijo (`/health`, `/generar`, …) siguen funcionando como
 **redirecciones temporales `307`** hacia su equivalente `/v1`. La redirección conserva
-método, cuerpo y query string, de modo que un cliente antiguo no pierde la solicitud.
+método, cuerpo y query string.
+
+La compatibilidad de AC1 depende de que el cliente **siga la redirección**: `httpx` con
+`follow_redirects=True`, `curl -L` y `TestClient` (por defecto) la siguen. Un cliente que
+no la siga recibe la `307` y debe reenviar la misma petición a `Location`; el servidor
+no duplica la respuesta. Si la aplicación está montada bajo `root_path`, el destino
+conserva ese prefijo (por ejemplo, `/api/v1/health`).
 
 Cada respuesta de una ruta plana anuncia su obsolescencia:
 
 ```http
 HTTP/1.1 307 Temporary Redirect
 Location: http://127.0.0.1:8000/v1/generar
-Deprecation: true
+Deprecation: @1795564800
 Sunset: Tue, 23 Feb 2027 00:00:00 GMT
 Link: <http://127.0.0.1:8000/v1/generar>; rel="successor-version"
 ```
 
-- `Deprecation: true` indica que la ruta está en desuso (RFC 8594).
-- `Sunset` fija el plazo de convivencia: **90 días** desde la publicación de v1.
+- `Deprecation: @1795564800` es la fecha de publicación de v1
+  (`2026-11-25T00:00:00Z`) en el formato de fecha estructurada de **RFC 9745**. RFC 8594
+  definía el valor booleano `true`; se conserva la mención histórica pero el servicio
+  emite el formato final del RFC.
+- `Sunset` fija el plazo de convivencia: **90 días** desde esa fecha. El valor por
+  defecto es `Tue, 23 Feb 2027 00:00:00 GMT` y puede ampliarse con la variable
+  `M2_SUNSET_RUTAS_PLANAS` si se retrasa el despliegue, sin acortar el plazo anunciado.
 - `Link` señala la ruta que la sustituye.
 
 Las redirecciones no aparecen en el OpenAPI publicado: son un puente temporal, no parte

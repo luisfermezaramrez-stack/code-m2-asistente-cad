@@ -68,7 +68,11 @@ configurar_logging()  # RF-1: configuración central desde la importación del m
 
 VERSION_API = "1.0.0"
 PREFIJO_V1 = "/v1"
-SUNSET_RUTAS_PLANAS = "Tue, 23 Feb 2027 00:00:00 GMT"
+# RFC 9745: `Deprecation` es una fecha HTTP estructurada (@epoch), no un booleano.
+# 2026-11-25T00:00:00Z, fecha de publicación de v1 (SPEC-032).
+DEPRECACION_RUTAS_PLANAS = "@1795564800"
+# Plazo de convivencia de 90 días; configurable si se retrasa el despliegue.
+SUNSET_RUTAS_PLANAS = os.getenv("M2_SUNSET_RUTAS_PLANAS", "Tue, 23 Feb 2027 00:00:00 GMT")
 
 app = FastAPI(
     title="M2 CAD Assistant API",
@@ -347,7 +351,7 @@ def descargar_step(identificador: str, request: Request) -> FileResponse:
 async def registrar_entrada_invalida(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Registra una entrada rechazada una vez, sin arrancar pipeline ni corrida MLflow."""
     respuesta = await request_validation_exception_handler(request, exc)
-    if request.method == "POST" and request.url.path in {"/generar", f"{PREFIJO_V1}/generar"}:
+    if request.method == "POST" and request.url.path == f"{PREFIJO_V1}/generar":
         identificador = _identificador(request)
         with contexto_solicitud(request_id=identificador):
             logger.warning("entrada inválida rechazada en POST /generar")
@@ -713,7 +717,7 @@ def descargar_archivo(
 def _cabeceras_deprecacion(destino: str) -> dict[str, str]:
     """Anuncia la sustitución de una ruta plana por su equivalente `/v1` (RF-5)."""
     return {
-        "Deprecation": "true",
+        "Deprecation": DEPRECACION_RUTAS_PLANAS,
         "Sunset": SUNSET_RUTAS_PLANAS,
         "Link": f'<{destino}>; rel="successor-version"',
     }
@@ -721,7 +725,11 @@ def _cabeceras_deprecacion(destino: str) -> dict[str, str]:
 
 async def _redirigir_a_v1(request: Request) -> RedirectResponse:
     """Conserva método, cuerpo y query al pasar una ruta plana a `/v1` (RF-2)."""
-    destino = str(request.url.replace(path=f"{PREFIJO_V1}{request.url.path}"))
+    raiz = request.scope.get("root_path", "").rstrip("/")
+    ruta = request.url.path
+    if raiz and ruta.startswith(raiz):
+        ruta = ruta[len(raiz) :]
+    destino = str(request.url.replace(path=f"{raiz}{PREFIJO_V1}{ruta}"))
     return RedirectResponse(
         destino,
         status_code=status.HTTP_307_TEMPORARY_REDIRECT,

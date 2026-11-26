@@ -201,8 +201,11 @@ instalación, determinista y normalizada a UTF-8/LF. Si el contrato diverge,
 `make api-types-check` falla sin escribir e indica `make api-types`.
 
 HU-31 publica la API bajo `/v1` y congela su OpenAPI en `contracts/openapi-v1.json`.
-Las rutas planas quedan como redirecciones `307` con `Deprecation: true`, `Sunset`
-(90 días) y `Link` hacia la ruta sucesora; no aparecen en el esquema público. La SPA
+Las rutas planas quedan como redirecciones `307` con `Deprecation: @1795564800`
+(RFC 9745, fecha de publicación de v1), `Sunset` (90 días, configurable con
+`M2_SUNSET_RUTAS_PLANAS`) y `Link` hacia la ruta sucesora; no aparecen en el esquema
+público. Los clientes deben seguir la redirección (`curl -L`, `follow_redirects=True`).
+La SPA
 y los scripts consumen `/v1`. `make api-contract-check` falla si un campo o una ruta
 cambia sin actualizar el contrato; los cambios incompatibles exigen `/v2`.
 Política completa: [`docs/versionado-api.md`](docs/versionado-api.md).
