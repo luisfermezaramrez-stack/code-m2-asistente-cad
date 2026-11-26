@@ -1,7 +1,7 @@
 # Evidencia · HU-29 Runbook operativo
 
 - **Fecha:** 2026-11-25
-- **Spec:** [SPEC-030](030-hu-29-runbook-operativo/spec.md)
+- **Spec:** [SPEC-030](spec.md)
 - **Rama:** `feature/hu-29-runbook-operativo`
 - **PR:** [#136](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/136)
 - **Worktree:** `C:\Users\cetd9\AppData\Local\Temp\opencode\hu29-runbook`
@@ -51,6 +51,9 @@ esos sdists requieren MSVC/`nmake`. El warning de `VIRTUAL_ENV` distinto se igno
 
 ## Validación con contenedor real
 
+> Validación previa a la integración con `main` (rutas planas y `/app/backups`). La vigente
+> está en «Integración con `main` y revisión».
+
 El puerto `127.0.0.1:8000` respondía `{"status":"ok","service":"mantenimientos"}` (PID 18324),
 ajeno al proyecto. Para no interferir, se construyó el proyecto `hu29validate` con un override
 temporal que publica `127.0.0.1:8001->8000/tcp`. Los comandos internos del contenedor son los
@@ -79,6 +82,9 @@ Resultados:
 variable. No se usó ninguna clave real ni se hicieron llamadas pagas al proveedor.
 
 ## Backup y restauración
+
+> Validación previa a la integración con `main` (rutas planas y `/app/backups`). La vigente
+> está en «Integración con `main` y revisión».
 
 Se ejecutaron dentro del contenedor con archivos temporales, sin tocar los datos reales:
 
@@ -153,6 +159,33 @@ Validaciones de esta integración (Linux):
   `id,hora,texto,traduccion,resultado,latencia_ms,error,version,usuario`.
 - `docker compose config --images` + `grep -x -- ".*-$S"`: una imagen por servicio.
 - `mv` de un volumen dentro de un contenedor: `Device or resource busy` (motivo del cambio).
+
+Validación en contenedores reales tras las correcciones de la verificación independiente
+(imagen construida desde esta rama, proyecto Compose aislado `hu29val` con volúmenes con
+nombre, puerto 8011, autenticación activa y sin clave de modelo, así que nada gasta tokens).
+Los comandos del runbook se ejecutaron textuales salvo el puerto:
+
+| Comando del runbook | Resultado |
+| --- | --- |
+| `HEALTHCHECK` de la imagen (`/v1/health`) | `m2-cad` `Up (healthy)` |
+| `curl .../v1/health` y `.../v1/ready` | `200 {"status":"ok"}` y `503` con `"modelo":"no_disponible","registro":"ok"` |
+| Bucles de clave y de modelo en `m2-cad` y `m2-cad-worker` | `ausente` en ambos; `LLM_MODEL=deepseek-v4-pro`, `LLM_MODEL_VERSION=no-fijado` |
+| Conteo de secretos en logs | `SIN_SECRETOS_EN_LOGS` |
+| Respaldo rutinario sin registro todavía | `Error de backup: data/registro.csv` y aun así `outputs: outputs-…tar.gz` |
+| Humo con sesión | `error (503)`: entró con la sesión; sin modelo no genera |
+| Respaldo rutinario completo y listados por nombre | `registro-…csv` y `outputs-…tar.gz` en `data/backups/` |
+| Registro dañado → snapshot → `restore` con `ARCHIVO` | cabecera de 9 columnas y `"registro":"ok"` |
+| Archivo de `outputs/` borrado → snapshot → `tar -xzf` con `ARCHIVO` | el archivo reaparece con su contenido |
+| `config --images`, `images`, etiquetar y rollback con `set -e` | dos imágenes etiquetadas `ultima-buena`; recreación sin error |
+| Respaldos tras `--force-recreate` | los 5 archivos siguen en `data/backups/` |
+
+Hallazgo en `main` (HU-45), fuera del alcance de este PR: tras `--force-recreate m2-cad
+m2-cad-worker` el worker termina con `Exited (0)` y `worker: 0 trabajos procesados`. Al recibir
+SIGTERM, `worker.py` ejecuta `cola.cerrar()`, que persiste `aceptando: false`; sólo el
+arranque de la API ejecuta `abrir()`. Se reprodujo dos veces. `docker compose up -d
+m2-cad-worker` con `m2-cad` sano lo recupera, y el runbook lo indica. Otro detalle observado:
+en un archivo de entorno, `M2_AUTH_USERS` debe ir entre comillas simples porque los hashes
+PBKDF2 contienen `$`.
 
 ## Limpieza
 

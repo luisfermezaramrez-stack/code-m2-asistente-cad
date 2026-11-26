@@ -26,7 +26,7 @@ Detalle completo en [`evidence.md`](./evidence.md). Resumen:
 
 - `git diff --check` y comprobación de archivos nuevos: sin errores de whitespace.
 - `docker compose config --quiet` y `make -n up` / `make -n down`: correctos.
-- Contenedor `m2-cad` en `127.0.0.1:8001`: `Up (healthy)`, `/health` 200 y `/ready` 503 con
+- Contenedor `m2-cad` en `127.0.0.1:8001` (antes de integrar `main`, con rutas planas): `Up (healthy)`, `/health` 200 y `/ready` 503 con
   `"modelo":"no_disponible"` y `"registro":"ok"` (sin clave real).
 - Comprobación de presencia de clave: `ausente`; tras rotación ficticia: `configurada`;
   sin secretos en logs.

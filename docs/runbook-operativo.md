@@ -18,6 +18,18 @@ Convenciones:
   `m2-cad-worker`, que ejecuta las generaciones SSE de la SPA desde la cola `data/cola.json`
   (HU-45). La clave, el modelo y la imagen afectan a ambos: se diagnostican y se recrean
   juntos.
+- Después de cualquier `docker compose up -d --force-recreate m2-cad m2-cad-worker`, comprobar
+  el worker. Al detenerse, el worker anterior marca la cola como cerrada y sólo el arranque
+  de `m2-cad` la reabre; si el worker nuevo arranca antes, termina con `Exited (0)` y el log
+  `worker: 0 trabajos procesados`. Con `m2-cad` ya `healthy`, levantarlo de nuevo:
+
+  ```bash
+  docker compose ps -a m2-cad-worker
+  docker compose up -d m2-cad-worker
+  ```
+
+  No reiniciar sólo el worker (`docker compose restart m2-cad-worker`): deja la cola cerrada
+  y la API rechaza las generaciones SSE hasta que se recrea `m2-cad`.
 - Los comandos de diagnóstico no piden la clave ni llaman al modelo, salvo que se diga
   explícitamente «gasta tokens».
 - `m2-cad` publica `127.0.0.1:8000`. La API pública es `/v1` (HU-31): `/v1/health` es vida del
@@ -26,11 +38,16 @@ Convenciones:
   redirigen con `307` hasta su retiro y no sirven para diagnosticar.
 - Los respaldos se guardan en `data/backups/`, que dentro del contenedor es
   `/app/data/backups/` (volumen `./data`): sobreviven a `--force-recreate`. Está ignorado por
-  Git; no versionarlos ni pegarlos en un ticket. Respaldo rutinario del día:
+  Git; no versionarlos ni pegarlos en un ticket. Respaldo rutinario:
 
   ```bash
-  docker compose exec -T m2-cad sh -c 'FECHA=$(date +%Y%m%d); mkdir -p /app/data/backups; uv run --no-sync python -m m2_cad.persistencia_registro backup --registro data/registro.csv --destino data/backups/registro-$FECHA.csv && tar -czf /app/data/backups/outputs-$FECHA.tar.gz -C /app outputs'
+  docker compose exec -T m2-cad sh -c 'MARCA=$(date +%Y%m%d-%H%M%S); mkdir -p /app/data/backups; uv run --no-sync python -m m2_cad.persistencia_registro backup --registro data/registro.csv --destino data/backups/registro-$MARCA.csv; tar -czf /app/data/backups/outputs-$MARCA.tar.gz -C /app outputs && echo "outputs: outputs-$MARCA.tar.gz"'
   ```
+
+  Cada respaldo lleva fecha y hora (`AAAAMMDD-HHMMSS`), así nunca pisa uno anterior: la CLI
+  del registro se niega a sobrescribir (`El backup ya existe`). Los dos pasos son
+  independientes: si el registro todavía no existe, su paso informa el error y el de
+  `outputs/` se hace igual.
 
 - La prueba de humo (`scripts/smoke_deploy.py`) inicia sesión cuando la API la exige. Define
   el usuario y lee la clave sin eco, así no queda en el historial:
@@ -40,11 +57,14 @@ Convenciones:
   read -rs M2_SMOKE_CLAVE && export M2_SMOKE_CLAVE
   ```
 
-  Sin credenciales válidas termina con código 2 antes de generar, sin gastar tokens. El humo
+  Al terminar, `unset M2_SMOKE_CLAVE`. Sin credenciales válidas termina con código 2 antes de
+  generar, sin gastar tokens. El humo
   usa `POST /v1/generar` en JSON, que corre en `m2-cad`; las generaciones de la SPA (SSE)
   corren en `m2-cad-worker`, cuyos logs se revisan aparte.
 - Un HTTP 422 con `Pieza declinada:` no es un incidente: es una declinación válida del catálogo.
-  Sí lo es un 422 con `ErrorGeneracion` o `ErrorVerificacion`.
+  Sí lo es un 422 con un mensaje de validación de la salida del modelo (por ejemplo `La salida
+  del modelo no contiene un programa JSON.`). Las clases `ErrorGeneracion` /
+  `ErrorVerificacion` sólo figuran en MLflow; la respuesta y los logs muestran el mensaje.
 - Códigos de la propia API que no vienen del proveedor: `401` con `Inicia sesión para
   continuar.` es falta de sesión (HU-53); `429` con cabecera `X-Limite-Tipo: ventana` o
   `presupuesto` es un tope local de uso (HU-32); `429` en `POST /v1/auth/login` es el límite
@@ -57,8 +77,10 @@ Convenciones:
 - La SPA muestra `El servicio no está disponible. Vuelve a intentarlo.` o, en SSE,
   `No se pudo completar la solicitud. Vuelve a intentarlo.` / `Se perdió la conexión.`
   (`frontend/src/useGeneration.ts`).
-- Una generación JSON devuelve HTTP 503 con `El modelo no está configurado: falta
-  DEEPSEEK_API_KEY.` o `El servicio de generación no está disponible.` (`src/m2_cad/api.py`).
+- Una generación JSON devuelve HTTP 503 con el motivo concreto, por ejemplo `El modelo no está
+  configurado: falta DEEPSEEK_API_KEY.`, `No fue posible conectar con el modelo.` o `El modelo
+  no respondió dentro del plazo total de 120 s.` En SSE el evento terminal `error` muestra el
+  texto genérico `El servicio de generación no está disponible.` (`src/m2_cad/api.py`).
 - `docker compose ps` no muestra `m2-cad` como `Up (healthy)`, o `/v1/health` no devuelve
   HTTP 200.
 - Las generaciones de la SPA se quedan en la primera etapa sin avanzar: `m2-cad-worker` no
@@ -79,7 +101,8 @@ No son este escenario: un rechazo del proveedor con HTTP 401 (clave), 402 (sin c
    Salida esperada en funcionamiento: fila `m2-cad` con `STATUS` `Up ... (healthy)` y `PORTS`
    `127.0.0.1:8000->8000/tcp`, y fila `m2-cad-worker` con `Up`. Si alguna no existe o dice
    `Exited`, es caída de la aplicación; sin `m2-cad-worker`, la API acepta generaciones SSE
-   pero nadie las ejecuta.
+   pero nadie las ejecuta. Un `m2-cad-worker` en `Exited (0)` tras recrear se recupera como
+   indican las convenciones.
 
 2. Comprobar la vida del proceso, sin modelo ni clave:
 
@@ -263,11 +286,11 @@ Incluir hora, `request_id` y el mensaje redactado. Nunca incluir la clave ni dat
 ### Síntoma
 
 - `POST /v1/generar` devuelve HTTP 422 con `La salida del modelo no contiene un programa JSON.`,
-  `Respuesta del modelo sin contenido.`, `Respuesta del modelo sin contenido de texto.` o un
-  mensaje de validación del catálogo (`ErrorGeneracion` / `ErrorVerificacion`).
+  `Respuesta del modelo sin contenido.`, `Respuesta del modelo sin contenido de texto.` u otro
+  mensaje de validación del programa o de la verificación geométrica.
 - En SSE, el evento terminal es `error` con ese mismo detalle antes de construir la pieza.
-- Los logs muestran `pipeline: programa generado` seguido de un fallo de validación, o el
-  proveedor devolvió texto/prosa en lugar de JSON.
+- Los logs muestran `generación terminada en error`. Si el modelo respondió prosa, no aparece
+  `pipeline: programa generado`: la salida se valida al recibirla, antes de ese mensaje.
 
 No es este escenario un HTTP 422 con `Pieza declinada: ...`: esa respuesta es una declinación
 correcta del catálogo (`frontend/src/useGeneration.ts`).
@@ -307,11 +330,10 @@ Las respuestas inválidas **no** entran en la caché: el validador se ejecuta an
 1. Reintentar una sola vez tras 60 s para descartar una respuesta transitoria:
 
    ```bash
-   Start-Sleep -Seconds 60; uv run python scripts/smoke_deploy.py --n 1
+   sleep 60; uv run python scripts/smoke_deploy.py --n 1
    ```
 
-   El bloque anterior es PowerShell; en Git Bash usar `sleep 60; uv run python
-   scripts/smoke_deploy.py --n 1`.
+   En PowerShell: `Start-Sleep -Seconds 60; uv run python scripts/smoke_deploy.py --n 1`.
 
 2. Si vuelve a fallar, volver a la versión de modelo conocida según «Rollback de la versión de
    modelo» y recrear:
@@ -329,8 +351,8 @@ docker compose logs --no-color --tail=200 m2-cad m2-cad-worker
 uv run python scripts/smoke_deploy.py --n 1
 ```
 
-Esperado: sin `ErrorGeneracion` ni `ErrorVerificacion` recientes; el humo termina en `pieza` o
-en `declinada` con motivo.
+Esperado: el humo termina en `pieza` o en `declinada` con motivo, nunca en `error`, y en los
+logs no aparecen nuevas líneas `generación terminada en error` ni los mensajes del síntoma.
 
 ### Escalado
 
@@ -363,7 +385,7 @@ Escalar con el mensaje exacto, `request_id`, versión devuelta por el proveedor 
 3. Confirmar que no hay secretos en los logs:
 
    ```bash
-   docker compose logs --no-color --tail=200 m2-cad m2-cad-worker | grep -i -E 'sk-|authorization|api[_-]?key' || echo SIN_SECRETOS_EN_LOGS
+   N=$(docker compose logs --no-color --tail=200 m2-cad m2-cad-worker | grep -c -i -E 'sk-|authorization|api[_-]?key'); [ "$N" -eq 0 ] && echo SIN_SECRETOS_EN_LOGS || echo "REVISAR: $N lineas sospechosas (no se muestran)"
    ```
 
 ### Acción
@@ -383,7 +405,7 @@ Escalar con el mensaje exacto, `request_id`, versión devuelta por el proveedor 
 ```bash
 for S in m2-cad m2-cad-worker; do printf '%s: ' "$S"; docker compose exec -T "$S" uv run --no-sync python -c "import os; print('configurada' if os.getenv('DEEPSEEK_API_KEY') else 'ausente')"; done
 curl -sS -w '\nHTTP %{http_code}\n' http://127.0.0.1:8000/v1/ready
-docker compose logs --no-color --tail=200 m2-cad m2-cad-worker | grep -i -E 'sk-|authorization|api[_-]?key' || echo SIN_SECRETOS_EN_LOGS
+N=$(docker compose logs --no-color --tail=200 m2-cad m2-cad-worker | grep -c -i -E 'sk-|authorization|api[_-]?key'); [ "$N" -eq 0 ] && echo SIN_SECRETOS_EN_LOGS || echo "REVISAR: $N lineas sospechosas (no se muestran)"
 uv run python scripts/smoke_deploy.py --n 1
 ```
 
@@ -400,7 +422,7 @@ secreto en logs. Incluir solo hora y `request_id`; nunca la clave antigua ni la 
 ### Síntoma
 
 - Tras cambiar `LLM_MODEL`, aumentan las declinaciones, cambia el formato de salida o el
-  `version_modelo` del registro deja de ser el esperado.
+  campo `version` del registro deja de ser el esperado.
 - El proveedor publicó una versión nueva incompatible con el prompt del catálogo cerrado.
 
 ### Diagnóstico
@@ -496,14 +518,16 @@ Incluir modelo anterior y nuevo, `request_id` y ejemplos de salida sanitizada.
 1. Si aún no se hizo, etiquetar las imágenes buenas antes de reconstruir (comando en Git Bash):
 
    ```bash
-   for S in m2-cad m2-cad-worker; do IMAGEN=$(docker compose config --images | grep -x -- ".*-$S"); SIN_TAG="${IMAGEN%:*}"; docker tag "$IMAGEN" "${SIN_TAG}:ultima-buena"; done
+   ( set -e; for S in m2-cad m2-cad-worker; do IMAGEN=$(docker compose config --images | grep -x -- ".*-$S"); SIN_TAG="${IMAGEN%:*}"; docker tag "$IMAGEN" "${SIN_TAG}:ultima-buena"; echo "etiquetada: ${SIN_TAG}:ultima-buena"; done )
    ```
 
 2. Volver a las etiquetas buenas y recrear los contenedores:
 
    ```bash
-   for S in m2-cad m2-cad-worker; do IMAGEN=$(docker compose config --images | grep -x -- ".*-$S"); SIN_TAG="${IMAGEN%:*}"; docker tag "${SIN_TAG}:ultima-buena" "$IMAGEN"; done; docker compose up -d --force-recreate m2-cad m2-cad-worker
+   ( set -e; for S in m2-cad m2-cad-worker; do IMAGEN=$(docker compose config --images | grep -x -- ".*-$S"); SIN_TAG="${IMAGEN%:*}"; docker tag "${SIN_TAG}:ultima-buena" "$IMAGEN"; done; docker compose up -d --force-recreate m2-cad m2-cad-worker )
    ```
+
+   `set -e` detiene todo si falta una imagen o una etiqueta: no se recrea nada a medias.
 
 3. Si no existe `ultima-buena`, reconstruir desde el commit anterior conocido con
    `make build` y repetir la verificación. No borrar volúmenes `data/` ni `outputs/`: el
@@ -548,7 +572,7 @@ implicado.
 2. Listar respaldos disponibles:
 
    ```bash
-   docker compose exec -T m2-cad sh -c 'ls -1 /app/data/backups/registro-*.csv 2>/dev/null || echo SIN_BACKUPS'
+   docker compose exec -T m2-cad sh -c 'cd /app/data/backups 2>/dev/null && ls -1 registro-*.csv 2>/dev/null || echo SIN_BACKUPS'
    ```
 
 3. Comprobar disponibilidad local:
@@ -563,17 +587,15 @@ implicado.
    y se continúa con el respaldo:
 
    ```bash
-   docker compose exec -T m2-cad sh -c 'FECHA=$(date +%Y%m%d); mkdir -p /app/data/backups; uv run --no-sync python -m m2_cad.persistencia_registro backup --registro data/registro.csv --destino data/backups/registro-pre-restore-$FECHA.csv'
+   docker compose exec -T m2-cad sh -c 'MARCA=$(date +%Y%m%d-%H%M%S); mkdir -p /app/data/backups; uv run --no-sync python -m m2_cad.persistencia_registro backup --registro data/registro.csv --destino data/backups/registro-pre-restore-$MARCA.csv'
    ```
 
-2. Restaurar el respaldo elegido del mismo día, con reemplazo atómico y validación de cabecera:
+2. Restaurar el respaldo elegido, con reemplazo atómico y validación de cabecera. `ARCHIVO` es
+   uno de los nombres que listó el diagnóstico:
 
    ```bash
-   docker compose exec -T m2-cad sh -c 'FECHA=$(date +%Y%m%d); uv run --no-sync python -m m2_cad.persistencia_registro restore --registro data/registro.csv --origen data/backups/registro-$FECHA.csv'
+   docker compose exec -T -e ARCHIVO=registro-AAAAMMDD-HHMMSS.csv m2-cad sh -c 'uv run --no-sync python -m m2_cad.persistencia_registro restore --registro data/registro.csv --origen "data/backups/$ARCHIVO"'
    ```
-
-   Para un respaldo de otra fecha, sustituir `$FECHA` por `YYYYMMDD` en ambos extremos; el
-   formato es el que imprime `ls` en el diagnóstico.
 
 3. Si la restauración falla por cabecera, no editar el CSV a mano: escalar con el primer renglón
    leído y elegir otro respaldo. Un respaldo anterior a HU-53 tiene 8 columnas (sin `usuario`)
@@ -609,12 +631,12 @@ si contiene texto de solicitudes.
 1. Listar artefactos presentes y respaldos disponibles:
 
    ```bash
-   docker compose exec -T m2-cad sh -c 'find /app/outputs -maxdepth 2 -type f | head -n 20; ls -1 /app/data/backups/outputs-*.tar.gz 2>/dev/null || echo SIN_BACKUPS'
+   docker compose exec -T m2-cad sh -c 'find /app/outputs -maxdepth 2 -type f | head -n 20; cd /app/data/backups 2>/dev/null && ls -1 outputs-*.tar.gz 2>/dev/null || echo SIN_BACKUPS'
    ```
 
-2. Confirmar que el fallo no es de descarga con token ni de propiedad: un 403 es el token de
-   descarga (HU-36) y un 404 también aparece si la generación pertenece a otro usuario
-   (HU-53). Leer los logs buscando 403/404 y `request_id`:
+2. Confirmar que el fallo no es de descarga con token ni de propiedad: un 403 es un token de
+   descarga inválido o ausente y un 410, un token caducado (HU-36); un 404 también aparece si
+   la generación pertenece a otro usuario (HU-53). Leer los logs buscando 403/404 y `request_id`:
 
    ```bash
    docker compose logs --no-color --tail=200 m2-cad m2-cad-worker
@@ -625,19 +647,19 @@ si contiene texto de solicitudes.
 1. Tomar snapshot de `outputs/` antes de tocar nada:
 
    ```bash
-   docker compose exec -T m2-cad sh -c 'FECHA=$(date +%Y%m%d); mkdir -p /app/data/backups; tar -czf /app/data/backups/outputs-pre-restore-$FECHA.tar.gz -C /app outputs'
+   docker compose exec -T m2-cad sh -c 'MARCA=$(date +%Y%m%d-%H%M%S); mkdir -p /app/data/backups; tar -czf /app/data/backups/outputs-pre-restore-$MARCA.tar.gz -C /app outputs && echo "snapshot: outputs-pre-restore-$MARCA.tar.gz"'
    ```
 
-2. Restaurar los archivos del respaldo sobre `outputs/`:
+2. Restaurar los archivos del respaldo elegido sobre `outputs/`; `ARCHIVO` es uno de los nombres
+   que listó el diagnóstico:
 
    ```bash
-   docker compose exec -T m2-cad sh -c 'FECHA=$(date +%Y%m%d); tar -xzf /app/data/backups/outputs-$FECHA.tar.gz -C /app'
+   docker compose exec -T -e ARCHIVO=outputs-AAAAMMDD-HHMMSS.tar.gz m2-cad sh -c 'tar -xzf "/app/data/backups/$ARCHIVO" -C /app'
    ```
 
    `/app/outputs` es un volumen montado: no se puede mover ni renombrar desde el contenedor
    (`Device or resource busy`). La extracción repone los archivos faltantes o dañados y
-   conserva los demás; el snapshot del paso 1 permite volver atrás. Para un respaldo de otra
-   fecha, sustituir `$FECHA` por `YYYYMMDD`.
+   conserva los demás; el snapshot del paso 1 permite volver atrás.
 
 ### Verificación de recuperación
 

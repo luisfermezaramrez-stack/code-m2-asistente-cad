@@ -9,17 +9,17 @@
 - El runbook se enlaza desde `README.md` (AC3), bajo «Operación e incidentes».
 - Los comandos usan `make`, `uv`, `docker compose` y `curl`, y no imprimen ni escriben
   `DEEPSEEK_API_KEY`, `LLM_API_KEY` ni `M2_DOWNLOAD_SECRET` (RNF-1).
-- `backups/` se añade a `.gitignore` para que snapshots y tar de respaldo nunca se versionen.
+- `data/backups/` se añade a `.gitignore` para que snapshots y tar de respaldo nunca se versionen.
 
 ## Fuentes de verdad para los comandos
 
 - `README.md:144-186`: instalación, variables del modelo y errores 401/402/429 en español.
-- `README.md:236-289`: `make up`, `make down`, `/health`, `/docs` y
+- `README.md`: `make up`, `make down`, `/v1/health`, `/docs` y
   `uv run python scripts/smoke_deploy.py --n 5`.
 - `docker-compose.yml:28-44`: servicio `m2-cad`, puerto `127.0.0.1:8000`, volúmenes `data/`
   y `outputs/`, y variables de entorno.
-- `src/m2_cad/api.py:97-100`: `/health` devuelve `{"status": "ok"}`.
-- `src/m2_cad/api.py:157-171`: `/ready` informa `modelo` y `registro` sin llamar al proveedor.
+- `src/m2_cad/api.py`: `/v1/health` devuelve `{"status": "ok"}`.
+- `src/m2_cad/api.py`: `/v1/ready` informa `modelo` y `registro` sin llamar al proveedor.
 - `src/m2_cad/pipeline.py:100-105`: `MENSAJES_HTTP` para 401/402/429.
 - `src/m2_cad/pipeline.py:389-431`: distingue configuración ausente, timeout, HTTP y fallo de
   conexión; el proveedor se registra redactado.
@@ -28,7 +28,7 @@
 - `src/m2_cad/observabilidad.py:33-47`: variables sensibles y reglas de redacción de logs.
 - `src/m2_cad/persistencia_registro.py:111-140`: `backup()` y `restore()` con snapshot
   consistente y reemplazo atómico.
-- `Dockerfile:51-52`: healthcheck de la imagen consulta `/health`.
+- `Dockerfile`: healthcheck de la imagen consulta `/v1/health`.
 
 ## Estructura y orden
 
@@ -45,7 +45,7 @@
 - Sin credenciales ni llamadas al modelo: `git diff --check`,
   `docker compose config --quiet` con un valor ficticio de `M2_DOWNLOAD_SECRET`,
   `make -n up` / `make -n down` y lectura del código.
-- Con contenedor real: build de la imagen, `docker compose ps`, `/health`, `/ready`,
+- Con contenedor real: build de la imagen, `docker compose ps`, `/v1/health`, `/v1/ready`,
   presencia de clave, logs redactados, rotación con valor ficticio, backup/restore del CSV,
   backup/restore de `outputs/` y rollback de imagen. El puerto 8000 estaba ocupado por un
   servicio ajeno, así que la validación usó un override temporal a 8001 con el mismo comando
