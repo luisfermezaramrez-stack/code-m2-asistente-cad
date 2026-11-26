@@ -139,6 +139,10 @@ run_test:
     - ln -sf "$HOME/.local/bin/uvx" /usr/local/bin/uvx
     # `.python-version` es la única fuente de verdad de la versión de Python.
     - uv python install "$(cat .python-version)"
+    # HU-36: las pruebas de descargas exigen una clave. GitHub genera una efímera
+    # por corrida; acá se hace lo mismo, sin guardar ninguna clave real en el
+    # repositorio ni en las variables del proyecto.
+    - export M2_DOWNLOAD_SECRET=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
     - command -v git make gcc g++ node npm uv
   script:
     # vendor/constraint-kit está gitignored y lo exige [tool.uv.sources].

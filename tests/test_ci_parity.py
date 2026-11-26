@@ -78,3 +78,9 @@ def test_el_lint_del_espejo_usa_el_makefile_y_no_recorre_todo_el_arbol():
 
     assert "make lint" in gitlab
     assert not [linea for linea in ejecutado if "ruff check ." in linea]
+
+
+def test_los_dos_pipelines_generan_la_clave_efimera_de_descargas():
+    """HU-36: 44 pruebas de descargas exigen M2_DOWNLOAD_SECRET en cada corrida."""
+    assert "M2_DOWNLOAD_SECRET" in _texto(GITHUB)
+    assert "M2_DOWNLOAD_SECRET" in _texto(GITLAB)
