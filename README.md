@@ -383,7 +383,10 @@ uv run python scripts/smoke_deploy.py --n 40    # AC3: p50/p90 sobre el banco co
 
 Escribe `smoke.csv` (id, familia, estado HTTP, resultado y latencia) y `smoke.json`
 (p50/p90) en `outputs/smoke/` (`--salida` para cambiarlo) y termina con código 1 si
-alguna solicitud no devuelve pieza ni declinación con motivo. Evidencia de HU-10:
+alguna solicitud no devuelve pieza ni declinación con motivo. Con la autenticación activa
+(HU-53) inicia sesión con `--usuario` (o `M2_SMOKE_USUARIO`) y la clave de `M2_SMOKE_CLAVE`,
+que conviene leer sin eco (`read -rs M2_SMOKE_CLAVE && export M2_SMOKE_CLAVE`); sin
+credenciales válidas termina con código 2 antes de generar. Evidencia de HU-10:
 [evidence.md](specs/010-hu-10-despliegue-local/evidence.md).
 
 Gradio y su puerto `7860` se retiraron con HU-15.
@@ -416,6 +419,12 @@ terminó el trabajo, antes de aceptar otra solicitud y al consultar `GET /v1/uso
 Repetir una `Idempotency-Key` devuelve el estado del trabajo encolado.
 Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 [CONSTITUTION.md](CONSTITUTION.md).
+
+### Operación e incidentes
+
+Ante una falla del proveedor, credenciales, rollback o restauración de datos, seguir el
+[runbook operativo](docs/runbook-operativo.md). No incluye secretos y sus comandos se ejecutan
+desde la raíz del repositorio.
 
 ### Variables de entorno
 

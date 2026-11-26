@@ -128,7 +128,7 @@ code-m2-asistente-cad/
 ├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
 ├── specs/                      # specs SDD 001–023 (Spec Kit, Retroactiva, Spec-first); índice en specs/README.md
 ├── scripts/                    # fetch-model, verify-serve, vendor, cloud (Lambda/Vast.ai)
-├── docs/                       # documentación, política de versionado y diagrama de arquitectura
+├── docs/                       # documentación, runbook operativo, política de versionado y diagrama de arquitectura
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
 ├── .github/                    # CI, labels, Dependabot, plantillas de PR e issues
 ├── .opencode/rules/            # reglas para agentes (tgrep)
@@ -173,8 +173,12 @@ code-m2-asistente-cad/
   - Los pesos del modelo (`.gguf`, `.safetensors`, …) **nunca se versionan**;
     `vendor/` está gitignored y se restaura con `make vendor`.
   - Cada solicitud escribe sus entregables en `outputs/<uuid>/`, sin colisiones.
+- **Operación:** las respuestas a incidentes viven en `docs/runbook-operativo.md`; sus comandos
+  de diagnóstico no imprimen secretos y los respaldos se guardan en `data/backups/` (volumen
+  `./data`, gitignored), así sobreviven a recrear los contenedores.
 
 ## 6. Calidad y automatización
+
 
 | Herramienta | Rol | Comando |
 |-------------|-----|---------|

@@ -1,8 +1,12 @@
 """Prueba de humo y latencia del servicio desplegado (HU-10, AC3/AC4).
 
-Envía solicitudes del banco HU-02 a `POST /generar` de forma secuencial, mide la
+Envía solicitudes del banco HU-02 a `POST /v1/generar` de forma secuencial, mide la
 latencia del lado del cliente y escribe `smoke.csv` (una fila por solicitud) y
 `smoke.json` (resumen con p50/p90). Gasta tokens de DeepSeek: cada solicitud es real.
+
+Si la API exige sesión (HU-53), entra con `--usuario` (o `M2_SMOKE_USUARIO`) y la clave
+de `M2_SMOKE_CLAVE`, que nunca se pasa por la línea de comandos. Sin credenciales válidas
+termina con código 2 antes de generar, sin gastar tokens.
 
 Uso desde la raíz:
     uv run python scripts/smoke_deploy.py --n 5            # humo (AC4)
@@ -13,6 +17,7 @@ import argparse
 import csv
 import json
 import math
+import os
 import sys
 import time
 from itertools import zip_longest
@@ -24,6 +29,7 @@ from m2_cad.dataset import read_dataset
 
 COLUMNAS = ("id", "familia", "estado_http", "resultado", "latencia_s", "detalle")
 PREFIJO_DECLINACION = "Pieza declinada"
+COOKIE_SESION = "m2_sesion"
 
 
 def seleccionar(filas: list[dict], n: int, ids: list[str] | None = None) -> list[dict]:
@@ -64,6 +70,43 @@ def clasificar(respuesta: httpx.Response) -> tuple[str, str]:
     ):
         return "declinada", detalle
     return "error", json.dumps(detalle, ensure_ascii=False) if detalle else respuesta.text[:200]
+
+
+def autenticar(cliente: httpx.Client, usuario: str | None, clave: str | None) -> str | None:
+    """Inicia sesión si la API la exige (HU-53); devuelve un error legible o None."""
+    try:
+        consulta = cliente.get("/v1/auth/me")
+    except httpx.HTTPError as exc:
+        return f"No se pudo consultar la sesión: {type(exc).__name__}."
+    if consulta.status_code >= 500:
+        return f"No se pudo consultar la sesión (HTTP {consulta.status_code})."
+    try:
+        estado = consulta.json()
+    except ValueError:
+        return None  # API sin sesión: modo local o anterior a HU-53.
+    if not isinstance(estado, dict) or not estado.get("requerido"):
+        return None
+    if not usuario or not clave:
+        return "La API exige sesión: indica --usuario y define M2_SMOKE_CLAVE en el entorno."
+    url = cliente.base_url
+    if url.scheme == "http" and url.host not in {"localhost", "127.0.0.1", "::1"}:
+        print(
+            f"Aviso: la clave viaja sin cifrar hacia {url.host}; usa HTTPS fuera de esta máquina.",
+            file=sys.stderr,
+        )
+    try:
+        respuesta = cliente.post("/v1/auth/login", json={"usuario": usuario, "clave": clave})
+    except httpx.HTTPError as exc:
+        return f"No se pudo iniciar sesión como {usuario}: {type(exc).__name__}."
+    if respuesta.status_code != 200:
+        return f"No se pudo iniciar sesión como {usuario} (HTTP {respuesta.status_code})."
+    # La cookie es Secure: httpx no la reenvía por HTTP, así que se envía explícita.
+    for cabecera in respuesta.headers.get_list("set-cookie"):
+        nombre, _, resto = cabecera.partition("=")
+        if nombre.strip() == COOKIE_SESION:
+            cliente.headers["Cookie"] = f"{COOKIE_SESION}={resto.split(';', 1)[0]}"
+            return None
+    return "El inicio de sesión no devolvió la cookie de sesión."
 
 
 def enviar(cliente: httpx.Client, fila: dict) -> dict:
@@ -116,11 +159,20 @@ def main(argv: list[str] | None = None, transport: httpx.BaseTransport | None = 
     parser.add_argument("--ids", nargs="+", help="ids concretos del banco (ignora --n)")
     parser.add_argument("--salida", type=Path, default=Path("outputs/smoke"))
     parser.add_argument("--timeout", type=float, default=180.0, help="segundos por solicitud")
+    parser.add_argument(
+        "--usuario",
+        default=os.environ.get("M2_SMOKE_USUARIO"),
+        help="usuario HU-53 si la API exige sesión; la clave se lee de M2_SMOKE_CLAVE",
+    )
     args = parser.parse_args(argv)
 
     filas = seleccionar(read_dataset(), args.n, args.ids)
     resultados = []
     with httpx.Client(base_url=args.base_url, timeout=args.timeout, transport=transport) as c:
+        error = autenticar(c, args.usuario, os.environ.get("M2_SMOKE_CLAVE"))
+        if error:
+            print(error, file=sys.stderr)
+            return 2
         for indice, fila in enumerate(filas, start=1):
             resultado = enviar(c, fila)
             resultados.append(resultado)
