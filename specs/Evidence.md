@@ -82,23 +82,26 @@ esos sdists requieren MSVC/`nmake`. `M2_DOWNLOAD_SECRET` usado solo con valor fi
 | Comando | Resultado |
 | --- | --- |
 | `bash scripts/vendor-constraint-kit.sh` | `OK: constraint-kit vendoreado y parchado (rev 2ed27db)` |
-| `uv run --no-sync ruff check ...` | `All checks passed!` |
+| `uv run --no-sync ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py scripts/generate_api_contract.py` | `All checks passed!` |
+| `uv run --no-sync python scripts/generate_api_contract.py --check` | `Contrato OpenAPI v1 actualizado.` |
 | `uv run --no-sync python scripts/generate_api_types.py --check` | `Tipos OpenAPI actualizados.` |
-| `uv run --no-sync pytest -q` | `4 failed, 414 passed, 26 warnings in 62.81s` |
-| `uv run --no-sync pytest -q --deselect ...` (4 casos) | `414 passed, 4 deselected, 26 warnings in 37.46s` |
+| `uv run --no-sync pytest -q` | `5 failed, 440 passed, 26 warnings in 53.79s` |
+| `uv run --no-sync pytest -q --deselect ...` (5 casos) | `440 passed, 5 deselected, 26 warnings in 29.43s` |
 | `git diff --check` | Sin errores de whitespace |
 | Pre-commit sobre los archivos de HU-34 | Todos los hooks aplicables en verde |
 
-Los cuatro fallos de la ejecución completa son ajenos al cambio y dependientes del entorno local
+Los cinco fallos de la ejecución completa son ajenos al cambio y dependientes del entorno local
 Windows/carga de este equipo:
 
 1. `tests/test_hu30_registro.py::test_ac1_80_solicitudes_simultaneas_sin_perdidas`:
    `OSError: [Errno 36] Resource deadlock avoided` en `msvcrt.locking` bajo concurrencia.
-2. `tests/test_hu30_retencion.py::test_ac4_no_sigue_enlaces_simbolicos`:
+2. `tests/test_hu30_registro.py::test_ac1_duplicados_concurrentes_son_idempotentes`: mismo
+   `OSError: [Errno 36] Resource deadlock avoided` en `msvcrt.locking`.
+3. `tests/test_hu30_retencion.py::test_ac4_no_sigue_enlaces_simbolicos`:
    `OSError: [WinError 1314] El cliente no dispone de un privilegio requerido` al crear symlink.
-3. `tests/test_hu30_retencion.py::test_ac4_no_borra_directorio_con_enlace_interno`: mismo WinError 1314.
-4. `tests/test_seguimiento.py::test_sobrecarga_del_seguimiento_local_es_menor_a_50_ms`:
-   `p95=145.3 ms` frente al umbral de 50 ms por carga local de MLflow.
+4. `tests/test_hu30_retencion.py::test_ac4_no_borra_directorio_con_enlace_interno`: mismo WinError 1314.
+5. `tests/test_seguimiento.py::test_sobrecarga_del_seguimiento_local_es_menor_a_50_ms`:
+   `p95=141.4 ms` frente al umbral de 50 ms por carga local de MLflow.
 
 No se ejecutó `make check` literalmente en Windows por los sdists nativos citados; se ejecutaron
 sus componentes equivalentes. CI ejecutará el `make check` completo en Linux.
