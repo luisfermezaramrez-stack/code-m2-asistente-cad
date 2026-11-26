@@ -61,5 +61,10 @@ jobs:
       - name: Ruff, contrato OpenAPI, Vitest, TypeScript, build integrado y cobertura
         run: make check
 
+      - name: Corpus dorado del núcleo determinista
+        # HU-23: construye cada programa del corpus y compara con la huella congelada.
+        # Sin GPU, sin red y sin API key.
+        run: make corpus-dorado
+
       - name: Arranque integrado HTTP (modelo simulado, sin traducción, CAD real)
         run: uv run --no-sync python scripts/verify_hu15_deployment.py --simulate-model

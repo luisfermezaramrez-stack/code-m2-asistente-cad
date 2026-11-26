@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, ref } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Stage } from './api'
+import { cerrarSesion, estadoSesion, iniciarSesion, sinSesion, type EstadoSesion } from './auth'
+import { activeTheme, initTheme, setTheme, type Theme } from './design/theme'
 import { useGeneration } from './useGeneration'
 
 const GlbViewer = defineAsyncComponent(() => import('./GlbViewer.vue'))
@@ -8,6 +10,13 @@ const flow = useGeneration()
 const { description, timeoutSeconds, job, stages, artifacts, busy, checking, cancelling, loadingFiles,
   message, inputError, filesError, disconnected, canCancel, canCheck, downloadToken } = flow
 const input = ref<HTMLTextAreaElement>()
+const sesion = ref<EstadoSesion>(sinSesion)
+const cargandoSesion = ref(true)
+const usuarioSesion = ref('')
+const claveSesion = ref('')
+const errorSesion = ref('')
+const entrando = ref(false)
+const necesitaLogin = computed(() => sesion.value.requerido && !sesion.value.autenticado)
 const labels: Record<Stage, string> = {
   iniciando: 'Esperando información', validando: 'Validando solicitud', generando: 'Generando pieza',
   verificado: 'Pieza verificada', declinado: 'Solicitud declinada', error: 'No se pudo completar',
@@ -23,8 +32,50 @@ const status = computed(() => {
 })
 const glb = computed(() => artifacts.value.find((item) => item.format === 'glb'))
 const hasStep = computed(() => artifacts.value.some((item) => item.format === 'step'))
+const themeLabel = computed(() => activeTheme.value === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro')
+let stopTheme: (() => void) | undefined
+
+onMounted(() => { stopTheme = initTheme() })
+onBeforeUnmount(() => stopTheme?.())
+
+function toggleTheme() {
+  const next: Theme = activeTheme.value === 'dark' ? 'light' : 'dark'
+  setTheme(next)
+}
+
+onMounted(async () => {
+  sesion.value = await estadoSesion()
+  cargandoSesion.value = false
+})
+
+async function entrar() {
+  errorSesion.value = ''
+  entrando.value = true
+  try {
+    await iniciarSesion(usuarioSesion.value, claveSesion.value)
+    sesion.value = await estadoSesion()
+    claveSesion.value = ''
+  } catch (error) {
+    errorSesion.value = error instanceof Error ? error.message : 'No se pudo iniciar sesión.'
+  } finally {
+    entrando.value = false
+  }
+}
+
+async function salir() {
+  errorSesion.value = ''
+  try {
+    await cerrarSesion()
+  } catch {
+    errorSesion.value = 'No se pudo cerrar la sesión. Vuelve a intentarlo.'
+    return
+  }
+  sesion.value = await estadoSesion()
+  usuarioSesion.value = ''
+}
 
 async function submit() {
+  if (necesitaLogin.value) return
   const run = flow.start()
   await nextTick()
   if (inputError.value) input.value?.focus()
@@ -36,11 +87,26 @@ async function submit() {
   <a class="skip" href="#descripcion">Saltar a la solicitud</a>
   <div class="shell">
     <header class="masthead">
-      <p class="brand">M2 / ASISTENTE CAD</p>
-      <h1>De la descripción a la pieza</h1>
-      <p class="muted">Componentes metálicos auxiliares · Solicitudes en español</p>
+      <div>
+        <p class="brand">M2 / ASISTENTE CAD</p>
+        <h1>De la descripción a la pieza</h1>
+        <p class="muted">Componentes metálicos auxiliares · Solicitudes en español</p>
+      </div>
+      <button class="theme-toggle" type="button" :aria-label="themeLabel" @click="toggleTheme">{{ themeLabel }}</button>
     </header>
     <aside class="notice" aria-label="Aviso profesional"><strong>Diseño preliminar: requiere revisión profesional</strong><br>La verificación geométrica no certifica resistencia ni cumplimiento normativo.</aside>
+    <section v-if="sesion.requerido && !cargandoSesion" class="panel sesion" aria-labelledby="sesion-title">
+      <h2 id="sesion-title">Acceso al servicio</h2>
+      <form v-if="!sesion.autenticado" class="sesion-form" @submit.prevent="entrar">
+        <label for="usuario">Usuario</label>
+        <input id="usuario" v-model="usuarioSesion" autocomplete="username" required>
+        <label for="clave">Clave</label>
+        <input id="clave" v-model="claveSesion" type="password" autocomplete="current-password" required>
+        <button class="primary" type="submit" :disabled="entrando">{{ entrando ? 'Entrando…' : 'Iniciar sesión' }}</button>
+      </form>
+      <p v-else>Generando como <strong>{{ sesion.usuario }}</strong>. <button type="button" @click="salir">Cerrar sesión</button></p>
+      <p v-if="errorSesion" class="field-error" role="alert">{{ errorSesion }}</p>
+    </section>
     <main class="workspace">
       <section class="panel" aria-labelledby="request-title">
         <h2 id="request-title">Describe tu pieza</h2>
@@ -55,7 +121,7 @@ async function submit() {
             <p id="timeout-help" class="help">De 5 a 600 segundos. Interrumpir la espera desconecta y solicita cancelación local; consulta el estado para confirmar la detención. No se confirma la detención de servicios remotos.</p>
           </details>
           <div class="actions">
-            <button class="primary" type="submit" :disabled="busy">Generar pieza</button>
+            <button class="primary" type="submit" :disabled="busy || necesitaLogin">Generar pieza</button>
             <button type="button" :disabled="!canCancel" @click="flow.cancel">Cancelar solicitud</button>
           </div>
         </form>
@@ -103,3 +169,8 @@ async function submit() {
     </main>
   </div>
 </template>
+
+<style scoped>
+.sesion { margin-bottom: 1rem; }
+.sesion-form { display: grid; gap: .5rem; max-width: 24rem; }
+</style>

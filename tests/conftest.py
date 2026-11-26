@@ -1,6 +1,19 @@
-"""Fixtures compartidas para aislar los efectos de HU-25 en CI."""
+"""Fixtures compartidas para aislar los efectos de HU-25 y HU-53 en CI."""
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _desactivar_auth_en_pruebas_heredadas(monkeypatch):
+    """HU-53 activa la autenticación sólo en su fixture; el resto queda en modo local."""
+    monkeypatch.setenv("M2_AUTH_ENABLED", "0")
+    monkeypatch.setenv("M2_AUTH_COOKIE_SECURE", "0")
+
+
+@pytest.fixture(autouse=True)
+def _desactivar_cola_en_pruebas_heredadas(monkeypatch):
+    """Las pruebas SSE previas ejecutan en proceso; HU-45 la activa en su fixture."""
+    monkeypatch.setenv("M2_COLA_HABILITADA", "0")
 
 
 @pytest.fixture(autouse=True)

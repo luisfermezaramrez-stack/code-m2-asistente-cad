@@ -1,9 +1,10 @@
 # HU-15 · Frontend Vue
 
-Vue 3 (Composition API), Vite y TypeScript. Reutiliza directamente
-`../design/tokens.css`: no hay segunda copia de la paleta o de los tokens.
-La aplicación contiene únicamente textos de producto; la maqueta y sus variantes
-siguen en `design/`.
+Vue 3 (Composition API), Vite y TypeScript. La fuente única de tokens es
+`src/design/tokens.css`, dentro del paquete; no hay copias ni importaciones desde
+`design/`. La preferencia de tema se resuelve en `src/design/theme.ts`: gana la
+elección guardada en el navegador y, si no existe, `prefers-color-scheme`.
+La maqueta histórica y sus variantes siguen en `design/` como referencia.
 
 ## Ejecutar localmente
 
@@ -109,7 +110,8 @@ necesitar una vista GLB.
 - A 1280 y 768 px se comprobaron estado vacío, éxito y declinación: cero elementos
   fuera de límites horizontales. Tab, foco visible de 3 px y controles del visor
   funcionan en Chrome. No se afirma validación de lectores de pantalla ni de
-  otros navegadores. Contraste de tokens: texto ≥6.31:1, bordes/foco ≥3.39:1.
+  otros navegadores. Contraste de tokens verificado en ambos temas: texto ≥6.31:1,
+  bordes/foco ≥3.39:1; detalle y valores por par en `../docs/diseno-v2.md`.
 
 Límites heredados: retención de trabajos en memoria de un proceso, archivos
 indisponibles por ID tras expulsión/reinicio y operaciones bloqueantes que no se
