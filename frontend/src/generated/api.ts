@@ -6,6 +6,22 @@ export type ClientOptions = {
 };
 
 /**
+ * Credenciales
+ *
+ * Credenciales HU-53; la clave nunca se registra ni se devuelve.
+ */
+export type Credenciales = {
+    /**
+     * Clave
+     */
+    clave: string;
+    /**
+     * Usuario
+     */
+    usuario: string;
+};
+
+/**
  * EstadoTrabajo
  *
  * JSON de consulta, cancelación y data SSE; opcional significa campo ausente.
@@ -66,6 +82,42 @@ export type HttpValidationError = {
 };
 
 /**
+ * RespuestaUso
+ *
+ * Gasto acumulado del día y topes vigentes (HU-32, RF-5).
+ */
+export type RespuestaUso = {
+    /**
+     * Costo Usd
+     */
+    costo_usd: number;
+    /**
+     * Fecha
+     */
+    fecha: string;
+    /**
+     * Generaciones
+     */
+    generaciones: number;
+    /**
+     * Limite Solicitudes Ventana
+     */
+    limite_solicitudes_ventana: number;
+    /**
+     * Moneda
+     */
+    moneda: string;
+    /**
+     * Presupuesto Diario Usd
+     */
+    presupuesto_diario_usd: number;
+    /**
+     * Ventana Segundos
+     */
+    ventana_segundos: number;
+};
+
+/**
  * SolicitudGenerar
  *
  * Define y valida la entrada del servicio CAD.
@@ -106,6 +158,75 @@ export type ValidationError = {
      */
     type: string;
 };
+
+export type IniciarSesionV1AuthLoginPostData = {
+    body: Credenciales;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/login';
+};
+
+export type IniciarSesionV1AuthLoginPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IniciarSesionV1AuthLoginPostError = IniciarSesionV1AuthLoginPostErrors[keyof IniciarSesionV1AuthLoginPostErrors];
+
+export type IniciarSesionV1AuthLoginPostResponses = {
+    /**
+     * Response Iniciar Sesion V1 Auth Login Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean | string;
+    };
+};
+
+export type IniciarSesionV1AuthLoginPostResponse = IniciarSesionV1AuthLoginPostResponses[keyof IniciarSesionV1AuthLoginPostResponses];
+
+export type CerrarSesionV1AuthLogoutPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/logout';
+};
+
+export type CerrarSesionV1AuthLogoutPostResponses = {
+    /**
+     * Response Cerrar Sesion V1 Auth Logout Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean;
+    };
+};
+
+export type CerrarSesionV1AuthLogoutPostResponse = CerrarSesionV1AuthLogoutPostResponses[keyof CerrarSesionV1AuthLogoutPostResponses];
+
+export type EstadoSesionActualV1AuthMeGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/me';
+};
+
+export type EstadoSesionActualV1AuthMeGetResponses = {
+    /**
+     * Response Estado Sesion Actual V1 Auth Me Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean | string | null;
+    };
+};
+
+export type EstadoSesionActualV1AuthMeGetResponse = EstadoSesionActualV1AuthMeGetResponses[keyof EstadoSesionActualV1AuthMeGetResponses];
 
 export type CancelarGeneracionV1GeneracionesSolicitudIdDeleteData = {
     body?: never;
@@ -205,6 +326,12 @@ export type DescargarArchivoV1GeneracionesSolicitudIdArchivosFormatoGetResponses
 
 export type GenerarV1GenerarPostData = {
     body: SolicitudGenerar;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
     path?: never;
     query?: never;
     url: '/v1/generar';
@@ -212,9 +339,17 @@ export type GenerarV1GenerarPostData = {
 
 export type GenerarV1GenerarPostErrors = {
     /**
+     * La clave de idempotencia ya se usó con otra solicitud.
+     */
+    409: unknown;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
+    /**
+     * Límite por ventana excedido o presupuesto diario agotado.
+     */
+    429: unknown;
 };
 
 export type GenerarV1GenerarPostError = GenerarV1GenerarPostErrors[keyof GenerarV1GenerarPostErrors];
@@ -327,3 +462,19 @@ export type DescargarStepV1RegistrosIdentificadorStepGetResponses = {
      */
     200: unknown;
 };
+
+export type ConsultarUsoV1UsoGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/uso';
+};
+
+export type ConsultarUsoV1UsoGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: RespuestaUso;
+};
+
+export type ConsultarUsoV1UsoGetResponse = ConsultarUsoV1UsoGetResponses[keyof ConsultarUsoV1UsoGetResponses];

@@ -14,6 +14,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import StreamingResponse
 from starlette.types import Receive, Scope, Send
 
+from m2_cad.autenticacion import ANONIMO, NO_ENCONTRADA
 from m2_cad.control import (
     ControlGeneracion,
     GeneracionCancelada,
@@ -30,8 +31,9 @@ TERMINALES = frozenset({"verificado", "declinado", "error", "cancelado"})
 class Trabajo:
     """Un único productor y terminal; la cancelación no adelanta el resultado."""
 
-    def __init__(self) -> None:
+    def __init__(self, usuario: str = ANONIMO) -> None:
         self.id = uuid.uuid4().hex
+        self.usuario = usuario
         self._lock = Lock()
         self._eventos: Queue[dict] = Queue()
         self._ultimo: dict = {"solicitud_id": self.id, "estado": "iniciando", "terminal": False}
@@ -157,7 +159,13 @@ class GestorTrabajos:
             trabajos = tuple(self._trabajos.values())
         return any(not trabajo.estado()["terminal"] for trabajo in trabajos)
 
-    def crear(self, texto: str, procesador: Procesador, al_finalizar: AlFinalizar) -> Trabajo:
+    def crear(
+        self,
+        texto: str,
+        procesador: Procesador,
+        al_finalizar: AlFinalizar,
+        usuario: str = ANONIMO,
+    ) -> Trabajo:
         with self._lock:
             if len(self._trabajos) >= self.capacidad:
                 terminado = next(
@@ -171,7 +179,7 @@ class GestorTrabajos:
                 if terminado is None:
                     raise HTTPException(503, "No hay capacidad para otra generación.")
                 del self._trabajos[terminado]
-            trabajo = Trabajo()
+            trabajo = Trabajo(usuario)
             self._trabajos[trabajo.id] = trabajo
         # Un Thread nuevo arranca con contexto vacío: copiar el de la solicitud
         # conserva el request_id en todos los registros del hilo del trabajo.
@@ -188,7 +196,7 @@ class GestorTrabajos:
         with self._lock:
             trabajo = self._trabajos.get(solicitud_id)
         if trabajo is None:
-            raise HTTPException(404, "Solicitud desconocida o fuera de retención.")
+            raise HTTPException(404, NO_ENCONTRADA)
         return trabajo
 
 

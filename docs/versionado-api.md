@@ -13,6 +13,9 @@ La API pública es `/v1`. Todas las rutas funcionales se publican bajo ese prefi
 | `/v1/generaciones/{solicitud_id}/archivos/{formato}` | GET, HEAD |
 | `/v1/registros/{identificador}` | GET |
 | `/v1/registros/{identificador}/step` | GET |
+| `/v1/uso` | GET |
+| `/v1/auth/login`, `/v1/auth/logout` | POST |
+| `/v1/auth/me` | GET |
 
 El prefijo es parte del contrato. La SPA, los scripts de verificación y los tipos
 generados consumen estas rutas. `/openapi.json` y `/docs` describen únicamente `/v1`.

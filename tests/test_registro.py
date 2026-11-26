@@ -19,7 +19,7 @@ def leer_registro(ruta):
 
 
 def test_campos_definidos():
-    """El registro define exactamente los 8 campos de la especificación."""
+    """El registro define los 8 campos originales más el usuario (HU-53)."""
     assert CAMPOS == [
         "id",
         "hora",
@@ -29,11 +29,12 @@ def test_campos_definidos():
         "latencia_ms",
         "error",
         "version",
+        "usuario",
     ]
 
 
 def test_registrar_fila_completa(tmp_path):
-    """Cada solicitud se registra con los 8 campos (AC3, escenario 1)."""
+    """Cada solicitud se registra con los 9 campos (AC3, escenario 1)."""
     ruta = tmp_path / "registro.csv"
 
     fila = registrar(
