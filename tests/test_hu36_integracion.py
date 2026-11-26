@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from m2_cad import api
+from m2_cad.autenticacion import ANONIMO
 from m2_cad.seguridad_descargas import emitir_token, exigir_token
 
 
@@ -19,8 +20,10 @@ class GestorSimulado:
 
     def obtener(self, solicitud_id: str):
         self.consultas += 1
+        # Como un Trabajo real, el doble conoce a su dueño (HU-53).
         return SimpleNamespace(
-            estado=lambda: {"estado": "verificado", "resultado": {"step": str(self.ruta)}}
+            usuario=ANONIMO,
+            estado=lambda: {"estado": "verificado", "resultado": {"step": str(self.ruta)}},
         )
 
 

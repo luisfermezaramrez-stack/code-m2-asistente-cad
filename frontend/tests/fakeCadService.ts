@@ -22,17 +22,17 @@ export class FakeCadService {
   getStatus = 200
   fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = String(input)
-    if (url === '/auth/me') return Response.json(this.sesion)
-    if (url === '/auth/login') {
+    if (url === '/v1/auth/me') return Response.json(this.sesion)
+    if (url === '/v1/auth/login') {
       const { usuario } = JSON.parse(String(init?.body)) as { usuario: string; clave: string }
       this.sesion = { requerido: true, autenticado: true, usuario }
       return Response.json({ autenticado: true, usuario })
     }
-    if (url === '/auth/logout') {
+    if (url === '/v1/auth/logout') {
       this.sesion = { requerido: true, autenticado: false, usuario: null }
       return Response.json({ autenticado: false })
     }
-    if (url === '/generar') {
+    if (url === '/v1/generar') {
       if (this.postStatus !== 200) return Response.json({ detail: this.postDetail }, { status: this.postStatus })
       const signal = init?.signal as AbortSignal
       const body = new ReadableStream<Uint8Array>({ start: (controller) => {
@@ -47,7 +47,7 @@ export class FakeCadService {
       const format = url.split('/').at(-1) as Format
       return new Response(init?.method === 'HEAD' ? null : 'archivo simulado', { status: this.files.has(format) ? 200 : 404 })
     }
-    if (url === '/generaciones/job1') {
+    if (url === '/v1/generaciones/job1') {
       if (init?.method === 'DELETE') {
         this.current = this.deleteResult ?? { ...this.current, cancelacion_solicitada: true }
         return Response.json(this.current, { status: this.current.terminal ? 200 : 202 })

@@ -26,6 +26,7 @@ construirlo.
 - [Requisitos](#requisitos)
 - [Versiones](#versiones)
 - [Instalación y uso](#instalación-y-uso)
+- [Control de costo, límites e idempotencia](#control-de-costo-límites-e-idempotencia-hu-32)
 - [Acceso y usuarios (HU-53)](#acceso-y-usuarios-hu-53)
 - [Entorno en la nube (Lambda)](#entorno-en-la-nube-lambda)
 - [Metas (objetivos 1–4)](#metas-objetivos-14)
@@ -148,9 +149,20 @@ licencia.
 bash scripts/vendor-constraint-kit.sh
 uv sync --locked --dev
 make frontend-install
-make check        # Ruff + Vitest + TypeScript + build + pytest/cobertura
+make check        # Ruff + contratos + Vitest + TypeScript + build + pytest/cobertura
 uv run --locked uvicorn m2_cad.api:app --app-dir src --host 127.0.0.1 --port 8000 --workers 1
 ```
+
+En otra terminal, para que los flujos SSE sobrevivan a un reinicio, arrancar el
+worker (HU-45):
+
+```bash
+make worker    # python -m m2_cad.worker; comparte data/cola.json con la API
+```
+
+Si el worker no está corriendo, la API encola la solicitud y el cliente SSE espera
+hasta que un worker la procese. El apagado ordenado del worker deja de aceptar
+trabajos nuevos y termina el trabajo en curso antes de salir.
 
 Abrir **http://127.0.0.1:8000/**: FastAPI sirve el build, API, SSE y descargas en
 el mismo origen. No se inicia otro servidor frontend. El desarrollo con HMR
@@ -159,12 +171,28 @@ se explica en [frontend/README.md](frontend/README.md).
 ### Acceso y usuarios (HU-53)
 
 La autenticación está **activa por defecto** (`M2_AUTH_ENABLED=1`). La SPA muestra
-un formulario de acceso, envía `POST /auth/login` y conserva la sesión en una cookie
-`HttpOnly` / `SameSite=Lax` firmada con HMAC-SHA256; `GET /auth/me` informa si hay
-sesión y `POST /auth/logout` la cierra. `/health` y `/ready` siguen abiertos para
-monitoreo; el resto de rutas de datos (generar, consultar, cancelar, descargar y
-registros) devuelve 401 sin sesión y 404 cuando el recurso pertenece a otro usuario.
-El token de descarga de HU-36 se exige además de la sesión.
+un formulario de acceso, envía `POST /v1/auth/login` y conserva la sesión en una cookie
+`HttpOnly` / `SameSite=Lax` firmada con HMAC-SHA256; `GET /v1/auth/me` informa si hay
+sesión y `POST /v1/auth/logout` la cierra. `/v1/health` y `/v1/ready` siguen abiertos para
+monitoreo; el resto de rutas de datos (generar, consultar, cancelar, descargar,
+registros y `/v1/uso`) devuelve 401 sin sesión y 404 cuando el recurso pertenece a otro
+usuario, también para los trabajos que ejecuta el worker de la cola (HU-45). El token de
+descarga de HU-36 se exige además de la sesión.
+
+Protecciones de la sesión:
+
+- Tras `M2_AUTH_MAX_INTENTOS` inicios fallidos (5 por defecto) en
+  `M2_AUTH_VENTANA_INTENTOS_SEGUNDOS` (300), el cliente recibe `429` con `Retry-After`,
+  incluso con la clave correcta. El contador vive en el proceso (`--workers 1`).
+- Un usuario inexistente cuesta lo mismo que una clave errónea: el tiempo de respuesta
+  no revela qué usuarios existen.
+- La firma de la cookie depende del hash vigente del usuario: quitarlo de
+  `M2_AUTH_USERS` o cambiar su clave invalida sus sesiones. `POST /v1/auth/logout` borra
+  la cookie del navegador; un token copiado antes sigue valiendo hasta su expiración
+  (`M2_AUTH_TTL_SECONDS`).
+- Con la autenticación activa, una configuración inválida impide arrancar la API.
+- Los topes y la idempotencia de HU-32 se asocian al usuario: `X-Session-ID` y la IP
+  sólo se usan en modo local.
 
 Los usuarios se definen en `M2_AUTH_USERS` con hashes PBKDF2-SHA256, nunca en el
 repositorio. Para generar uno:
@@ -182,7 +210,7 @@ El CSV de registro incorpora la columna `usuario`; los archivos anteriores se
 migran automáticamente sin borrar filas. Plan y decisiones:
 [SPEC-054](specs/054-hu-53-autenticacion/plan.md).
 
-### Tipos del API (HU-27)
+### Contrato de la API (HU-27 y HU-31)
 
 Después de modificar el contrato FastAPI, ejecutar `make api-types` y versionar
 `frontend/src/generated/api.ts` con el cambio. El esquema se obtiene de
@@ -193,6 +221,14 @@ claves, GPU ni red una vez instaladas las dependencias Python/npm.
 `make check` y en CI. Si detecta una diferencia, falla e indica `make api-types`.
 `api.ts` consume los tipos generados y conserva `parseJob` para validar datos
 HTTP/SSE en ejecución. Plan y alcance: [SPEC-028](specs/028-hu-27-tipos-openapi/plan.md).
+
+La API pública se sirve bajo `/v1` (por ejemplo `/v1/health` y `/v1/generar`). El
+esquema de esa versión está congelado en [`contracts/openapi-v1.json`](contracts/openapi-v1.json):
+`make api-contract` lo regenera y `make api-contract-check` falla si un campo o una ruta
+cambia sin actualizarlo; ambos forman parte de `make check` y de CI. Las rutas planas
+siguen funcionando como redirecciones `307` con cabeceras `Deprecation`, `Sunset` y
+`Link` durante 90 días. Política completa:
+[versionado de la API](docs/versionado-api.md) · [SPEC-032](specs/032-hu-31-api-v1/plan.md).
 
 Variables del modelo:
 
@@ -259,6 +295,49 @@ Sin servidor (o con `MLFLOW_TRACKING_ENABLED=0`) la generación concluye igual y
 del seguimiento se emite como advertencia en el log: es observabilidad, no criterio de
 aceptación de la pieza. `mlruns/`, `mlflow.db` y `mlflow-artifacts/` están en `.gitignore`.
 
+### Control de costo, límites e idempotencia (HU-32)
+
+`POST /v1/generar` acepta dos cabeceras opcionales:
+
+| Cabecera | Efecto |
+| --- | --- |
+| `Idempotency-Key` | Reenviar la misma clave devuelve la generación original (JSON o estado SSE) sin crear otro trabajo ni sumar costo. Reutilizarla con otro texto/sesión/transporte da `409`. |
+| `X-Session-ID` | Identifica la sesión para el tope por ventana; si no se envía se usa la IP del cliente. Con autenticación activa (HU-53) se ignora y cuenta el usuario. |
+
+`GET /v1/uso` publica el gasto acumulado del día en UTC, sin datos personales:
+
+```json
+{
+  "fecha": "2026-11-25",
+  "costo_usd": 0.0004,
+  "moneda": "USD",
+  "generaciones": 2,
+  "presupuesto_diario_usd": 0,
+  "limite_solicitudes_ventana": 0,
+  "ventana_segundos": 60
+}
+```
+
+Los topes se configuran con `M2_LIMITE_SOLICITUDES_VENTANA`, `M2_VENTANA_SEGUNDOS` y
+`M2_PRESUPUESTO_DIARIO_USD`. Cero desactiva cada control, así que sin variables nuevas
+el comportamiento es el de siempre. Los rechazos son `429` con `X-Limite-Tipo:
+ventana|presupuesto` (y `Retry-After` cuando aplica); el límite de capacidad de 128
+trabajos sigue siendo un `503` distinto. El estado vive en el proceso (`--workers 1`);
+al escalar se migraría a un almacén compartido sin cambiar la API.
+
+Ejemplo con un tope de 2 solicitudes por minuto y presupuesto de 0,10 USD:
+
+```bash
+export M2_LIMITE_SOLICITUDES_VENTANA=2 M2_VENTANA_SEGUNDOS=60
+export M2_PRESUPUESTO_DIARIO_USD=0.10
+curl -H 'X-Session-ID: disenador-1' -H 'Idempotency-Key: pedido-42' \
+  -H 'Content-Type: application/json' -d '{"texto":"Espaciador de 14 mm"}' \
+  http://127.0.0.1:8000/v1/generar
+curl http://127.0.0.1:8000/v1/uso
+```
+
+Detalle, decisiones y evidencia: [SPEC-033](specs/033-hu-32-costo-limites-idempotencia/).
+
 
 ### Despliegue local con Docker Compose (HU-10)
 
@@ -267,7 +346,7 @@ No hace falta GPU, pesos, Node ni preparar el vendor en el host: la imagen lo re
 
 ```bash
 echo "DEEPSEEK_API_KEY=sk-..." > .env
-make up            # docker compose up: m2-cad (API + SPA) y MLflow, en primer plano
+make up            # docker compose up: m2-cad (API + SPA), worker y MLflow
 make down          # en otra terminal: detiene y elimina todos los contenedores
 ```
 
@@ -277,9 +356,11 @@ memoria holgada: el build compila dependencias CAD).
 | URL | Servicio |
 | --- | --- |
 | http://localhost:8000 | SPA en Vue (mismo origen que la API) |
-| http://localhost:8000/health | Salud de la API (`{"status": "ok"}`) |
+| http://localhost:8000/v1/health | Salud de la API (`{"status": "ok"}`) |
+| http://localhost:8000/v1/uso | Gasto acumulado del día (HU-32) |
 | http://localhost:8000/docs | Contrato OpenAPI |
 | http://127.0.0.1:5000 | UI de MLflow |
+| `m2-cad-worker` | Worker SSE separado; consume `/app/data/cola.json` |
 
 Ambos puertos se publican solo en `127.0.0.1`; nada queda expuesto en la red.
 Si un puerto está ocupado, liberarlo o cambiar el lado izquierdo del mapeo en
@@ -314,6 +395,17 @@ SSE no tiene middleware de compresión/buffering y devuelve `no-cache, no-transf
 y `X-Accel-Buffering: no`. No se deben añadir proxies que acumulen eventos.
 Cancelar pide una detención cooperativa local: una llamada bloqueante al modelo o
 CAD puede continuar hasta retornar; no confirma detención remota.
+
+HU-45 conserva la cola de trabajos en `data/cola.json` con escritura atómica
+(SPEC-031). La API sólo encola; el worker publica cada etapa como un evento SSE
+completo. Tras un reinicio, los trabajos no terminados se reanudan y el registro
+conserva una sola fila por `solicitud_id`. El flag `M2_COLA_HABILITADA=0` existe
+sólo para la batería de pruebas SSE heredada, que ejecuta en proceso.
+
+Con la cola activa, el costo de cada generación SSE lo mide el worker y queda en la
+cola. La API lo suma una sola vez al presupuesto diario de HU-32, en el día UTC en que
+terminó el trabajo, antes de aceptar otra solicitud y al consultar `GET /v1/uso`.
+Repetir una `Idempotency-Key` devuelve el estado del trabajo encolado.
 Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 [CONSTITUTION.md](CONSTITUTION.md).
 
@@ -332,12 +424,19 @@ Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 | `M2_AUTH_USERS` | JSON usuario → hash PBKDF2 (HU-53) | dos usuarios de prueba locales | `${M2_AUTH_USERS:?}` |
 | `M2_AUTH_COOKIE_SECURE` | Exige HTTPS para la cookie | `0` en HTTP local | `1` |
 | `M2_AUTH_TTL_SECONDS` | Vigencia de la sesión | `86400` | `86400` (o el valor del entorno) |
+| `M2_AUTH_MAX_INTENTOS` | Inicios de sesión fallidos permitidos por cliente antes del `429` | `5` | `5` |
+| `M2_AUTH_VENTANA_INTENTOS_SEGUNDOS` | Ventana del límite de intentos | `300` | `300` |
 | `MLFLOW_TRACKING_URI` | Seguimiento → servidor MLflow o file store (HU-16) | `file:./mlruns` | `http://mlflow:5000` |
 | `MLFLOW_TRACKING_ENABLED` | `0` apaga el seguimiento (no-op) | `1` | `${MLFLOW_TRACKING_ENABLED:-1}` |
 | `MLFLOW_EXPERIMENT_NAME` / `MLFLOW_EXPERIMENT_BANCO` | Nombres de experimento | `m2-cad-generacion` / `m2-cad-banco` | igual |
-| `MLFLOW_PRECIO_ENTRADA` / `MLFLOW_PRECIO_SALIDA` | USD por millón de tokens para `costo_usd` | `0` | `0` |
+| `MLFLOW_PRECIO_ENTRADA` / `MLFLOW_PRECIO_SALIDA` | USD por millón de tokens para `costo_usd` (HU-32 lo agrega en `/v1/uso`) | `0` | `0` |
+| `M2_LIMITE_SOLICITUDES_VENTANA` | Solicitudes permitidas por sesión y ventana (HU-32; `0` desactiva) | `0` | `0` |
+| `M2_VENTANA_SEGUNDOS` | Duración de la ventana de uso (HU-32) | `60` | `60` |
+| `M2_PRESUPUESTO_DIARIO_USD` | Presupuesto UTC en USD (`0` desactiva; HU-32) | `0` | `0` |
 | `LLM_MODEL_VERSION` | Versión publicada por el proveedor (AC7) | id del modelo servido | id del modelo servido |
 | `M2_LOG_LEVEL` | Nivel del logging JSON de `m2_cad` (HU-24) | `INFO` | `INFO` (o el valor del entorno) |
+| `M2_COLA_HABILITADA` | `1` usa cola + worker; `0` ejecuta SSE en proceso (HU-45) | `1` | `1` |
+| `M2_COLA_PATH` | JSON compartido por API y worker (HU-45) | `data/cola.json` | `/app/data/cola.json` |
 | `LLM_MAX_RETRIES` | Reintentos del LLM ante 5xx transitorios/timeout (HU-25) | `2` | `2` |
 | `LLM_RETRY_BASE_SECONDS` / `LLM_RETRY_MAX_SECONDS` | Backoff exponencial (HU-25) | `0.25` / `3` | igual |
 | `LLM_CACHE_TTL_SECONDS` / `LLM_CACHE_MAX_ITEMS` | Caché de respuestas del LLM (HU-25) | `1800` / `256` | igual |

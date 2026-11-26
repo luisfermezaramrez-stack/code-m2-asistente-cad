@@ -46,6 +46,7 @@ PATRON_NOMBRE = re.compile(
 
 # HU-14: la solicitud llega en español al modelo; no hay traducción que registrar.
 SIN_TRADUCCION = "no aplica"
+_RUTAS_MIGRADAS: set[Path] = set()
 
 
 def _asegurar_columna_usuario(ruta: Path) -> None:
@@ -109,5 +110,9 @@ def registrar(
         "usuario": _a_valor_conocido(usuario, ANONIMO),
     }
 
-    _asegurar_columna_usuario(Path(ruta))
+    destino = Path(ruta).resolve()
+    if destino not in _RUTAS_MIGRADAS:
+        # Una vez por archivo y proceso: evita leer la cabecera en cada escritura.
+        _asegurar_columna_usuario(destino)
+        _RUTAS_MIGRADAS.add(destino)
     return anexar_sin_duplicar(Path(ruta), fila, CAMPOS)

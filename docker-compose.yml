@@ -32,6 +32,8 @@ services:
     environment:
       M2_DOWNLOAD_SECRET: ${M2_DOWNLOAD_SECRET:?Configure M2_DOWNLOAD_SECRET en el entorno}
       M2_DOWNLOAD_TTL_SECONDS: ${M2_DOWNLOAD_TTL_SECONDS:-3600}
+      M2_COLA_HABILITADA: "1"
+      M2_COLA_PATH: /app/data/cola.json
       # HU-53: senda local explícita con M2_AUTH_ENABLED=0; por defecto exige sesión.
       M2_AUTH_ENABLED: ${M2_AUTH_ENABLED:-1}
       M2_AUTH_SECRET: ${M2_AUTH_SECRET:?Configure M2_AUTH_SECRET en el entorno}
@@ -48,6 +50,30 @@ services:
       - ./outputs:/app/outputs
     depends_on:
       - mlflow
+
+  # HU-45: la API encola y este proceso separado ejecuta los trabajos SSE.
+  # Comparte data/ para la misma cola y outputs/ para escribir artefactos.
+  m2-cad-worker:
+    build: .
+    command: ["uv", "run", "--no-sync", "python", "-m", "m2_cad.worker"]
+    environment:
+      M2_DOWNLOAD_SECRET: ${M2_DOWNLOAD_SECRET:?Configure M2_DOWNLOAD_SECRET en el entorno}
+      M2_DOWNLOAD_TTL_SECONDS: ${M2_DOWNLOAD_TTL_SECONDS:-3600}
+      M2_COLA_HABILITADA: "1"
+      M2_COLA_PATH: /app/data/cola.json
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-v4-pro}
+      M2_CORS_ORIGINS: "${M2_CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}"
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_TRACKING_ENABLED: ${MLFLOW_TRACKING_ENABLED:-1}
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+    depends_on:
+      - m2-cad
+    # El HEALTHCHECK de la imagen comprueba el puerto 8000 de la API.
+    healthcheck:
+      test: ["CMD", "true"]
 
 volumes:
   mlflow-datos:

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cerrarSesion, estadoSesion, iniciarSesion, sinSesion } from '../src/auth'
+import { cerrarSesion, estadoSesion, iniciarSesion, sesionRequerida } from '../src/auth'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -9,12 +9,14 @@ describe('sesión HU-53', () => {
     vi.stubGlobal('fetch', fetch)
 
     expect(await estadoSesion()).toEqual({ requerido: true, autenticado: false, usuario: null })
-    expect(fetch).toHaveBeenCalledWith('/auth/me', { credentials: 'same-origin' })
+    expect(fetch).toHaveBeenCalledWith('/v1/auth/me', { credentials: 'same-origin' })
   })
 
-  it('devuelve modo local si no hay servicio de autenticación', async () => {
+  it('pide sesión si no puede leer el estado, sin asumir el modo local', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('sin red') }))
-    expect(await estadoSesion()).toEqual(sinSesion)
+    expect(await estadoSesion()).toEqual(sesionRequerida)
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500 })))
+    expect(await estadoSesion()).toEqual(sesionRequerida)
   })
 
   it('envía credenciales sin guardar la clave en el cliente', async () => {
@@ -23,7 +25,7 @@ describe('sesión HU-53', () => {
 
     expect(await iniciarSesion('ana', 'clave-secreta')).toEqual({ autenticado: true, usuario: 'ana' })
     const llamada = fetch.mock.calls[0] as unknown as [string, RequestInit]
-    expect(llamada[0]).toBe('/auth/login')
+    expect(llamada[0]).toBe('/v1/auth/login')
     expect(JSON.parse(String(llamada[1].body))).toEqual({ usuario: 'ana', clave: 'clave-secreta' })
     expect(String(llamada[1].body)).not.toContain('localStorage')
   })
@@ -33,11 +35,16 @@ describe('sesión HU-53', () => {
     await expect(iniciarSesion('ana', 'mala')).rejects.toThrow('Usuario o clave incorrectos.')
   })
 
+  it('informa el límite de intentos del login', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 429 })))
+    await expect(iniciarSesion('ana', 'mala')).rejects.toThrow('Demasiados intentos fallidos.')
+  })
+
   it('cierra la sesión con POST', async () => {
     const fetch = vi.fn(async () => Response.json({ autenticado: false }))
     vi.stubGlobal('fetch', fetch)
     await cerrarSesion()
-    expect(fetch).toHaveBeenCalledWith('/auth/logout', {
+    expect(fetch).toHaveBeenCalledWith('/v1/auth/logout', {
       method: 'POST',
       credentials: 'same-origin',
     })

@@ -5,14 +5,16 @@ import json
 import secrets
 import sys
 import uuid
+from threading import Thread
 from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 
-from m2_cad import api, seguimiento
+from m2_cad import api, autenticacion, registro, seguimiento
 from m2_cad.autenticacion import (
     COOKIE_NOMBRE,
+    LimiteIntentos,
     emitir_sesion,
     hash_clave,
     usuarios,
@@ -20,8 +22,11 @@ from m2_cad.autenticacion import (
     verificar_clave,
     verificar_usuario,
 )
+from m2_cad.cola_trabajos import ColaTrabajos
+from m2_cad.control_uso import ConfiguracionUso, ControlUso
 from m2_cad.registro import CAMPOS, registrar
 from m2_cad.trabajos import GestorTrabajos
+from m2_cad.worker import consumir
 
 
 @pytest.fixture
@@ -43,6 +48,9 @@ def entorno(tmp_path, monkeypatch):
     api.app.dependency_overrides[api.obtener_configuracion_seguimiento] = lambda: (
         seguimiento.Configuracion(activo=False)
     )
+    # Límite de intentos propio de cada prueba: los fallos de una no afectan a otra.
+    limite = LimiteIntentos()
+    api.app.dependency_overrides[api.obtener_limite_login] = lambda: limite
     try:
         yield SimpleNamespace(
             gestor=gestor,
@@ -57,7 +65,7 @@ def entorno(tmp_path, monkeypatch):
 
 def entrar(usuario: str, clave: str) -> TestClient:
     cliente = TestClient(api.app)
-    respuesta = cliente.post("/auth/login", json={"usuario": usuario, "clave": clave})
+    respuesta = cliente.post("/v1/auth/login", json={"usuario": usuario, "clave": clave})
     assert respuesta.status_code == 200
     return cliente
 
@@ -70,7 +78,7 @@ def generar_sse(cliente: TestClient, archivo) -> tuple[str, str]:
 
     api.app.dependency_overrides[api.obtener_procesador_sse] = lambda: procesar
     respuesta = cliente.post(
-        "/generar",
+        "/v1/generar",
         json={"texto": "Espaciador de 14 mm"},
         headers={"Accept": "text/event-stream"},
     )
@@ -85,18 +93,18 @@ def filas_csv(ruta) -> list[dict[str, str]]:
 
 def test_ac1_ac4_anónimo_no_genera_y_salud_queda_abierta(entorno):
     with TestClient(api.app) as cliente:
-        assert cliente.get("/health").status_code == 200
-        assert cliente.get("/ready").status_code != 401  # salud abierta, sin sesión
-        assert cliente.get("/auth/me").json() == {
+        assert cliente.get("/v1/health").status_code == 200
+        assert cliente.get("/v1/ready").status_code != 401  # salud abierta, sin sesión
+        assert cliente.get("/v1/auth/me").json() == {
             "requerido": True,
             "autenticado": False,
             "usuario": None,
         }
         identificador = uuid.uuid4().hex
-        assert cliente.post("/generar", json={"texto": "Placa"}).status_code == 401
-        assert cliente.get(f"/generaciones/{identificador}").status_code == 401
-        assert cliente.delete(f"/generaciones/{identificador}").status_code == 401
-        assert cliente.get(f"/registros/{identificador}").status_code == 401
+        assert cliente.post("/v1/generar", json={"texto": "Placa"}).status_code == 401
+        assert cliente.get(f"/v1/generaciones/{identificador}").status_code == 401
+        assert cliente.delete(f"/v1/generaciones/{identificador}").status_code == 401
+        assert cliente.get(f"/v1/registros/{identificador}").status_code == 401
 
     assert not entorno.ruta_registro.exists()
     assert not entorno.gestor._trabajos
@@ -111,30 +119,30 @@ def test_ac2_aislamiento_de_trabajos_registro_y_descargas(entorno):
     with entrar("ana", entorno.claves["ana"]) as ana:
         identificador, token = generar_sse(ana, archivo)
         with entrar("bob", entorno.claves["bob"]) as bob:
-            assert ana.get(f"/generaciones/{identificador}").status_code == 200
-            assert bob.get(f"/generaciones/{identificador}").status_code == 404
-            assert bob.delete(f"/generaciones/{identificador}").status_code == 404
-            assert bob.get(f"/registros/{identificador}").status_code == 404
+            assert ana.get(f"/v1/generaciones/{identificador}").status_code == 200
+            assert bob.get(f"/v1/generaciones/{identificador}").status_code == 404
+            assert bob.delete(f"/v1/generaciones/{identificador}").status_code == 404
+            assert bob.get(f"/v1/registros/{identificador}").status_code == 404
             assert (
                 bob.get(
-                    f"/generaciones/{identificador}/archivos/step",
+                    f"/v1/generaciones/{identificador}/archivos/step",
                     headers={"X-Download-Token": token},
                 ).status_code
                 == 404
             )
             assert (
                 bob.get(
-                    f"/registros/{identificador}/step", headers={"X-Download-Token": token}
+                    f"/v1/registros/{identificador}/step", headers={"X-Download-Token": token}
                 ).status_code
                 == 404
             )
             descarga = ana.get(
-                f"/generaciones/{identificador}/archivos/step",
+                f"/v1/generaciones/{identificador}/archivos/step",
                 headers={"X-Download-Token": token},
             )
             assert descarga.status_code == 200
             assert descarga.content == b"STEP_DE_ANA"
-            assert ana.get(f"/registros/{identificador}").json()["usuario"] == "ana"
+            assert ana.get(f"/v1/registros/{identificador}").json()["usuario"] == "ana"
 
     fila = filas_csv(entorno.ruta_registro)
     assert len(fila) == 1
@@ -146,14 +154,17 @@ def test_ac2_aislamiento_de_trabajos_registro_y_descargas(entorno):
 def test_login_invalido_cookie_firmada_y_logout(entorno):
     with TestClient(api.app) as cliente:
         assert (
-            cliente.post("/auth/login", json={"usuario": "ana", "clave": "incorrecta"}).status_code
+            cliente.post(
+                "/v1/auth/login", json={"usuario": "ana", "clave": "incorrecta"}
+            ).status_code
             == 401
         )
         assert (
-            cliente.post("/auth/login", json={"usuario": "nadie", "clave": "x"}).status_code == 401
+            cliente.post("/v1/auth/login", json={"usuario": "nadie", "clave": "x"}).status_code
+            == 401
         )
         respuesta = cliente.post(
-            "/auth/login", json={"usuario": "ana", "clave": entorno.claves["ana"]}
+            "/v1/auth/login", json={"usuario": "ana", "clave": entorno.claves["ana"]}
         )
         assert respuesta.status_code == 200
         assert respuesta.json() == {"autenticado": True, "usuario": "ana"}
@@ -162,9 +173,9 @@ def test_login_invalido_cookie_firmada_y_logout(entorno):
         assert "HttpOnly" in cookie
         assert "SameSite=lax" in cookie
         assert "Secure" not in cookie
-        assert cliente.get("/auth/me").json()["usuario"] == "ana"
-        assert cliente.post("/auth/logout").json() == {"autenticado": False}
-        assert cliente.get("/auth/me").json()["autenticado"] is False
+        assert cliente.get("/v1/auth/me").json()["usuario"] == "ana"
+        assert cliente.post("/v1/auth/logout").json() == {"autenticado": False}
+        assert cliente.get("/v1/auth/me").json()["autenticado"] is False
 
 
 def test_cookie_manipulada_o_expirada_no_autentica(entorno):
@@ -178,8 +189,8 @@ def test_cookie_manipulada_o_expirada_no_autentica(entorno):
 
     with TestClient(api.app) as cliente:
         cliente.cookies.set(COOKIE_NOMBRE, manipulada)
-        assert cliente.get("/auth/me").json()["autenticado"] is False
-        assert cliente.post("/generar", json={"texto": "Placa"}).status_code == 401
+        assert cliente.get("/v1/auth/me").json()["autenticado"] is False
+        assert cliente.post("/v1/generar", json={"texto": "Placa"}).status_code == 401
 
 
 def test_hash_pbkdf2_y_cli(monkeypatch, capsys):
@@ -206,8 +217,8 @@ def test_modo_local_explícito_sigue_anónimo(entorno, monkeypatch):
 
     api.app.dependency_overrides[api.obtener_procesador] = lambda: procesar
     with TestClient(api.app) as cliente:
-        assert cliente.get("/auth/me").json()["requerido"] is False
-        respuesta = cliente.post("/generar", json={"texto": "Placa"})
+        assert cliente.get("/v1/auth/me").json()["requerido"] is False
+        respuesta = cliente.post("/v1/generar", json={"texto": "Placa"})
         assert respuesta.status_code == 200
         assert cliente.get(respuesta.headers["x-registro-url"]).json()["usuario"] == "anónimo"
     api.app.dependency_overrides.pop(api.obtener_procesador, None)
@@ -243,7 +254,7 @@ def test_usuario_invalido_y_login_desactivado(entorno, monkeypatch):
     with TestClient(api.app) as cliente:
         assert (
             cliente.post(
-                "/auth/login", json={"usuario": "ana", "clave": entorno.claves["ana"]}
+                "/v1/auth/login", json={"usuario": "ana", "clave": entorno.claves["ana"]}
             ).status_code
             == 404
         )
@@ -269,3 +280,229 @@ def test_csv_anterior_se_migra_sin_perder_filas(tmp_path):
     assert [fila["id"] for fila in filas] == ["anterior", "nuevo"]
     assert filas[0]["usuario"] == "anónimo"
     assert filas[1]["usuario"] == "ana"
+
+
+# --- Integración con HU-31 (/v1), HU-32 (uso) y HU-45 (cola) ---------------------
+
+
+@pytest.fixture
+def cola_con_worker(entorno, monkeypatch):
+    """Cola activa como en el despliegue y un worker real en un hilo (HU-45)."""
+    ruta = entorno.tmp_path / "cola.json"
+    salidas = entorno.tmp_path / "outputs"
+    salidas.mkdir()
+    monkeypatch.setenv("M2_COLA_HABILITADA", "1")
+    cola = ColaTrabajos(ruta, propietario="api-prueba")
+    monkeypatch.setattr(api, "cola_trabajos", cola)
+    api.app.dependency_overrides[api.obtener_cola_trabajos] = lambda: cola
+    api.app.dependency_overrides[api.obtener_directorio_salidas] = lambda: salidas
+    tags: list[dict] = []
+    iniciar = seguimiento.iniciar_corrida
+
+    def iniciar_y_capturar(*args, **kwargs):
+        tags.append(kwargs.get("tags") or {})
+        return iniciar(*args, **kwargs)
+
+    monkeypatch.setattr(seguimiento, "iniciar_corrida", iniciar_y_capturar)
+
+    def procesar(texto, control, medido=None):
+        control.informar("validando")
+        control.informar("generando")
+        archivo = salidas / f"{uuid.uuid4().hex}.step"
+        archivo.write_text("STEP_DE_LA_COLA", encoding="utf-8")
+        return {"step": str(archivo)}
+
+    worker = Thread(target=consumir, args=(cola, procesar), kwargs={"intervalo": 0.01}, daemon=True)
+    worker.start()
+    yield SimpleNamespace(cola=cola, tags=tags)
+    cola.cerrar()
+    worker.join(timeout=5)
+
+
+def test_cola_aisla_por_usuario_registra_al_dueno_y_entrega_descargas(entorno, cola_con_worker):
+    """S2/S3/S9: con la cola activa, otro usuario recibe 404 y el dueño descarga."""
+    # Arrange
+    sse = {"Accept": "text/event-stream"}
+
+    # Act
+    with entrar("ana", entorno.claves["ana"]) as ana, entrar("bob", entorno.claves["bob"]) as bob:
+        respuesta = ana.post("/v1/generar", json={"texto": "Espaciador"}, headers=sse)
+        identificador = respuesta.headers["x-registro-id"]
+        token = {"X-Download-Token": respuesta.headers["x-download-token"]}
+        archivo = f"/v1/generaciones/{identificador}/archivos/step"
+        ajenas = [
+            bob.get(f"/v1/generaciones/{identificador}").status_code,
+            bob.delete(f"/v1/generaciones/{identificador}").status_code,
+            bob.get(archivo, headers=token).status_code,
+            bob.get(f"/v1/registros/{identificador}").status_code,
+        ]
+        estado = ana.get(f"/v1/generaciones/{identificador}").json()
+        descarga = ana.get(archivo, headers=token)
+        registro_ana = ana.get(f"/v1/registros/{identificador}").json()
+
+    # Assert
+    assert respuesta.status_code == 200
+    assert ajenas == [404, 404, 404, 404]
+    assert estado["estado"] == "verificado"
+    assert estado["cancelacion_solicitada"] is False
+    assert descarga.status_code == 200 and descarga.content == b"STEP_DE_LA_COLA"
+    assert registro_ana["usuario"] == "ana"
+    assert [fila["usuario"] for fila in filas_csv(entorno.ruta_registro)] == ["ana"]
+    assert [tag.get("usuario") for tag in cola_con_worker.tags] == ["ana"]
+
+
+def test_idempotencia_y_topes_pertenecen_al_usuario(entorno):
+    """S4: misma clave, texto, IP y X-Session-ID no cruzan generaciones entre usuarios."""
+    # Arrange
+    llamadas: list[str] = []
+
+    def procesar(texto, medicion=None):
+        llamadas.append(texto)
+        return {"resultado": "entregada"}
+
+    control = ControlUso(ConfiguracionUso(limite_ventana=1, ventana_segundos=60))
+    api.app.dependency_overrides[api.obtener_procesador] = lambda: procesar
+    api.app.dependency_overrides[api.obtener_control_uso] = lambda: control
+    comunes = {"Idempotency-Key": "pedido-1", "X-Session-ID": "oficina"}
+    cuerpo = {"texto": "Placa base"}
+
+    # Act
+    with entrar("ana", entorno.claves["ana"]) as ana, entrar("bob", entorno.claves["bob"]) as bob:
+        original = ana.post("/v1/generar", json=cuerpo, headers=comunes)
+        de_bob = bob.post("/v1/generar", json=cuerpo, headers=comunes)
+        repetida = ana.post("/v1/generar", json=cuerpo, headers=comunes)
+        sobre_tope = ana.post("/v1/generar", json=cuerpo, headers={"X-Session-ID": "oficina"})
+
+    # Assert
+    assert original.status_code == 200 and de_bob.status_code == 200
+    assert "Idempotent-Replay" not in de_bob.headers
+    assert de_bob.headers["X-Registro-ID"] != original.headers["X-Registro-ID"]
+    assert repetida.headers["Idempotent-Replay"] == "true"
+    assert repetida.headers["X-Registro-ID"] == original.headers["X-Registro-ID"]
+    assert sobre_tope.status_code == 429
+    assert llamadas == ["Placa base", "Placa base"]
+
+
+def test_entrada_invalida_registra_al_usuario_autenticado(entorno):
+    """S6: el 422 de una sesión válida conserva su usuario; sin sesión es 401."""
+    # Act
+    with entrar("ana", entorno.claves["ana"]) as ana:
+        invalida = ana.post("/v1/generar", json={"texto": "   "})
+    with TestClient(api.app) as anonimo:
+        sin_sesion = anonimo.post("/v1/generar", json={"texto": "   "})
+
+    # Assert
+    assert invalida.status_code == 422
+    assert sin_sesion.status_code == 401
+    assert [fila["usuario"] for fila in filas_csv(entorno.ruta_registro)] == ["ana"]
+
+
+def test_auth_se_publica_solo_bajo_v1(entorno):
+    """S5: las rutas de sesión forman parte del contrato /v1."""
+    # Act
+    rutas = api.app.openapi()["paths"]
+    with TestClient(api.app) as cliente:
+        plana = cliente.get("/auth/me")
+        uso = cliente.get("/v1/uso")
+
+    # Assert
+    assert {"/v1/auth/login", "/v1/auth/logout", "/v1/auth/me"} <= rutas.keys()
+    assert not any(ruta.startswith("/auth") for ruta in rutas)
+    assert plana.status_code == 404
+    assert uso.status_code == 401
+
+
+def test_login_limita_intentos_fallidos(entorno):
+    """S7: tras agotar los intentos, ni la clave correcta entra hasta que pasa la ventana."""
+    # Arrange
+    ahora = [0.0]
+    limite = LimiteIntentos(reloj=lambda: ahora[0])
+    api.app.dependency_overrides[api.obtener_limite_login] = lambda: limite
+    correcta = {"usuario": "ana", "clave": entorno.claves["ana"]}
+
+    # Act
+    with TestClient(api.app) as cliente:
+        fallidos = [
+            cliente.post("/v1/auth/login", json={"usuario": "ana", "clave": "mala"}).status_code
+            for _ in range(5)
+        ]
+        bloqueado = cliente.post("/v1/auth/login", json=correcta)
+        ahora[0] = 301.0
+        tras_ventana = cliente.post("/v1/auth/login", json=correcta)
+
+    # Assert
+    assert fallidos == [401] * 5
+    assert bloqueado.status_code == 429
+    assert int(bloqueado.headers["Retry-After"]) >= 1
+    assert COOKIE_NOMBRE not in bloqueado.cookies
+    assert tras_ventana.status_code == 200
+
+
+def test_sesion_se_revoca_al_quitar_usuario_o_cambiar_clave(entorno, monkeypatch):
+    """S7: la firma depende del hash vigente; el token anterior deja de valer."""
+    # Arrange
+    token = emitir_sesion("ana", ahora=1_000)
+    originales = usuarios()
+
+    # Act
+    vigente = validar_sesion(token, ahora=1_500)
+    monkeypatch.setenv("M2_AUTH_USERS", json.dumps({**originales, "ana": hash_clave("nueva")}))
+    tras_cambio = validar_sesion(token, ahora=1_500)
+    monkeypatch.setenv("M2_AUTH_USERS", json.dumps({"bob": originales["bob"]}))
+    tras_baja = validar_sesion(token, ahora=1_500)
+
+    # Assert
+    assert vigente == "ana"
+    assert tras_cambio is None
+    assert tras_baja is None
+
+
+def test_usuario_inexistente_tambien_deriva_pbkdf2(entorno, monkeypatch):
+    """S7: el costo no revela qué usuarios existen."""
+    # Arrange
+    derivaciones: list[str] = []
+    real = autenticacion.verificar_clave
+
+    def contar(clave, guardado):
+        derivaciones.append(guardado)
+        return real(clave, guardado)
+
+    monkeypatch.setattr(autenticacion, "verificar_clave", contar)
+
+    # Act
+    resultado = verificar_usuario("nadie", "x")
+
+    # Assert
+    assert resultado is False
+    assert len(derivaciones) == 1
+    assert derivaciones[0].startswith("pbkdf2_sha256$")
+
+
+def test_configuracion_invalida_impide_arrancar(entorno, monkeypatch):
+    """S7: sin secreto la API no arranca, en vez de responder 500 al iniciar sesión."""
+    # Arrange
+    monkeypatch.delenv("M2_AUTH_SECRET")
+
+    # Act / Assert
+    with pytest.raises(RuntimeError, match="M2_AUTH_SECRET"):
+        with TestClient(api.app):
+            pass
+
+
+def test_migracion_del_registro_se_comprueba_una_vez_por_archivo(tmp_path, monkeypatch):
+    """S8: la cabecera no se relee en cada escritura."""
+    # Arrange
+    llamadas: list = []
+    real = registro._asegurar_columna_usuario
+    monkeypatch.setattr(
+        registro, "_asegurar_columna_usuario", lambda ruta: (llamadas.append(ruta), real(ruta))
+    )
+    ruta = tmp_path / "registro.csv"
+
+    # Act
+    for _ in range(3):
+        registrar("Placa", "no aplica", None, 1.0, None, "v", ruta)
+
+    # Assert
+    assert len(llamadas) == 1
+    assert len(filas_csv(ruta)) == 3

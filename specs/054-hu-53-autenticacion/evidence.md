@@ -70,7 +70,31 @@ heredada; HU-53 configura sus propios secretos en cada prueba.
   en `.env` / entorno. La UI nunca guarda la clave en `localStorage`.
 - `.gitignore` excluye el estado transaccional local (`data/*.lock`, `data/cola.json`).
 
-## 5. Limitaciones y verificaciones pendientes
+## 5. Integración con HU-31, HU-32 y HU-45 y correcciones de revisión
+
+La rama nació de `80d7850`; al integrar `main` (`2621414`) y atender la revisión del
+PR #133 se corrigió:
+
+| Hallazgo | Corrección | Prueba |
+| --- | --- | --- |
+| Trabajos de la cola HU-45 sin dueño | La cola guarda `usuario`; consultar, cancelar y descargar resuelven el trabajo con `_trabajo` (cola o gestor) y aplican `garantizar_propietario` | `test_cola_aisla_por_usuario_registra_al_dueno_y_entrega_descargas` |
+| El worker registraba `anónimo` | `worker.registrar_terminal` pasa el usuario al CSV y al tag de MLflow | misma prueba |
+| Descargas de la cola con 404 (bug de `main`) | `descargar_archivo` usa `_trabajo` | misma prueba |
+| Idempotencia y topes de HU-32 por IP/`X-Session-ID` | Con autenticación, la sesión es el usuario y cada usuario tiene su espacio de claves | `test_idempotencia_y_topes_pertenecen_al_usuario` |
+| `/auth/*` fuera de `/v1` | Rutas bajo `/v1/auth`; contrato y tipos regenerados; `/v1/uso` exige sesión | `test_auth_se_publica_solo_bajo_v1` |
+| 422 sin usuario | El manejador registra el usuario de la cookie válida | `test_entrada_invalida_registra_al_usuario_autenticado` |
+| Login sin límite | `LimiteIntentos`: 429 con `Retry-After` antes de derivar la clave | `test_login_limita_intentos_fallidos` |
+| Sesión no revocable | La firma incluye el hash vigente del usuario | `test_sesion_se_revoca_al_quitar_usuario_o_cambiar_clave` |
+| Enumeración por tiempo | PBKDF2 contra un hash ficticio si el usuario no existe | `test_usuario_inexistente_tambien_deriva_pbkdf2` |
+| Configuración inválida respondía 500 | `validar_configuracion()` en el arranque | `test_configuracion_invalida_impide_arrancar` |
+| `auth.ts` asumía modo local ante un error | Devuelve `sesionRequerida` | `frontend/tests/auth.test.ts` |
+| Migración del CSV en cada escritura | Una comprobación por archivo y proceso | `test_migracion_del_registro_se_comprueba_una_vez_por_archivo` |
+
+`tests/conftest.py` mantiene la autenticación y la cola apagadas para la batería
+heredada; las pruebas de esta sección las activan. Cada prueba se validó por mutación:
+al quitar la corrección correspondiente, la prueba falla.
+
+## 6. Limitaciones y verificaciones pendientes
 
 - No se probó OIDC: quedó fuera de alcance por diseño (SPEC-054 y `CONSTITUTION.md`).
 - No se ejecutó despliegue Docker real con usuarios cargados; la configuración de
@@ -79,8 +103,11 @@ heredada; HU-53 configura sus propios secretos en cada prueba.
   finalizó en **SUCCESS** para el commit de código `5f7220b`; el commit posterior
   sólo documenta el enlace del PR.
 
-## 6. Conclusión
+## 7. Conclusión
 
 La autenticación, el aislamiento por propietario y la trazabilidad están implementados
 y cubiertos por pruebas. Ruff, Vitest, TypeScript, build, generación de tipos, pre-commit
-y la suite completa (426 pruebas, 94,26 % de cobertura) están en verde en local.
+y la suite completa (426 pruebas, 94,26 % de cobertura) estaban en verde en local antes de
+integrar `main`. Tras la integración y las correcciones de la sección 5, `make check` pasa
+con 475 pruebas de pytest (93,31 % de cobertura) y 58 de Vitest, y el smoke HG-15
+(`--simulate-model`) termina correcto.

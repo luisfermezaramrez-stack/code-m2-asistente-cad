@@ -47,7 +47,7 @@ describe('SPA conectada a FastAPI simulado', () => {
 
   it('envía POST y AbortSignal, sin inventar etapas antes de los eventos', async () => {
     await start()
-    expect(service.fetch).toHaveBeenCalledWith('/generar', expect.objectContaining({
+    expect(service.fetch).toHaveBeenCalledWith('/v1/generar', expect.objectContaining({
       method: 'POST', headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
       signal: expect.any(AbortSignal),
     }))
@@ -66,7 +66,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     await flushPromises()
     expect(wrapper.findAll('.steps li').map((item) => item.text())).toEqual(['Validando solicitud', 'Generando pieza', 'Pieza verificada'])
     expect(wrapper.findAll('button.download').map((item) => item.attributes('data-download-url'))).toEqual([
-      '/generaciones/job1/archivos/step', '/generaciones/job1/archivos/glb', '/generaciones/job1/archivos/csv',
+      '/v1/generaciones/job1/archivos/step', '/v1/generaciones/job1/archivos/glb', '/v1/generaciones/job1/archivos/csv',
     ])
     expect(wrapper.find('[data-testid="visor-simulado"]').exists()).toBe(true)
     expect(wrapper.html()).not.toContain('outputs/')
@@ -78,7 +78,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     service.send(event('verificado', 3, { resultado: result }))
     await flushPromises()
     expect(wrapper.findAll('button.download')).toHaveLength(2)
-    expect(wrapper.get('button.download[data-download-filename="pieza.step"]').attributes('data-download-url')).toBe('/generaciones/job1/archivos/step')
+    expect(wrapper.get('button.download[data-download-filename="pieza.step"]').attributes('data-download-url')).toBe('/v1/generaciones/job1/archivos/step')
     expect(wrapper.text()).toContain('Vista 3D no disponible')
     expect(wrapper.find('[data-testid="visor-simulado"]').exists()).toBe(false)
   })
@@ -97,7 +97,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     await start(); await sendStages()
     service.send(event('verificado', 3, { resultado: { step: result.step, [key]: 'materiales.csv' } }))
     await flushPromises()
-    expect(wrapper.get('button.download[data-download-filename="pieza.csv"]').attributes('data-download-url')).toBe('/generaciones/job1/archivos/csv')
+    expect(wrapper.get('button.download[data-download-filename="pieza.csv"]').attributes('data-download-url')).toBe('/v1/generaciones/job1/archivos/csv')
   })
 
   it('comunica el detalle público de un error HTTP sin ofrecer archivos', async () => {
@@ -127,7 +127,7 @@ describe('SPA conectada a FastAPI simulado', () => {
   it('distingue DELETE 202 de cancelación local confirmada y no aborta antes de confirmarla', async () => {
     await start(); await sendStages()
     await button('Cancelar solicitud').trigger('click'); await flushPromises()
-    expect(service.fetch).toHaveBeenCalledWith('/generaciones/job1', expect.objectContaining({ method: 'DELETE' }))
+    expect(service.fetch).toHaveBeenCalledWith('/v1/generaciones/job1', expect.objectContaining({ method: 'DELETE' }))
     expect(wrapper.text()).toContain('Cancelación solicitada')
     expect(wrapper.text()).not.toContain('Procesamiento local detenido')
     expect(service.posts[0]?.signal.aborted).toBe(false)
@@ -169,7 +169,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     expect(wrapper.text()).toContain('Se interrumpió la conexión antes del resultado')
     expect(wrapper.text()).toContain('La desconexión solicita cancelación local')
     expect(wrapper.text()).not.toContain('podría continuar en el servidor')
-    expect(service.fetch).toHaveBeenCalledWith('/generaciones/job1', expect.objectContaining({ method: 'GET' }))
+    expect(service.fetch).toHaveBeenCalledWith('/v1/generaciones/job1', expect.objectContaining({ method: 'GET' }))
     expect(wrapper.text()).not.toContain('Pieza verificada')
   })
 
@@ -211,7 +211,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     expect(wrapper.text()).toContain('falta confirmar su recepción y detención')
     expect(wrapper.text()).toContain('No se confirma la detención de servicios remotos')
     expect(wrapper.text()).not.toContain('Procesamiento local detenido')
-    expect(service.fetch).toHaveBeenCalledWith('/generaciones/job1', expect.objectContaining({ method: 'GET' }))
+    expect(service.fetch).toHaveBeenCalledWith('/v1/generaciones/job1', expect.objectContaining({ method: 'GET' }))
   })
 
   it('muestra la configuración ausente en un error terminal SSE sin ofrecer descargas', async () => {
@@ -315,7 +315,7 @@ describe('SPA conectada a FastAPI simulado', () => {
     await button('Interrumpir espera').trigger('click'); await flushPromises()
     let resolve!: (response: Response) => void
     const original = service.fetch.getMockImplementation()!
-    service.fetch.mockImplementation((url, init) => String(url) === '/generaciones/job1' && init?.method === 'GET'
+    service.fetch.mockImplementation((url, init) => String(url) === '/v1/generaciones/job1' && init?.method === 'GET'
       ? new Promise((done) => { resolve = done }) : original(url, init))
     await button('Actualizar estado').trigger('click')
     // El doble ignora abort deliberadamente para reproducir una respuesta tardía.

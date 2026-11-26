@@ -2,10 +2,10 @@
 # Uso: `make <objetivo>` — `make help` lista todo.
 
 .PHONY: help install lock vendor test cov lint format check \
-        precommit-install precommit build up down clean bench bench-report \
+        precommit-install precommit build up down clean bench bench-report worker \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
-        mlflow api-types api-types-check hash-clave
+        mlflow api-types api-types-check api-contract api-contract-check hash-clave
 
 help: ## Lista los objetivos disponibles
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -42,12 +42,15 @@ cov: frontend-build ## Corre pytest con reporte de cobertura
 	uv run --locked pytest --cov=src/m2_cad --cov-report=term-missing
 
 lint: ## Ruff con reglas E, F, I, B
-	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py
+	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py scripts/generate_api_contract.py
 
 format: ## Aplica ruff format
 	uv run ruff format src tests
 
-check: lint api-types-check frontend-check cov ## Ruff, contrato OpenAPI, SPA y cobertura (CI)
+check: lint api-contract-check api-types-check frontend-check cov ## Ruff, contratos, SPA y cobertura (CI)
+
+worker: ## HU-45: consume la cola persistente en un proceso separado de la API
+	uv run --no-sync python -m m2_cad.worker
 
 api-types: ## HU-27: genera TypeScript desde app.openapi() sin servidor ni red
 	uv run --locked python scripts/generate_api_types.py
@@ -57,6 +60,12 @@ api-types-check: ## HU-27: falla si los tipos OpenAPI versionados están desactu
 
 hash-clave: ## HU-53: genera un hash PBKDF2 para M2_AUTH_USERS
 	uv run --locked python -m m2_cad.usuarios hash
+
+api-contract: ## HU-31: genera el contrato OpenAPI v1 congelado
+	uv run --locked python scripts/generate_api_contract.py
+
+api-contract-check: ## HU-31: falla si el contrato congelado está desactualizado
+	uv run --locked python scripts/generate_api_contract.py --check
 
 frontend-install: ## Instala dependencias Node exactamente desde el lockfile
 	npm --prefix frontend ci

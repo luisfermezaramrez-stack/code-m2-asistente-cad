@@ -7,13 +7,17 @@ y las claves se guardan como hashes PBKDF2-SHA256 definidos por entorno.
 from __future__ import annotations
 
 import base64
+import functools
 import hashlib
 import hmac
 import json
+import math
 import os
 import re
 import secrets
+import threading
 import time
+from collections import defaultdict, deque
 
 from fastapi import HTTPException, Request, Response
 
@@ -118,22 +122,47 @@ def usuarios() -> dict[str, str]:
     return dict(datos)
 
 
+@functools.cache
+def _hash_ficticio() -> str:
+    """Hash descartable: un usuario inexistente cuesta lo mismo que una clave errónea."""
+    return hash_clave(secrets.token_urlsafe(16))
+
+
 def verificar_usuario(usuario: str, clave: str) -> bool:
-    """ACE1: credenciales inválidas contestan igual que un usuario inexistente."""
+    """ACE1: credenciales inválidas contestan igual que un usuario inexistente.
+
+    Con un usuario inexistente se deriva igual un PBKDF2 para que el tiempo de
+    respuesta no revele qué usuarios existen.
+    """
     if not isinstance(usuario, str) or _USUARIO_RE.fullmatch(usuario) is None:
         return False
     guardado = usuarios().get(usuario)
-    return guardado is not None and verificar_clave(clave, guardado)
+    if guardado is None:
+        verificar_clave(clave, _hash_ficticio())
+        return False
+    return verificar_clave(clave, guardado)
+
+
+def _firmar(mensaje: str, guardado: str) -> str:
+    """HMAC del token ligado al hash vigente del usuario (revocación sin estado)."""
+    material = f"{mensaje}\n{guardado}".encode("ascii")
+    return hmac.new(_secreto(), material, hashlib.sha256).hexdigest()
 
 
 def emitir_sesion(usuario: str, *, ahora: int | None = None) -> str:
-    """Firma usuario y expiración; el token nunca incluye la clave."""
+    """Firma usuario y expiración; el token nunca incluye la clave.
+
+    La firma incorpora el hash guardado del usuario: quitarlo de ``M2_AUTH_USERS`` o
+    cambiar su clave invalida las sesiones ya emitidas.
+    """
     if _USUARIO_RE.fullmatch(usuario) is None:
         raise ValueError("Nombre de usuario inválido.")
     instante = int(time.time()) if ahora is None else int(ahora)
     mensaje = f"v1.{_codificar(usuario.encode('utf-8'))}.{instante + _ttl()}"
-    firma = hmac.new(_secreto(), mensaje.encode("ascii"), hashlib.sha256).hexdigest()
-    return f"{mensaje}.{firma}"
+    guardado = usuarios().get(usuario)
+    if guardado is None:
+        raise ValueError("Usuario desconocido.")
+    return f"{mensaje}.{_firmar(mensaje, guardado)}"
 
 
 def validar_sesion(token: str | None, *, ahora: int | None = None) -> str | None:
@@ -144,17 +173,20 @@ def validar_sesion(token: str | None, *, ahora: int | None = None) -> str | None
     if coincidencia is None:
         return None
     mensaje, firma_recibida = token.rsplit(".", 1)
-    firma_esperada = hmac.new(_secreto(), mensaje.encode("ascii"), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(firma_recibida, firma_esperada):
-        return None
-    instante = int(time.time()) if ahora is None else int(ahora)
-    if instante >= int(coincidencia.group(2)):
-        return None
     try:
         usuario = _decodificar(coincidencia.group(1)).decode("utf-8")
     except (ValueError, UnicodeDecodeError):
         return None
-    return usuario if _USUARIO_RE.fullmatch(usuario) is not None else None
+    if _USUARIO_RE.fullmatch(usuario) is None:
+        return None
+    # Un usuario retirado no tiene hash: su firma ya no puede coincidir.
+    guardado = usuarios().get(usuario) or _hash_ficticio()
+    if not hmac.compare_digest(firma_recibida, _firmar(mensaje, guardado)):
+        return None
+    instante = int(time.time()) if ahora is None else int(ahora)
+    if instante >= int(coincidencia.group(2)):
+        return None
+    return usuario
 
 
 def usuario_actual(request: Request) -> str:
@@ -169,6 +201,76 @@ def usuario_actual(request: Request) -> str:
             headers={"WWW-Authenticate": 'Cookie realm="M2 CAD"'},
         )
     return usuario
+
+
+def usuario_de_sesion(request: Request) -> str:
+    """Usuario de la cookie válida o anónimo; nunca lanza (registro de rechazos)."""
+    if not autenticacion_activa():
+        return ANONIMO
+    return validar_sesion(request.cookies.get(COOKIE_NOMBRE)) or ANONIMO
+
+
+def validar_configuracion() -> None:
+    """Falla al arrancar si la autenticación activa no puede funcionar (S7)."""
+    if not autenticacion_activa():
+        return
+    _secreto()
+    usuarios()
+    _ttl()
+    _limites_intentos()
+
+
+def _limites_intentos() -> tuple[int, int]:
+    return (
+        _entero_env("M2_AUTH_MAX_INTENTOS", 5, 1, 1_000),
+        _entero_env("M2_AUTH_VENTANA_INTENTOS_SEGUNDOS", 300, 1, 86_400),
+    )
+
+
+class IntentosAgotados(HTTPException):
+    """429 tipado para el login; indica cuándo reintentar."""
+
+    def __init__(self, espera: int) -> None:
+        super().__init__(
+            429,
+            "Demasiados intentos fallidos. Vuelve a intentarlo más tarde.",
+            headers={"Retry-After": str(espera)},
+        )
+
+
+class LimiteIntentos:
+    """Intentos fallidos de login por cliente en una ventana deslizante (S7).
+
+    El estado vive en el proceso, igual que los topes de HU-32 (``--workers 1``).
+    """
+
+    def __init__(self, reloj=None) -> None:
+        self._reloj = reloj or time.monotonic
+        self._lock = threading.Lock()
+        self._fallos: dict[str, deque[float]] = defaultdict(deque)
+
+    def _vigentes(self, clave: str, ahora: float, ventana: int) -> deque[float]:
+        fallos = self._fallos[clave]
+        while fallos and ahora - fallos[0] >= ventana:
+            fallos.popleft()
+        return fallos
+
+    def comprobar(self, clave: str) -> None:
+        """Rechaza con 429 antes de derivar la clave si ya agotó los intentos."""
+        maximo, ventana = _limites_intentos()
+        ahora = self._reloj()
+        with self._lock:
+            fallos = self._vigentes(clave, ahora, ventana)
+            if len(fallos) >= maximo:
+                raise IntentosAgotados(max(1, math.ceil(ventana - (ahora - fallos[0]))))
+
+    def fallar(self, clave: str) -> None:
+        with self._lock:
+            self._fallos[clave].append(self._reloj())
+
+    def reiniciar(self, clave: str) -> None:
+        with self._lock:
+            self._fallos.pop(clave, None)
 
 
 def estado_sesion(request: Request) -> dict[str, bool | str | None]:
