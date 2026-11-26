@@ -1,6 +1,29 @@
 {
   "components": {
     "schemas": {
+      "Credenciales": {
+        "description": "Credenciales HU-53; la clave nunca se registra ni se devuelve.",
+        "properties": {
+          "clave": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Clave",
+            "type": "string"
+          },
+          "usuario": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Usuario",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usuario",
+          "clave"
+        ],
+        "title": "Credenciales",
+        "type": "object"
+      },
       "EstadoTrabajo": {
         "description": "JSON de consulta, cancelación y data SSE; opcional significa campo ausente.",
         "properties": {
@@ -190,6 +213,112 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/auth/login": {
+      "post": {
+        "description": "AC1: emite una cookie firmada sólo para credenciales válidas.\n\nLos intentos se anotan y limitan (429 con ``Retry-After``) antes de derivar la\nclave, para frenar la fuerza bruta sin gastar CPU en PBKDF2.",
+        "operationId": "iniciar_sesion_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Credenciales"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "title": "Response Iniciar Sesion V1 Auth Login Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Iniciar Sesion"
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "description": "Elimina la cookie de sesión; el cliente debe volver a autenticarse.",
+        "operationId": "cerrar_sesion_v1_auth_logout_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Cerrar Sesion V1 Auth Logout Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cerrar Sesion"
+      }
+    },
+    "/v1/auth/me": {
+      "get": {
+        "description": "Expone a la SPA si la sesión es necesaria y cuál es el usuario activo.",
+        "operationId": "estado_sesion_actual_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "title": "Response Estado Sesion Actual V1 Auth Me Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Estado Sesion Actual"
+      }
+    },
     "/v1/generaciones/{solicitud_id}": {
       "delete": {
         "description": "202 pide detenerse; solo un estado terminal confirma el desenlace real.",
@@ -280,7 +409,7 @@
     },
     "/v1/generaciones/{solicitud_id}/archivos/{formato}": {
       "get": {
-        "description": "Entrega solo artefactos existentes del resultado verificado de este trabajo.",
+        "description": "Entrega solo artefactos propios y verificados; el token de HU-36 sigue vigente.",
         "operationId": "descargar_archivo_v1_generaciones__solicitud_id__archivos__formato__get",
         "parameters": [
           {
@@ -403,7 +532,7 @@
     },
     "/v1/health": {
       "get": {
-        "description": "Comprueba que el proceso de la API está disponible.",
+        "description": "Comprueba que el proceso de la API está disponible (AC4: sin credenciales).",
         "operationId": "health_v1_health_get",
         "responses": {
           "200": {
@@ -443,7 +572,7 @@
     },
     "/v1/registros/{identificador}": {
       "get": {
-        "description": "Consulta una fila existente, sin escribir ni duplicar el registro (HU-07 AC3).",
+        "description": "Consulta una fila propia, sin revelar la de otros usuarios (HU-53, AC2).",
         "operationId": "consultar_registro_v1_registros__identificador__get",
         "parameters": [
           {
@@ -487,7 +616,7 @@
     },
     "/v1/registros/{identificador}/step": {
       "get": {
-        "description": "Enlaza el STEP del registro persistente, incluso tras reiniciar los trabajos.",
+        "description": "Enlaza el STEP propio del registro persistente, incluso tras reiniciar.",
         "operationId": "descargar_step_v1_registros__identificador__step_get",
         "parameters": [
           {
