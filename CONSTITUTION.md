@@ -117,8 +117,9 @@ code-m2-asistente-cad/
 │   ├── observabilidad.py       # logs JSON, request_id/job_id y redacción de secretos (HU-24)
 │   ├── contrato_api.py         # carga y compara el OpenAPI v1 congelado (HU-31)
 │   └── web.py                  # Vue/estáticos, CORS restringido y errores JSON
+├── frontend/src/design/        # tokens.css y resolución de tema del frontend
 ├── frontend/                   # Vue, TypeScript, Vite y pruebas Vitest
-├── design/                     # referencia y fuente única de tokens (tokens.css)
+├── design/                     # referencia histórica de HU-15 (no importada por la app)
 ├── tests/                      # pytest: dataset, banco, pipeline, API, registro, seguimiento, SSE, web
 ├── data/
 │   ├── test_cases.csv          # banco de 40 solicitudes
@@ -128,7 +129,7 @@ code-m2-asistente-cad/
 ├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
 ├── specs/                      # specs SDD 001–023 (Spec Kit, Retroactiva, Spec-first); índice en specs/README.md
 ├── scripts/                    # fetch-model, verify-serve, vendor, cloud (Lambda/Vast.ai)
-├── docs/                       # documentación, runbook operativo, política de versionado y diagrama de arquitectura
+├── docs/                       # documentación, sistema de diseño, runbook operativo, política de versionado y diagrama
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
 ├── .github/                    # CI, labels, Dependabot, plantillas de PR e issues
 ├── .opencode/rules/            # reglas para agentes (tgrep)
@@ -173,6 +174,9 @@ code-m2-asistente-cad/
   - Los pesos del modelo (`.gguf`, `.safetensors`, …) **nunca se versionan**;
     `vendor/` está gitignored y se restaura con `make vendor`.
   - Cada solicitud escribe sus entregables en `outputs/<uuid>/`, sin colisiones.
+  - La fuente única de tokens del frontend es `frontend/src/design/tokens.css`; los
+    componentes solo consumen variables CSS. El tema se resuelve en `frontend/src/design/theme.ts`
+    y se documenta en `docs/diseno-v2.md`.
 - **Operación:** las respuestas a incidentes viven en `docs/runbook-operativo.md`; sus comandos
   de diagnóstico no imprimen secretos y los respaldos se guardan en `data/backups/` (volumen
   `./data`, gitignored), así sobreviven a recrear los contenedores.

@@ -6,7 +6,7 @@
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: —
 - **Rama**: `feature/hu-34-sistema-diseno-v2`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: En revisión en el [PR #137](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/137); `plan.md` y `tasks.md` completados
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §4
 - **Auditoría**: corregida según
   [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)

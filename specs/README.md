@@ -62,7 +62,7 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [032](032-hu-31-api-v1/) | HU-31 · API `/v1` versionada con contrato congelado | 1 | Juan Camilo | #91 | #130 | Spec-first | En revisión |
 | [033](033-hu-32-costo-limites-idempotencia/) | HU-32 · Control de costo, límites de uso e idempotencia | 1 | Juan Camilo | #92 | #131 | Spec-first | En revisión |
 | [034](034-hu-33-prompts-versionados/) | HU-33 · Prompts versionados como artefactos | 1 | Luis Meza | #93 | — | Spec-first | Propuesta |
-| [035](035-hu-34-sistema-diseno-v2/) | HU-34 · Sistema de diseño v2: tokens, tipografía y modo oscuro | 1 | Carlos | #94 | — | Spec-first | Propuesta |
+| [035](035-hu-34-sistema-diseno-v2/) | HU-34 · Sistema de diseño v2: tokens, tipografía y modo oscuro | 1 | Carlos | #94 | #137 | Spec-first | En revisión |
 | [036](036-hu-35-edicion-iterativa/) | HU-35 · Edición iterativa de la pieza | 1 | Luis Meza | #95 | — | Spec-first | Propuesta |
 | [037](037-hu-36-endurecimiento-descargas/) | HU-36 · Endurecimiento de artefactos y descargas | 1 | Juan Camilo | #96 | — | Spec-first | Propuesta |
 | [038](038-hu-37-historial-ui/) | HU-37 · Historial de solicitudes en la UI | 2 | Carlos | #97 | — | Spec-first | Propuesta |
