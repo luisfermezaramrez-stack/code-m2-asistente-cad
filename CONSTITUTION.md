@@ -38,7 +38,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
   responsable.
 - No reemplaza un CAD comercial ni busca competir con Revit/BIM.
 - No reentrena modelos ni sirve como plataforma de fine-tuning.
-- No es un servicio multiusuario: sin autenticación, sin concurrencia garantizada.
+- No es multi-tenant: hay usuarios con sesión propia (HU-53), sin organizaciones ni
+  facturación por usuario; la concurrencia no está garantizada.
 
 ## 2. Alcance
 
@@ -51,6 +52,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
   entrega STEP/GLB/CSV.
 - API REST (`POST /generar`, `GET /health`), progreso SSE, consulta/cancelación
   en `/generaciones/{id}` y Vue 3 con resultados descargables (HU-15).
+- Acceso con sesión por usuario: `/auth/login`, `/auth/logout`, `/auth/me`; salud
+  abierta y recursos de datos con dueño (HU-53).
 - Registro trazable de solicitudes (texto, resultado, latencia, error, versión)
   con exclusión de datos personales (Ley 1581 de 2012).
 - Línea base heredada Gemma/llama.cpp solo con overlay explícito.
@@ -59,7 +62,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 
 - Entrada por imagen o voz; ensamblajes multi-pieza complejos.
 - Cálculo de resistencia, fatiga o cumplimiento normativo.
-- Reentrenamiento del modelo; despliegue multi-tenant; autenticación.
+- Reentrenamiento del modelo; despliegue multi-tenant; OIDC, roles finos y
+  facturación por usuario.
 
 ## 3. Stack técnico
 
@@ -69,8 +73,10 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Gestor de paquetes y entorno** | [`uv`](https://docs.astral.sh/uv/) — prohibido `pip` y `requirements.txt` |
 | **Build backend** | `hatchling` (wheel desde `src/m2_cad`) |
 | **API** | [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` |
+| **Autenticación** | Sesión local con cookie `HttpOnly` firmada HMAC-SHA256 y claves PBKDF2-SHA256 (HU-53); sin OIDC ni dependencias nuevas |
 | **UI** | Vue 3 Composition API + TypeScript + Vite, Node 24, npm lockfile |
 | **Contrato frontend/API** | Tipos generados desde `app.openapi()` con `@hey-api/openapi-ts` (sólo TypeScript, sin SDK); `make api-types` y `make api-types-check` (HU-27) |
+| **Versión pública** | API bajo `/v1` con OpenAPI congelado en `contracts/openapi-v1.json`; rutas planas redirigen con `307` y cabeceras `Deprecation`/`Sunset` (HU-31) |
 | **Kernel CAD** | `constraint-kit` (vendoreado en `vendor/`) con CadQuery 2.7.0, build123d 0.10.0, bd_warehouse 0.2.0, Z3, python-solvespace, OpenCascade (LGPL 2.1) |
 | **LLM** | DeepSeek `deepseek-v4-pro` por API (`https://api.deepseek.com`), requiere `DEEPSEEK_API_KEY` (HU-14) |
 | **LLM heredado** | `gemma-4-12b-constraintkit` GGUF Q6_K (~9,8 GB) por llama.cpp (`:8080`, CUDA); solo línea base HU-01 (`docker-compose.gemma.yml`) |
@@ -99,7 +105,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 ```text
 code-m2-asistente-cad/
 ├── src/m2_cad/                 # paquete propio (src-layout)
-│   ├── api.py                  # FastAPI: POST /generar, GET /health (HU-06)
+│   ├── api.py                  # FastAPI: rutas `/v1`, redirecciones planas y SSE (HU-06/HU-31)
 │   ├── pipeline.py             # orquesta solicitud→DSL→verificación→B-rep (HU-04)
 │   ├── llm_resiliente.py       # reintentos, plazo total y caché del LLM (HU-25)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
@@ -109,6 +115,7 @@ code-m2-asistente-cad/
 │   ├── control.py              # puntos seguros de cancelación del pipeline (HU-15)
 │   ├── seguimiento.py          # MLflow: una corrida por solicitud y por caso del banco (HU-16)
 │   ├── observabilidad.py       # logs JSON, request_id/job_id y redacción de secretos (HU-24)
+│   ├── contrato_api.py         # carga y compara el OpenAPI v1 congelado (HU-31)
 │   └── web.py                  # Vue/estáticos, CORS restringido y errores JSON
 ├── frontend/                   # Vue, TypeScript, Vite y pruebas Vitest
 ├── design/                     # referencia y fuente única de tokens (tokens.css)
@@ -116,11 +123,12 @@ code-m2-asistente-cad/
 ├── data/
 │   ├── test_cases.csv          # banco de 40 solicitudes
 │   └── registro.csv            # registro de solicitudes (ignorado en git)
+├── contracts/                  # contrato OpenAPI v1 congelado (HU-31)
 ├── outputs/                    # entregables por solicitud (uuid/; ignorado en git)
 ├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
 ├── specs/                      # specs SDD 001–023 (Spec Kit, Retroactiva, Spec-first); índice en specs/README.md
 ├── scripts/                    # fetch-model, verify-serve, vendor, cloud (Lambda/Vast.ai)
-├── docs/                       # documentación, runbook operativo y diagrama de arquitectura
+├── docs/                       # documentación, runbook operativo, política de versionado y diagrama de arquitectura
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
 ├── .github/                    # CI, labels, Dependabot, plantillas de PR e issues
 ├── .opencode/rules/            # reglas para agentes (tgrep)
@@ -166,7 +174,8 @@ code-m2-asistente-cad/
     `vendor/` está gitignored y se restaura con `make vendor`.
   - Cada solicitud escribe sus entregables en `outputs/<uuid>/`, sin colisiones.
 - **Operación:** las respuestas a incidentes viven en `docs/runbook-operativo.md`; sus comandos
-  de diagnóstico no imprimen secretos y los respaldos se guardan en `backups/` (gitignored).
+  de diagnóstico no imprimen secretos y los respaldos se guardan en `data/backups/` (volumen
+  `./data`, gitignored), así sobreviven a recrear los contenedores.
 
 ## 6. Calidad y automatización
 
@@ -183,9 +192,10 @@ code-m2-asistente-cad/
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
 | Servicio | Vue/FastAPI + DeepSeek externo | `make up` / `make down` |
 
-`make check` ejecuta Ruff, comprobación de tipos OpenAPI, Vitest, TypeScript, build y pytest con cobertura;
-CI reproduce estos controles desde lockfiles. Las pruebas con dobles se
-identifican como simuladas y no prueban inferencia real.
+`make check` ejecuta Ruff, comprobación del contrato congelado, comprobación de tipos
+OpenAPI, Vitest, TypeScript, build y pytest con cobertura; CI reproduce estos controles
+desde lockfiles. Las pruebas con dobles se identifican como simuladas y no prueban
+inferencia real.
 
 HU-27 define `EstadoTrabajo` en `contratos.py`, compartido por GET/DELETE de
 generaciones y documentado para el JSON `data` de SSE con `x-event-data-schema`.
@@ -198,6 +208,13 @@ el mínimo Node del paquete frontend es 22.18 (CI y Docker usan Node 24).
 La generación es offline tras la
 instalación, determinista y normalizada a UTF-8/LF. Si el contrato diverge,
 `make api-types-check` falla sin escribir e indica `make api-types`.
+
+HU-31 publica la API bajo `/v1` y congela su OpenAPI en `contracts/openapi-v1.json`.
+Las rutas planas quedan como redirecciones `307` con `Deprecation: true`, `Sunset`
+(90 días) y `Link` hacia la ruta sucesora; no aparecen en el esquema público. La SPA
+y los scripts consumen `/v1`. `make api-contract-check` falla si un campo o una ruta
+cambia sin actualizar el contrato; los cambios incompatibles exigen `/v2`.
+Política completa: [`docs/versionado-api.md`](docs/versionado-api.md).
 
 FastAPI sirve HTML/assets, JSON, SSE y archivos desde un mismo origen; las rutas
 API desconocidas devuelven JSON, nunca el índice Vue. CORS admite solo orígenes
@@ -304,6 +321,12 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-22 | HU-27: generar tipos frontend desde OpenAPI y comprobarlos en `make check`; compartir `EstadoTrabajo` entre HTTP y documentación SSE | Detectar divergencias del contrato en CI; generador compatible con TypeScript 6, offline tras instalación y sin cambiar el transporte |
 | 2026-11-24 | HU-25: reintentos con plazo total, caché validada, cancelación cooperativa y configuración inválida como 503 en `llm_resiliente.py` | Corregir la revisión del PR #126: evitar esperas multiplicadas, respuestas inválidas cacheadas, llamadas pagas tras cancelar, 500 por configuración inválida y métricas de error distorsionadas |
 | 2026-11-24 | HU-24: logging central en JSON con `request_id`/`job_id` correlacionados y redacción de secretos | Reconstruir cada solicitud con un solo id sin filtrar credenciales; el contexto se copia al hilo SSE y se etiqueta en MLflow |
+| 2026-11-25 | HU-31: API versionada `/v1`, contrato OpenAPI congelado y rutas planas deprecadas con `307` | Congelar el contrato público para detectar cambios incompatibles en CI y dar 90 días de convivencia a clientes antiguos |
+| 2026-11-25 | HU-32: `control_uso.py` concentra topes por sesión/ventana, presupuesto diario UTC e idempotencia en memoria; `/v1/uso` agrega `costo_usd` y los rechazos son 429 tipados | Evitar gasto no previsto ni generaciones duplicadas sin tocar el pipeline; con `--workers 1` basta el proceso y la interfaz permite migrar a almacén compartido al escalar |
+| 2026-11-25 | HU-45: cola persistente en `data/cola.json` con bloqueo atómico de SPEC-031 y worker separado (`python -m m2_cad.worker`, `make worker`) | Reiniciar o desplegar sin perder trabajos SSE; la API encola y el worker drena, con eventos completos y registro deduplicado por `solicitud_id` |
+| 2026-11-25 | HU-45 × HU-32: el costo medido por el worker se guarda en la cola y la API lo suma una vez al presupuesto (`tomar_gastos_pendientes`); la idempotencia se vincula al id real del trabajo | El worker corre en otro proceso y no ve el `ControlUso` en memoria de la API; sin esto el presupuesto diario y `/v1/uso` ignoraban las generaciones SSE |
+| 2026-11-25 | HU-53: sesión local con cookie firmada y usuarios PBKDF2 por entorno; activa por defecto, modo local explícito | Controlar acceso y costo en despliegue público sin red, OIDC ni dependencias nuevas; dueño en trabajos y registro con respuestas 404 ajenas |
+| 2026-11-25 | HU-53 × HU-31/32/45: `/v1/auth/*`; la cola guarda el dueño y el worker lo registra; topes e idempotencia por usuario; login con límite de intentos; firma ligada al hash vigente; configuración validada al arrancar | Integrar la autenticación con la API versionada, la cola y el control de uso sin fugas entre usuarios; endurecer la sesión según la revisión del PR #133 |
 
 ## 10. Notas y tareas pendientes
 

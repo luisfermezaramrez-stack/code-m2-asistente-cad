@@ -23,7 +23,7 @@ def test_smoke_un_post_y_evidencias_con_mlflow_sin_crear_otras_corridas(tmp_path
 
     def responder(request):
         nonlocal identificador
-        if request.url.path == "/health":
+        if request.url.path == "/v1/health":
             return httpx.Response(200, json={"status": "ok"})
         if request.url.path == "/openapi.json":
             return httpx.Response(
@@ -31,9 +31,9 @@ def test_smoke_un_post_y_evidencias_con_mlflow_sin_crear_otras_corridas(tmp_path
                 json={
                     "paths": dict.fromkeys(
                         [
-                            "/generar",
-                            "/registros/{identificador}",
-                            "/registros/{identificador}/step",
+                            "/v1/generar",
+                            "/v1/registros/{identificador}",
+                            "/v1/registros/{identificador}/step",
                         ]
                     )
                 },

@@ -125,6 +125,35 @@ No se ejecutó `make check` literalmente en Windows por los sdists nativos indic
 ejecutaron sus componentes equivalentes (Ruff, tipos OpenAPI, Vitest, TypeScript, build y
 pytest). `make security-secrets` sigue pendiente de `gitleaks` en CI, sin relación con HU-29.
 
+## Integración con `main` y revisión
+
+El runbook se redactó sobre `cf7e908`, antes de HU-31 (`/v1`), HU-32 (topes), HU-45 (cola y
+worker) y HU-53 (autenticación). Al integrar `main` (`ec24917`) se corrigió:
+
+| Problema | Evidencia | Corrección |
+| --- | --- | --- |
+| `curl .../health` y `.../ready` devuelven `307` sin cuerpo | API local: `plano: 307`, `/v1/health` → `200` | Todos los comandos y textos usan `/v1/health` y `/v1/ready` |
+| La prueba de humo recibía `401` en cada solicitud con la autenticación activa | `smoke_deploy.py` no iniciaba sesión | `--usuario` / `M2_SMOKE_USUARIO` + `M2_SMOKE_CLAVE`; código 2 sin credenciales, antes de gastar tokens |
+| Rotar la clave o el modelo dejaba al worker con la configuración vieja | `docker-compose.yml` tiene `m2-cad` y `m2-cad-worker` con la misma imagen | Diagnóstico, recreación y rollback incluyen ambos servicios |
+| El rollback de imagen tomaba una sola imagen | `docker compose config --images` devuelve `...-m2-cad` y `...-m2-cad-worker` | Bucle por servicio con `grep -x` |
+| Los respaldos en `/app/backups` se perdían al recrear el contenedor | Sólo `./data` y `./outputs` son volúmenes | Respaldos en `data/backups/` (volumen, gitignored) y comando de respaldo rutinario |
+| La restauración de `outputs/` fallaba | `mv /app/outputs ...` en un volumen: `Device or resource busy` | Extracción del tar sobre `outputs/` tras el snapshot |
+| Cabecera esperada del registro desactualizada | `CAMPOS` incluye `usuario` (HU-53) | Cabecera de 9 columnas; un respaldo de 8 columnas se escala |
+| `401` y `429` de la propia API confundibles con el proveedor | HU-53 (sesión) y HU-32 (`X-Limite-Tipo`) | Convención que los distingue |
+
+`specs/Evidence.md` pasó a `specs/030-hu-29-runbook-operativo/evidence.md`, como el resto de
+las specs.
+
+Validaciones de esta integración (Linux):
+
+- Prueba de humo contra la API real con autenticación activa, cookie `Secure` por HTTP y sin
+  clave de modelo (no gasta tokens): sin credenciales → código 2; clave errónea → código 2;
+  clave correcta → `503` del modelo (la sesión pasó), nunca `401`.
+- `persistencia_registro backup` y `restore` con rutas `data/backups/...`: correctos, cabecera
+  `id,hora,texto,traduccion,resultado,latencia_ms,error,version,usuario`.
+- `docker compose config --images` + `grep -x -- ".*-$S"`: una imagen por servicio.
+- `mv` de un volumen dentro de un contenedor: `Device or resource busy` (motivo del cambio).
+
 ## Limpieza
 
 Los contenedores de validación se detuvieron con:

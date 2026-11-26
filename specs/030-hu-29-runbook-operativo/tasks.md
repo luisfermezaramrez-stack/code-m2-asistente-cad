@@ -22,7 +22,7 @@
 
 ## Evidencia
 
-Detalle completo en [`specs/Evidence.md`](../Evidence.md). Resumen:
+Detalle completo en [`evidence.md`](./evidence.md). Resumen:
 
 - `git diff --check` y comprobación de archivos nuevos: sin errores de whitespace.
 - `docker compose config --quiet` y `make -n up` / `make -n down`: correctos.

@@ -59,8 +59,8 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [029](029-hu-28-escaneo-seguridad/) | HU-28 · Escaneo de dependencias y secretos en CI | 0 | Carlos | #88 | — | Spec-first | Propuesta |
 | [030](030-hu-29-runbook-operativo/) | HU-29 · Runbook operativo | 0 | Carlos | #89 | #136 | Spec-first | En revisión |
 | [031](031-hu-30-persistencia-registro/) | HU-30 · Persistencia transaccional, retención y backup del registro | 1 | Juan Camilo | #90 | — | Spec-first | Propuesta |
-| [032](032-hu-31-api-v1/) | HU-31 · API `/v1` versionada con contrato congelado | 1 | Juan Camilo | #91 | — | Spec-first | Propuesta |
-| [033](033-hu-32-costo-limites-idempotencia/) | HU-32 · Control de costo, límites de uso e idempotencia | 1 | Juan Camilo | #92 | — | Spec-first | Propuesta |
+| [032](032-hu-31-api-v1/) | HU-31 · API `/v1` versionada con contrato congelado | 1 | Juan Camilo | #91 | #130 | Spec-first | En revisión |
+| [033](033-hu-32-costo-limites-idempotencia/) | HU-32 · Control de costo, límites de uso e idempotencia | 1 | Juan Camilo | #92 | #131 | Spec-first | En revisión |
 | [034](034-hu-33-prompts-versionados/) | HU-33 · Prompts versionados como artefactos | 1 | Luis Meza | #93 | — | Spec-first | Propuesta |
 | [035](035-hu-34-sistema-diseno-v2/) | HU-34 · Sistema de diseño v2: tokens, tipografía y modo oscuro | 1 | Carlos | #94 | — | Spec-first | Propuesta |
 | [036](036-hu-35-edicion-iterativa/) | HU-35 · Edición iterativa de la pieza | 1 | Luis Meza | #95 | — | Spec-first | Propuesta |
@@ -73,7 +73,7 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [043](043-hu-42-exportacion-dxf/) | HU-42 · Exportación DXF de planos 2D | 2 | Luis Meza | #102 | — | Spec-first | Propuesta |
 | [044](044-hu-43-exportacion-pdf/) | HU-43 · Exportación PDF de planos con cotas | 2 | Luis Meza | #103 | — | Spec-first | Propuesta |
 | [045](045-hu-44-banco-ci-replay/) | HU-44 · Evaluación continua del banco con respuestas grabadas | 2 | Juan Camilo | #104 | — | Spec-first | Propuesta |
-| [046](046-hu-45-cola-persistente/) | HU-45 · Cola persistente de trabajos y worker | 2 | Juan Camilo | #105 | — | Spec-first | Propuesta |
+| [046](046-hu-45-cola-persistente/) | HU-45 · Cola persistente de trabajos y worker | 2 | Juan Camilo | #105 | #132 | Spec-first | En revisión |
 | [047](047-hu-46-alertas-regresion/) | HU-46 · Alertas de regresión de calidad | 3 | Juan Camilo | #106 | — | Spec-first | Propuesta (opcional) |
 | [048](048-hu-47-despliegue-nube/) | HU-47 · Despliegue en la nube | 3 | Carlos | #107 | — | Spec-first | Propuesta (opcional) |
 | [049](049-hu-48-materiales-tolerancias-bom/) | HU-48 · Materiales, tolerancias y BOM con costos | 3 | Luis Meza | #108 | — | Spec-first | Propuesta (opcional) |
@@ -81,6 +81,6 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [051](051-hu-50-cortes-visor-3d/) | HU-50 · Cortes y secciones en el visor 3D | 3 | Carlos | #110 | — | Spec-first | Propuesta (opcional) |
 | [052](052-hu-51-panorama-metricas/) | HU-51 · Panorama de métricas sobre MLflow | 3 | Juan Camilo | #111 | — | Spec-first | Propuesta (opcional) |
 | [053](053-hu-52-ab-prompts-modelos/) | HU-52 · Comparación A/B de prompts y modelos | 3 | Juan Camilo | #112 | — | Spec-first | Propuesta (opcional) |
-| [054](054-hu-53-autenticacion/) | HU-53 · Autenticación y usuarios | 3 | Juan Camilo | #113 | — | Spec-first | Propuesta (opcional) |
+| [054](054-hu-53-autenticacion/) | HU-53 · Autenticación y usuarios | 3 | Juan Camilo | #113 | #133 | Spec-first | En revisión |
 | [055](055-hu-54-sitio-documentacion/) | HU-54 · Sitio de documentación publicado | 3 | Carlos | #114 | — | Spec-first | Propuesta (opcional) |
 | [056](056-hu-55-releases-automaticos/) | HU-55 · Releases automáticos con changelog | 3 | Carlos | #115 | — | Spec-first | Propuesta (opcional) |

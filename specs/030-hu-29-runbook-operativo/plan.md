@@ -35,7 +35,7 @@
 1. Encabezado común con ámbito, convención de "salida esperada" y criterios de escalado.
 2. Ocho secciones, una por incidente de RF-1, con el mismo formato.
 3. Enlace desde el README como cierre de descubribilidad (AC3).
-4. Registro de evidencia en `specs/Evidence.md`: comandos ejecutados localmente frente a
+4. Registro de evidencia en `evidence.md`: comandos ejecutados localmente frente a
    comandos verificados solo contra el repositorio.
 5. Actualización de `CONSTITUTION.md` en el mismo commit, conforme a la directiva de
    mantenimiento y al skill `jan-project-standard`.
