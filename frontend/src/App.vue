@@ -53,7 +53,12 @@ async function entrar() {
 
 async function salir() {
   errorSesion.value = ''
-  await cerrarSesion()
+  try {
+    await cerrarSesion()
+  } catch {
+    errorSesion.value = 'No se pudo cerrar la sesión. Vuelve a intentarlo.'
+    return
+  }
   sesion.value = await estadoSesion()
   usuarioSesion.value = ''
 }

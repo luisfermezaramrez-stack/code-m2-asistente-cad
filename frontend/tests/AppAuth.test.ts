@@ -51,4 +51,20 @@ describe('acceso HU-53 en la SPA', () => {
     expect(wrapper.text()).toContain('Usuario o clave incorrectos.')
     expect(generarBoton().attributes('disabled')).toBeDefined()
   })
+
+  it('informa un cierre de sesión fallido y conserva la sesión', async () => {
+    await wrapper.get('#usuario').setValue('ana')
+    await wrapper.get('#clave').setValue('clave-ana')
+    await wrapper.get('.sesion-form').trigger('submit')
+    await flushPromises()
+    const original = service.fetch.getMockImplementation()!
+    service.fetch.mockImplementation((url, init) => String(url) === '/v1/auth/logout'
+      ? Promise.reject(new Error('sin red')) : original(url, init))
+
+    await wrapper.findAll('button').find((b) => b.text() === 'Cerrar sesión')!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('.sesion [role="alert"]').text()).toContain('No se pudo cerrar la sesión.')
+    expect(wrapper.text()).toContain('Generando como ana')
+  })
 })

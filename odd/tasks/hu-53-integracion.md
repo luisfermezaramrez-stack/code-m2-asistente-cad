@@ -24,7 +24,7 @@ Rama: `feature/hu-53-autenticacion` · Entrega: merge de `main` + commits de cor
 | T3 | S4, S5, S6 | inline | hecho | d604675 |
 | T4 | S7 | inline | hecho | d604675 |
 | T5 | S8 | inline | hecho | d604675 |
-| T6 | S1–S9 | verificador independiente (riesgo: item 2, seguridad) | hecho; correcciones H1–H3, H5, H6 | ver L4 |
+| T6 | S1–S9 | verificador independiente (riesgo: item 2, seguridad) | hecho; correcciones H1–H3, H5, H6 | c36aec1 |
 
 ## Log
 
@@ -33,3 +33,4 @@ Rama: `feature/hu-53-autenticacion` · Entrega: merge de `main` + commits de cor
 - L3: conflictos resueltos (10 archivos). Correcciones S2–S9 con pruebas nuevas en `tests/test_hu53_autenticacion.py`; cada una validada por mutación (9/9 RED). Decisiones: con autenticación la clave de idempotencia se acota al usuario (evita 409 cruzado) y `/v1/uso` exige sesión. `make check`: 475 pytest (93,31 %), 58 Vitest; smoke HG-15 correcto. Pendiente: `.env.example` sin las variables nuevas (lectura bloqueada por una regla de permisos).
 - L4: verificador independiente sobre d604675: sin bypass del aislamiento; S7 parcial. Una tanda de corrección: H1 (límite concurrente), H2 (acierto de otra cuenta reiniciaba), H3 (anónimo escribía en el registro con JSON mal formado), H5 (404 distinguible), H6 (hash con 0 iteraciones). Mutación 6/6 RED tras agregar `test_limite_por_cliente_sobrevive_a_un_acierto`. Documentados sin cambio: H4 (anterior), H7 (diseño), H8 (proxy). `make check`: 481 pytest (93,34 %), 58 Vitest.
 - L5 (2026-11-25): "ya habilite el RDD haz la verificacion"
+- L6: RDD `review-9e37b007e6c5e6ef` (risk, resilience, readability, reliability) aprobó c36aec1 sin bloqueantes; acuse registrado. 13 hallazgos informativos atendidos en un commit aparte (límite de login acotado, NO_ENCONTRADA único, Compose en modo local, logout fallido visible, aserción Vitest vacua, cancelación propia en cola, docs). `make check`: 483 pytest (93,34 %), 60 Vitest.

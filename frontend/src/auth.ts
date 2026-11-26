@@ -43,5 +43,6 @@ export async function iniciarSesion(usuario: string, clave: string): Promise<Res
 }
 
 export async function cerrarSesion(): Promise<void> {
-  await fetch('/v1/auth/logout', { method: 'POST', credentials: 'same-origin' })
+  const respuesta = await fetch('/v1/auth/logout', { method: 'POST', credentials: 'same-origin' })
+  if (!respuesta.ok) throw new Error('No se pudo cerrar la sesión. Vuelve a intentarlo.')
 }

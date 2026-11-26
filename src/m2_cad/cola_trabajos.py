@@ -21,7 +21,7 @@ from typing import Any
 
 from fastapi import HTTPException, Request
 
-from m2_cad.autenticacion import ANONIMO
+from m2_cad.autenticacion import ANONIMO, NO_ENCONTRADA
 from m2_cad.persistencia_registro import _bloqueo, _publicar_bytes
 
 logger = logging.getLogger(__name__)
@@ -166,21 +166,21 @@ class ColaTrabajos:
         with _bloqueo(self.ruta):
             trabajo = self._cargar()["trabajos"].get(solicitud_id)
         if trabajo is None:
-            raise HTTPException(404, "Solicitud desconocida o fuera de retención.")
+            raise HTTPException(404, NO_ENCONTRADA)
         return TrabajoPersistido(self, solicitud_id, trabajo.get("usuario") or ANONIMO)
 
     def estado(self, solicitud_id: str) -> dict:
         with _bloqueo(self.ruta):
             trabajo = self._cargar()["trabajos"].get(solicitud_id)
         if trabajo is None:
-            raise HTTPException(404, "Solicitud desconocida o fuera de retención.")
+            raise HTTPException(404, NO_ENCONTRADA)
         return self._estado_publico(trabajo)
 
     def eventos_desde(self, solicitud_id: str, secuencia: int) -> list[dict]:
         with _bloqueo(self.ruta):
             trabajo = self._cargar()["trabajos"].get(solicitud_id)
         if trabajo is None:
-            raise HTTPException(404, "Solicitud desconocida o fuera de retención.")
+            raise HTTPException(404, NO_ENCONTRADA)
         return copy.deepcopy([e for e in trabajo["eventos"] if e["secuencia"] > secuencia])
 
     def publicar_evento(self, solicitud_id: str, estado: str, **datos: Any) -> dict:
@@ -188,7 +188,7 @@ class ColaTrabajos:
         with self._editar() as registro:
             trabajo = registro["trabajos"].get(solicitud_id)
             if trabajo is None:
-                raise HTTPException(404, "Solicitud desconocida o fuera de retención.")
+                raise HTTPException(404, NO_ENCONTRADA)
             if trabajo["estado"] in TERMINALES:
                 return self._estado_publico(trabajo)
             trabajo["secuencia"] += 1
@@ -254,7 +254,7 @@ class ColaTrabajos:
         with self._editar() as datos:
             trabajo = datos["trabajos"].get(solicitud_id)
             if trabajo is None:
-                raise HTTPException(404, "Solicitud desconocida o fuera de retención.")
+                raise HTTPException(404, NO_ENCONTRADA)
             if trabajo["estado"] not in TERMINALES:
                 trabajo["cancelacion_solicitada"] = True
             return self._estado_publico(trabajo)

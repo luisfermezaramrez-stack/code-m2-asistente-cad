@@ -14,7 +14,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import StreamingResponse
 from starlette.types import Receive, Scope, Send
 
-from m2_cad.autenticacion import ANONIMO
+from m2_cad.autenticacion import ANONIMO, NO_ENCONTRADA
 from m2_cad.control import (
     ControlGeneracion,
     GeneracionCancelada,
@@ -196,7 +196,7 @@ class GestorTrabajos:
         with self._lock:
             trabajo = self._trabajos.get(solicitud_id)
         if trabajo is None:
-            raise HTTPException(404, "Solicitud desconocida o fuera de retención.")
+            raise HTTPException(404, NO_ENCONTRADA)
         return trabajo
 
 

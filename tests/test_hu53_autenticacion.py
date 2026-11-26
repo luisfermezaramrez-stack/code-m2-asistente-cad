@@ -5,6 +5,7 @@ import json
 import secrets
 import sys
 import uuid
+from contextlib import suppress
 from threading import Thread
 from types import SimpleNamespace
 
@@ -339,6 +340,7 @@ def test_cola_aisla_por_usuario_registra_al_dueno_y_entrega_descargas(entorno, c
         estado = ana.get(f"/v1/generaciones/{identificador}").json()
         descarga = ana.get(archivo, headers=token)
         registro_ana = ana.get(f"/v1/registros/{identificador}").json()
+        cancelacion_propia = ana.delete(f"/v1/generaciones/{identificador}")
 
     # Assert
     assert respuesta.status_code == 200
@@ -347,6 +349,8 @@ def test_cola_aisla_por_usuario_registra_al_dueno_y_entrega_descargas(entorno, c
     assert estado["cancelacion_solicitada"] is False
     assert descarga.status_code == 200 and descarga.content == b"STEP_DE_LA_COLA"
     assert registro_ana["usuario"] == "ana"
+    assert cancelacion_propia.status_code == 200  # terminal: confirma sin cancelar
+    assert cancelacion_propia.json()["estado"] == "verificado"
     assert [fila["usuario"] for fila in filas_csv(entorno.ruta_registro)] == ["ana"]
     assert [tag.get("usuario") for tag in cola_con_worker.tags] == ["ana"]
 
@@ -624,3 +628,43 @@ def test_limite_por_cliente_sobrevive_a_un_acierto(entorno, monkeypatch):
     # Assert
     with pytest.raises(autenticacion.IntentosAgotados):
         limite.intentar("10.0.0.1", "fabio")
+
+
+def test_limite_de_login_no_acumula_claves_sin_limite(entorno, monkeypatch):
+    """R1/R4: claves vencidas se eliminan, el total está acotado y un cliente agotado
+    no crea claves nuevas por usuario."""
+    # Arrange
+    ahora = [0.0]
+    limite = LimiteIntentos(reloj=lambda: ahora[0])
+    monkeypatch.setattr(autenticacion, "MAX_CLAVES_LIMITE", 50)
+
+    # Act: un cliente agota su contador y sigue probando usuarios distintos.
+    for indice in range(200):
+        with suppress(autenticacion.IntentosAgotados):
+            limite.intentar("10.0.0.1", f"u{indice}")
+    tras_agotar = len(limite._fallos)
+    for indice in range(500):  # muchos clientes distintos
+        with suppress(autenticacion.IntentosAgotados):
+            limite.intentar(f"10.1.{indice // 250}.{indice % 250}", "ana")
+    acotado = len(limite._fallos)
+    ahora[0] = 10_000.0  # todo venció
+    limite.acertar(limite.intentar("10.9.9.9", "ana"))
+    tras_vencer = len(limite._fallos)
+
+    # Assert
+    assert tras_agotar == 1 + 20  # clave del cliente + 20 pares admitidos (4 × 5)
+    assert acotado <= 50
+    assert tras_vencer == 0
+
+
+def test_usuario_invalido_comparte_una_sola_clave_del_limite(entorno):
+    """R1: nombres arbitrarios (inválidos) no crean una clave por nombre."""
+    # Arrange
+    limite = LimiteIntentos()
+
+    # Act
+    for nombre in ("<a>", "con espacio", "x" * 64 + "!"):
+        limite.intentar("10.0.0.2", nombre)
+
+    # Assert
+    assert sorted(limite._fallos) == ["cliente:10.0.0.2", "par:10.0.0.2\n-"]

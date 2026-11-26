@@ -24,8 +24,9 @@ Se incorporó autenticación local y aislamiento por usuario sin añadir depende
 - MLflow: tags `usuario` en corridas SSE y JSON; el CSV incluye el mismo valor.
 - Frontend: `frontend/src/auth.ts`, formulario y estado de sesión en `App.vue`, con
   generación bloqueada mientras la autenticación esté activa y no haya sesión.
-- La rama parte de `origin/main` (`80d7850`), por lo que no incluye la cola de HU-45;
-  la propiedad se implanta en el gestor en memoria existente.
+- La rama partió de `origin/main` (`80d7850`), sin la cola de HU-45. Tras integrar
+  `main`, el dueño se guarda y se comprueba también en la cola y en el worker
+  (sección 5).
 
 ## 2. Criterios de aceptación
 
@@ -106,6 +107,15 @@ generación fuera del registro; anterior a HU-53, sin fuga de datos), H7 (el log
 revoca un token copiado; diseño sin estado) y H8 (detrás de un proxy inverso hay que
 configurar `--proxy-headers`).
 
+La revisión RDD (`review-9e37b007e6c5e6ef`, cuatro lentes) aprobó `c36aec1` sin
+bloqueantes. Sus hallazgos informativos se atendieron en un commit aparte: el límite de
+login elimina claves vencidas, nunca supera `MAX_CLAVES_LIMITE` y no crea claves por
+nombre inválido ni con el cliente agotado; un único texto `NO_ENCONTRADA` para el 404;
+Compose ya no exige secretos en modo local (la API valida al arrancar); el cierre de
+sesión fallido se informa en la SPA; una aserción de Vitest que no podía fallar ahora
+filtra `/v1/generar`; se prueba la cancelación propia de un trabajo encolado; y se
+corrigieron README, `plan.md` y `tasks.md`.
+
 `tests/conftest.py` mantiene la autenticación y la cola apagadas para la batería
 heredada; las pruebas de esta sección las activan. Cada prueba se validó por mutación:
 al quitar la corrección correspondiente, la prueba falla.
@@ -125,5 +135,5 @@ La autenticación, el aislamiento por propietario y la trazabilidad están imple
 y cubiertos por pruebas. Ruff, Vitest, TypeScript, build, generación de tipos, pre-commit
 y la suite completa (426 pruebas, 94,26 % de cobertura) estaban en verde en local antes de
 integrar `main`. Tras la integración y las correcciones de la sección 5, `make check` pasa
-con 481 pruebas de pytest (93,34 % de cobertura) y 58 de Vitest, y el smoke HG-15
+con 483 pruebas de pytest (93,34 % de cobertura) y 60 de Vitest, y el smoke HG-15
 (`--simulate-model`) termina correcto.

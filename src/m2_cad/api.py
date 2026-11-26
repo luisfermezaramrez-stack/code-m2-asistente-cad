@@ -951,11 +951,11 @@ def generar(
             raise
 
 
-@router.get("/uso", response_model=RespuestaUso)
+# La sesión es sólo un control de acceso: el gasto es global, no por usuario.
+@router.get("/uso", response_model=RespuestaUso, dependencies=[Depends(usuario_actual)])
 def consultar_uso(
     control: Annotated[ControlUso, Depends(obtener_control_uso)],
     cola: Annotated[ColaTrabajos, Depends(obtener_cola_trabajos)],
-    usuario: Annotated[str, Depends(usuario_actual)],
 ) -> RespuestaUso:
     """RF-5/AC4: gasto acumulado del día, sin red ni identificadores de cliente."""
     if _usa_cola_persistente():

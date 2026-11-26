@@ -17,7 +17,8 @@ origen, por lo que no se expone el token a JavaScript ni a la URL.
 - `src/m2_cad/api.py`: endpoints `/auth/login`, `/auth/logout`, `/auth/me`;
   dependencia de usuario en generación, consulta, cancelación, descarga y registro.
 - `src/m2_cad/trabajos.py`: el trabajo en memoria conserva su propietario desde la
-  creación; la rama parte de `main` y no incorpora la cola de HU-45.
+  creación. Al integrar `main`, la cola de HU-45 y su worker también guardan y
+  registran el dueño (ver `evidence.md`, sección 5).
 - `src/m2_cad/registro.py`: la fila del CSV incluye el usuario; las filas antiguas de
   8 columnas se migran añadiendo `anónimo`.
 - `frontend/src/auth.ts`, `App.vue`: inicio/cierre de sesión, usuario activo y
@@ -31,7 +32,7 @@ origen, por lo que no se expone el token a JavaScript ni a la URL.
 | `M2_AUTH_SECRET` | aleatorio, ≥32 bytes | Clave HMAC de las sesiones; obligatoria si está activa. |
 | `M2_AUTH_USERS` | JSON `{"usuario": "<hash PBKDF2>"}` | Usuarios permitidos; nunca se versiona. |
 | `M2_AUTH_COOKIE_SECURE` | `1` por defecto; `0` en HTTP local | Atributo `Secure` de la cookie. |
-| `M2_AUTH_TTL_SECONDS` | `86400` (1–2592000) | Vigencia de la sesión. |
+| `M2_AUTH_TTL_SECONDS` | `86400` (60–2592000) | Vigencia de la sesión. |
 
 ### Compatibilidad y seguridad
 
@@ -48,8 +49,9 @@ origen, por lo que no se expone el token a JavaScript ni a la URL.
 
 ### Fuera de alcance
 
-OIDC, roles finos, organizaciones, facturación, topes de costo por usuario y despliegue
-en la nube (SPEC-033 y SPEC-048).
+OIDC, roles finos, organizaciones, facturación y despliegue en la nube (SPEC-048). Los
+topes de HU-32 (SPEC-033) se asocian al usuario al integrar `main`; el presupuesto
+diario sigue siendo global.
 
 ## Verificación
 

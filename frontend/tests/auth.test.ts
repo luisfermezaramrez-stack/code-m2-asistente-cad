@@ -40,6 +40,11 @@ describe('sesión HU-53', () => {
     await expect(iniciarSesion('ana', 'mala')).rejects.toThrow('Demasiados intentos fallidos.')
   })
 
+  it('falla de forma visible si el servidor no cierra la sesión', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500 })))
+    await expect(cerrarSesion()).rejects.toThrow('No se pudo cerrar la sesión.')
+  })
+
   it('cierra la sesión con POST', async () => {
     const fetch = vi.fn(async () => Response.json({ autenticado: false }))
     vi.stubGlobal('fetch', fetch)

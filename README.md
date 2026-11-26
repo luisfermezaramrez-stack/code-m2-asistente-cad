@@ -427,9 +427,9 @@ Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 | `M2_FRONTEND_DIST` | FastAPI → build Vue | `frontend/dist` | `/app/frontend/dist` |
 | `M2_CORS_ORIGINS` | CORS exacto de FastAPI | localhost/127.0.0.1 en 8000 | mismo valor por defecto |
 | `M2_DOWNLOAD_SECRET` | Firma de tokens de descarga (HU-36) | secreto aleatorio local | `${M2_DOWNLOAD_SECRET:?}` |
-| `M2_AUTH_ENABLED` | Activa la sesión HU-53 | `0` en desarrollo local | `1` |
-| `M2_AUTH_SECRET` | Firma HMAC de la cookie de sesión | secreto aleatorio local | `${M2_AUTH_SECRET:?}` |
-| `M2_AUTH_USERS` | JSON usuario → hash PBKDF2 (HU-53) | dos usuarios de prueba locales | `${M2_AUTH_USERS:?}` |
+| `M2_AUTH_ENABLED` | Activa la sesión HU-53 | `1` (fijar `0` para el modo local sin sesión) | `1` |
+| `M2_AUTH_SECRET` | Firma HMAC de la cookie de sesión; obligatorio con la autenticación activa (la API no arranca sin él) | sin valor | `${M2_AUTH_SECRET:-}` |
+| `M2_AUTH_USERS` | JSON usuario → hash PBKDF2 (HU-53); obligatorio con la autenticación activa | sin valor | `${M2_AUTH_USERS:-}` |
 | `M2_AUTH_COOKIE_SECURE` | Exige HTTPS para la cookie | `0` en HTTP local | `1` |
 | `M2_AUTH_TTL_SECONDS` | Vigencia de la sesión | `86400` | `86400` (o el valor del entorno) |
 | `M2_AUTH_MAX_INTENTOS` | Inicios de sesión fallidos permitidos por cliente antes del `429` | `5` | `5` |

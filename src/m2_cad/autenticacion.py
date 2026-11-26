@@ -17,7 +17,7 @@ import re
 import secrets
 import threading
 import time
-from collections import defaultdict, deque
+from collections import deque
 from contextlib import suppress
 
 from fastapi import HTTPException, Request, Response
@@ -242,6 +242,7 @@ class IntentosAgotados(HTTPException):
 
 
 FACTOR_LIMITE_POR_CLIENTE = 4
+MAX_CLAVES_LIMITE = 10_000
 
 
 class LimiteIntentos:
@@ -251,33 +252,55 @@ class LimiteIntentos:
     peticiones concurrentes no pasan todas el control. Se cuenta por cliente y
     usuario (``M2_AUTH_MAX_INTENTOS``) y por cliente (4 veces ese valor). Un acierto
     retira sólo su propia marca: entrar con otra cuenta no borra los fallos
-    acumulados contra un usuario. El estado vive en el proceso (``--workers 1``).
+    acumulados contra un usuario. El estado vive en el proceso (``--workers 1``) y está
+    acotado: las claves sin fallos vigentes se eliminan y nunca hay más de
+    ``MAX_CLAVES_LIMITE``; un nombre de usuario inválido comparte una sola clave.
     """
 
     def __init__(self, reloj=None) -> None:
         self._reloj = reloj or time.monotonic
         self._lock = threading.Lock()
-        self._fallos: dict[str, deque[float]] = defaultdict(deque)
+        self._fallos: dict[str, deque[float]] = {}
 
-    def _vigentes(self, clave: str, ahora: float, ventana: int) -> deque[float]:
-        fallos = self._fallos[clave]
+    def _vigentes(self, clave: str, ahora: float, ventana: int) -> int:
+        """Fallos dentro de la ventana; elimina la clave cuando ya no tiene ninguno."""
+        fallos = self._fallos.get(clave)
+        if fallos is None:
+            return 0
         while fallos and ahora - fallos[0] >= ventana:
             fallos.popleft()
-        return fallos
+        if not fallos:
+            del self._fallos[clave]
+        return len(fallos)
+
+    def _acotar(self, ahora: float, ventana: int, espacio: int) -> None:
+        """Deja lugar para ``espacio`` claves nuevas sin superar ``MAX_CLAVES_LIMITE``.
+
+        Primero purga las vencidas; si aún no alcanza, descarta las más antiguas.
+        """
+        if len(self._fallos) + espacio <= MAX_CLAVES_LIMITE:
+            return
+        for clave in list(self._fallos):
+            self._vigentes(clave, ahora, ventana)
+        while self._fallos and len(self._fallos) + espacio > MAX_CLAVES_LIMITE:
+            del self._fallos[next(iter(self._fallos))]
 
     def intentar(self, cliente: str, usuario: str) -> tuple[tuple[str, ...], float]:
         """Anota un intento o responde 429 si alguno de sus contadores está agotado."""
         maximo, ventana = _limites_intentos()
-        claves = (f"par:{cliente}\n{usuario}", f"cliente:{cliente}")
-        topes = (maximo, maximo * FACTOR_LIMITE_POR_CLIENTE)
+        nombre = usuario if _USUARIO_RE.fullmatch(usuario or "") else "-"
+        # Primero el contador por cliente: si está agotado no se crea la clave del par.
+        claves = (f"cliente:{cliente}", f"par:{cliente}\n{nombre}")
+        topes = (maximo * FACTOR_LIMITE_POR_CLIENTE, maximo)
         ahora = self._reloj()
         with self._lock:
+            self._acotar(ahora, ventana, len(claves))
             for clave, tope in zip(claves, topes, strict=True):
-                fallos = self._vigentes(clave, ahora, ventana)
-                if len(fallos) >= tope:
-                    raise IntentosAgotados(max(1, math.ceil(ventana - (ahora - fallos[0]))))
+                if self._vigentes(clave, ahora, ventana) >= tope:
+                    primero = self._fallos[clave][0]
+                    raise IntentosAgotados(max(1, math.ceil(ventana - (ahora - primero))))
             for clave in claves:
-                self._fallos[clave].append(ahora)
+                self._fallos.setdefault(clave, deque()).append(ahora)
         return claves, ahora
 
     def acertar(self, marca: tuple[tuple[str, ...], float]) -> None:
@@ -285,8 +308,13 @@ class LimiteIntentos:
         claves, instante = marca
         with self._lock:
             for clave in claves:
+                fallos = self._fallos.get(clave)
+                if fallos is None:
+                    continue
                 with suppress(ValueError):
-                    self._fallos[clave].remove(instante)
+                    fallos.remove(instante)
+                if not fallos:
+                    del self._fallos[clave]
 
 
 def estado_sesion(request: Request) -> dict[str, bool | str | None]:

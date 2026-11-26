@@ -40,7 +40,7 @@ describe('SPA conectada a FastAPI simulado', () => {
 
   it.each(['', '   ', 'x'.repeat(1001)])('valida entrada y enfoca el campo sin generar', async (text) => {
     await start(text)
-    expect(service.fetch.mock.calls.filter(([url]) => String(url) === '/generar')).toHaveLength(0)
+    expect(service.fetch.mock.calls.filter(([url]) => String(url) === '/v1/generar')).toHaveLength(0)
     expect(wrapper.get('[role="alert"]').text()).toContain('entre 1 y 1000')
     expect(document.activeElement).toBe(wrapper.get('textarea').element)
   })
