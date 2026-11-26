@@ -19,6 +19,7 @@ from types import FrameType
 from fastapi import HTTPException
 
 from m2_cad import seguimiento
+from m2_cad.autenticacion import ANONIMO
 from m2_cad.cola_trabajos import ColaTrabajos
 from m2_cad.control import ControlGeneracion, GeneracionCancelada, SolicitudDeclinada
 from m2_cad.observabilidad import contexto_solicitud
@@ -62,6 +63,7 @@ def registrar_terminal(
         version=seguimiento.version_modelo(),
         ruta=ruta_registro,
         identificador=trabajo["id"],
+        usuario=trabajo.get("usuario") or ANONIMO,
     )
     corrida = seguimiento.iniciar_corrida(
         configuracion.experimento_generacion,
@@ -71,6 +73,7 @@ def registrar_terminal(
             "request_id": trabajo["request_id"],
             "job_id": trabajo["id"],
             "transporte": "sse",
+            "usuario": trabajo.get("usuario") or ANONIMO,
         },
         configuracion=configuracion,
     )

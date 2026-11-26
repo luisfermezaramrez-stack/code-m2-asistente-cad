@@ -38,7 +38,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
   responsable.
 - No reemplaza un CAD comercial ni busca competir con Revit/BIM.
 - No reentrena modelos ni sirve como plataforma de fine-tuning.
-- No es un servicio multiusuario: sin autenticación, sin concurrencia garantizada.
+- No es multi-tenant: hay usuarios con sesión propia (HU-53), sin organizaciones ni
+  facturación por usuario; la concurrencia no está garantizada.
 
 ## 2. Alcance
 
@@ -51,6 +52,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
   entrega STEP/GLB/CSV.
 - API REST (`POST /generar`, `GET /health`), progreso SSE, consulta/cancelación
   en `/generaciones/{id}` y Vue 3 con resultados descargables (HU-15).
+- Acceso con sesión por usuario: `/auth/login`, `/auth/logout`, `/auth/me`; salud
+  abierta y recursos de datos con dueño (HU-53).
 - Registro trazable de solicitudes (texto, resultado, latencia, error, versión)
   con exclusión de datos personales (Ley 1581 de 2012).
 - Línea base heredada Gemma/llama.cpp solo con overlay explícito.
@@ -59,7 +62,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 
 - Entrada por imagen o voz; ensamblajes multi-pieza complejos.
 - Cálculo de resistencia, fatiga o cumplimiento normativo.
-- Reentrenamiento del modelo; despliegue multi-tenant; autenticación.
+- Reentrenamiento del modelo; despliegue multi-tenant; OIDC, roles finos y
+  facturación por usuario.
 
 ## 3. Stack técnico
 
@@ -69,6 +73,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Gestor de paquetes y entorno** | [`uv`](https://docs.astral.sh/uv/) — prohibido `pip` y `requirements.txt` |
 | **Build backend** | `hatchling` (wheel desde `src/m2_cad`) |
 | **API** | [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` |
+| **Autenticación** | Sesión local con cookie `HttpOnly` firmada HMAC-SHA256 y claves PBKDF2-SHA256 (HU-53); sin OIDC ni dependencias nuevas |
 | **UI** | Vue 3 Composition API + TypeScript + Vite, Node 24, npm lockfile |
 | **Contrato frontend/API** | Tipos generados desde `app.openapi()` con `@hey-api/openapi-ts` (sólo TypeScript, sin SDK); `make api-types` y `make api-types-check` (HU-27) |
 | **Versión pública** | API bajo `/v1` con OpenAPI congelado en `contracts/openapi-v1.json`; rutas planas redirigen con `307` y cabeceras `Deprecation`/`Sunset` (HU-31) |
@@ -316,6 +321,8 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-25 | HU-32: `control_uso.py` concentra topes por sesión/ventana, presupuesto diario UTC e idempotencia en memoria; `/v1/uso` agrega `costo_usd` y los rechazos son 429 tipados | Evitar gasto no previsto ni generaciones duplicadas sin tocar el pipeline; con `--workers 1` basta el proceso y la interfaz permite migrar a almacén compartido al escalar |
 | 2026-11-25 | HU-45: cola persistente en `data/cola.json` con bloqueo atómico de SPEC-031 y worker separado (`python -m m2_cad.worker`, `make worker`) | Reiniciar o desplegar sin perder trabajos SSE; la API encola y el worker drena, con eventos completos y registro deduplicado por `solicitud_id` |
 | 2026-11-25 | HU-45 × HU-32: el costo medido por el worker se guarda en la cola y la API lo suma una vez al presupuesto (`tomar_gastos_pendientes`); la idempotencia se vincula al id real del trabajo | El worker corre en otro proceso y no ve el `ControlUso` en memoria de la API; sin esto el presupuesto diario y `/v1/uso` ignoraban las generaciones SSE |
+| 2026-11-25 | HU-53: sesión local con cookie firmada y usuarios PBKDF2 por entorno; activa por defecto, modo local explícito | Controlar acceso y costo en despliegue público sin red, OIDC ni dependencias nuevas; dueño en trabajos y registro con respuestas 404 ajenas |
+| 2026-11-25 | HU-53 × HU-31/32/45: `/v1/auth/*`; la cola guarda el dueño y el worker lo registra; topes e idempotencia por usuario; login con límite de intentos; firma ligada al hash vigente; configuración validada al arrancar | Integrar la autenticación con la API versionada, la cola y el control de uso sin fugas entre usuarios; endurecer la sesión según la revisión del PR #133 |
 
 ## 10. Notas y tareas pendientes
 

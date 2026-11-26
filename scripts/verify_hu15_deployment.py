@@ -162,9 +162,11 @@ def main() -> None:
         # ejecuta SSE en proceso; el worker real se valida en test_hu45_cola_persistente.py.
         env["M2_COLA_HABILITADA"] = "0"
         env["M2_COLA_PATH"] = str(Path(temporal) / "cola.json")
-        # Secreto efimero solo para el subprocess de validacion local/CI.
+        # Secretos efimeros solo para el subprocess de validacion local/CI.
         if not env.get("M2_DOWNLOAD_SECRET"):
             env["M2_DOWNLOAD_SECRET"] = secrets.token_hex(32)
+        # El smoke HG-15 ejerce la API heredada; HU-53 se valida en sus pruebas.
+        env["M2_AUTH_ENABLED"] = "0"
         proceso = subprocess.Popen(
             [
                 sys.executable,

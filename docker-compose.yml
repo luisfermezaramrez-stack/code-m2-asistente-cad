@@ -34,6 +34,13 @@ services:
       M2_DOWNLOAD_TTL_SECONDS: ${M2_DOWNLOAD_TTL_SECONDS:-3600}
       M2_COLA_HABILITADA: "1"
       M2_COLA_PATH: /app/data/cola.json
+      # HU-53: senda local explícita con M2_AUTH_ENABLED=0; por defecto exige sesión.
+      M2_AUTH_ENABLED: ${M2_AUTH_ENABLED:-1}
+      # Con M2_AUTH_ENABLED=1 la API no arranca si faltan o son inválidos (HU-53).
+      M2_AUTH_SECRET: ${M2_AUTH_SECRET:-}
+      M2_AUTH_USERS: ${M2_AUTH_USERS:-}
+      M2_AUTH_COOKIE_SECURE: ${M2_AUTH_COOKIE_SECURE:-1}
+      M2_AUTH_TTL_SECONDS: ${M2_AUTH_TTL_SECONDS:-86400}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-deepseek-v4-pro}
       M2_CORS_ORIGINS: "${M2_CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}"

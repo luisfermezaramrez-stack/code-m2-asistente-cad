@@ -21,6 +21,7 @@ from typing import Any
 
 from fastapi import HTTPException, Request
 
+from m2_cad.autenticacion import ANONIMO, NO_ENCONTRADA
 from m2_cad.persistencia_registro import _bloqueo, _publicar_bytes
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,7 @@ class ColaTrabajos:
         request_id: str | None = None,
         configuracion: dict | None = None,
         ruta_registro: Path | str | None = None,
+        usuario: str = ANONIMO,
     ) -> TrabajoPersistido:
         """Acepta un trabajo nuevo; el worker lo ejecutará fuera de la API (AC3)."""
         identificador = solicitud_id or uuid.uuid4().hex
@@ -97,6 +99,7 @@ class ColaTrabajos:
             "id": identificador,
             "texto": texto,
             "request_id": request_id or identificador,
+            "usuario": usuario,
             "estado": "iniciando",
             "secuencia": 0,
             "eventos": [],
@@ -116,7 +119,7 @@ class ColaTrabajos:
             if not datos["aceptando"]:
                 raise HTTPException(503, "El servicio está drenando; no acepta nuevas solicitudes.")
             datos["trabajos"][identificador] = trabajo
-        return TrabajoPersistido(self, identificador)
+        return TrabajoPersistido(self, identificador, usuario)
 
     def reanudar(self) -> int:
         """RF-3: devuelve a pendientes los trabajos de un worker caído."""
@@ -158,18 +161,26 @@ class ColaTrabajos:
             candidato["actualizado_en"] = _ahora()
             return copy.deepcopy(candidato)
 
+    def obtener(self, solicitud_id: str) -> TrabajoPersistido:
+        """Trabajo persistido con su dueño (HU-53); 404 si no existe."""
+        with _bloqueo(self.ruta):
+            trabajo = self._cargar()["trabajos"].get(solicitud_id)
+        if trabajo is None:
+            raise HTTPException(404, NO_ENCONTRADA)
+        return TrabajoPersistido(self, solicitud_id, trabajo.get("usuario") or ANONIMO)
+
     def estado(self, solicitud_id: str) -> dict:
         with _bloqueo(self.ruta):
             trabajo = self._cargar()["trabajos"].get(solicitud_id)
         if trabajo is None:
-            raise HTTPException(404, "Solicitud desconocida o fuera de retención.")
+            raise HTTPException(404, NO_ENCONTRADA)
         return self._estado_publico(trabajo)
 
     def eventos_desde(self, solicitud_id: str, secuencia: int) -> list[dict]:
         with _bloqueo(self.ruta):
             trabajo = self._cargar()["trabajos"].get(solicitud_id)
         if trabajo is None:
-            raise HTTPException(404, "Solicitud desconocida o fuera de retención.")
+            raise HTTPException(404, NO_ENCONTRADA)
         return copy.deepcopy([e for e in trabajo["eventos"] if e["secuencia"] > secuencia])
 
     def publicar_evento(self, solicitud_id: str, estado: str, **datos: Any) -> dict:
@@ -177,7 +188,7 @@ class ColaTrabajos:
         with self._editar() as registro:
             trabajo = registro["trabajos"].get(solicitud_id)
             if trabajo is None:
-                raise HTTPException(404, "Solicitud desconocida o fuera de retención.")
+                raise HTTPException(404, NO_ENCONTRADA)
             if trabajo["estado"] in TERMINALES:
                 return self._estado_publico(trabajo)
             trabajo["secuencia"] += 1
@@ -243,7 +254,7 @@ class ColaTrabajos:
         with self._editar() as datos:
             trabajo = datos["trabajos"].get(solicitud_id)
             if trabajo is None:
-                raise HTTPException(404, "Solicitud desconocida o fuera de retención.")
+                raise HTTPException(404, NO_ENCONTRADA)
             if trabajo["estado"] not in TERMINALES:
                 trabajo["cancelacion_solicitada"] = True
             return self._estado_publico(trabajo)
@@ -269,9 +280,10 @@ class ColaTrabajos:
 class TrabajoPersistido:
     """Vista de un trabajo en cola con la interfaz de ``Trabajo`` (RNF-1)."""
 
-    def __init__(self, cola: ColaTrabajos, solicitud_id: str) -> None:
+    def __init__(self, cola: ColaTrabajos, solicitud_id: str, usuario: str = ANONIMO) -> None:
         self.cola = cola
         self.id = solicitud_id
+        self.usuario = usuario
 
     def estado(self) -> dict:
         return self.cola.estado(self.id)

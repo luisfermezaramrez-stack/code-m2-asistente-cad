@@ -27,6 +27,7 @@ construirlo.
 - [Versiones](#versiones)
 - [Instalación y uso](#instalación-y-uso)
 - [Control de costo, límites e idempotencia](#control-de-costo-límites-e-idempotencia-hu-32)
+- [Acceso y usuarios (HU-53)](#acceso-y-usuarios-hu-53)
 - [Entorno en la nube (Lambda)](#entorno-en-la-nube-lambda)
 - [Metas (objetivos 1–4)](#metas-objetivos-14)
 - [Informe final](docs/informe-final.md)
@@ -167,6 +168,56 @@ Abrir **http://127.0.0.1:8000/**: FastAPI sirve el build, API, SSE y descargas e
 el mismo origen. No se inicia otro servidor frontend. El desarrollo con HMR
 se explica en [frontend/README.md](frontend/README.md).
 
+### Acceso y usuarios (HU-53)
+
+La autenticación está **activa por defecto** (`M2_AUTH_ENABLED=1`). La SPA muestra
+un formulario de acceso, envía `POST /v1/auth/login` y conserva la sesión en una cookie
+`HttpOnly` / `SameSite=Lax` firmada con HMAC-SHA256; `GET /v1/auth/me` informa si hay
+sesión y `POST /v1/auth/logout` la cierra. `/v1/health` y `/v1/ready` siguen abiertos para
+monitoreo; el resto de rutas de datos (generar, consultar, cancelar, descargar,
+registros y `/v1/uso`) devuelve 401 sin sesión y 404 cuando el recurso pertenece a otro
+usuario, también para los trabajos que ejecuta el worker de la cola (HU-45). El token de
+descarga de HU-36 se exige además de la sesión.
+
+Protecciones de la sesión:
+
+- Tras `M2_AUTH_MAX_INTENTOS` inicios fallidos (5 por defecto) contra un usuario desde
+  un mismo cliente, o 4 veces ese valor desde el cliente contra cualquier usuario, en
+  `M2_AUTH_VENTANA_INTENTOS_SEGUNDOS` (300), se responde `429` con `Retry-After`, incluso
+  con la clave correcta. Cada intento se anota antes de verificar la clave, así las
+  peticiones simultáneas no esquivan el límite, y entrar con otra cuenta no borra los
+  fallos acumulados. El contador vive en el proceso (`--workers 1`) y usa la IP que ve
+  uvicorn: detrás de un proxy inverso hay que habilitar `--proxy-headers` con
+  `--forwarded-allow-ips`, o todos los clientes compartirían el mismo contador.
+- Un recurso de otro usuario responde el mismo `404` que uno inexistente. Sin sesión,
+  `POST /v1/generar` responde `401` aunque el cuerpo sea inválido, y no escribe en el
+  registro.
+- Un usuario inexistente cuesta lo mismo que una clave errónea: el tiempo de respuesta
+  no revela qué usuarios existen.
+- La firma de la cookie depende del hash vigente del usuario: quitarlo de
+  `M2_AUTH_USERS` o cambiar su clave invalida sus sesiones. `POST /v1/auth/logout` borra
+  la cookie del navegador; un token copiado antes sigue valiendo hasta su expiración
+  (`M2_AUTH_TTL_SECONDS`).
+- Con la autenticación activa, una configuración inválida impide arrancar la API.
+- Los topes y la idempotencia de HU-32 se asocian al usuario: `X-Session-ID` y la IP
+  sólo se usan en modo local.
+
+Los usuarios se definen en `M2_AUTH_USERS` con hashes PBKDF2-SHA256, nunca en el
+repositorio. Para generar uno:
+
+```bash
+make hash-clave          # pide la clave por prompt oculto
+# M2_CLAVE_NUEVA='mi-clave' make hash-clave   # sólo para automatización local
+```
+
+Copie el hash resultante en `M2_AUTH_USERS` como
+`'{"ana":"pbkdf2_sha256$..."}'` y defina `M2_AUTH_SECRET` con un secreto aleatorio
+de al menos 32 bytes. Para desarrollo local sin sesión, fijar explícitamente
+`M2_AUTH_ENABLED=0`; en ese modo las solicitudes se registran como `anónimo`.
+El CSV de registro incorpora la columna `usuario`; los archivos anteriores se
+migran automáticamente sin borrar filas. Plan y decisiones:
+[SPEC-054](specs/054-hu-53-autenticacion/plan.md).
+
 ### Contrato de la API (HU-27 y HU-31)
 
 Después de modificar el contrato FastAPI, ejecutar `make api-types` y versionar
@@ -259,7 +310,7 @@ aceptación de la pieza. `mlruns/`, `mlflow.db` y `mlflow-artifacts/` están en 
 | Cabecera | Efecto |
 | --- | --- |
 | `Idempotency-Key` | Reenviar la misma clave devuelve la generación original (JSON o estado SSE) sin crear otro trabajo ni sumar costo. Reutilizarla con otro texto/sesión/transporte da `409`. |
-| `X-Session-ID` | Identifica la sesión para el tope por ventana; si no se envía se usa la IP del cliente. |
+| `X-Session-ID` | Identifica la sesión para el tope por ventana; si no se envía se usa la IP del cliente. Con autenticación activa (HU-53) se ignora y cuenta el usuario. |
 
 `GET /v1/uso` publica el gasto acumulado del día en UTC, sin datos personales:
 
@@ -375,6 +426,14 @@ Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 | `LLM_BASE_URL` | Pipeline → servidor compatible con OpenAI | `https://api.deepseek.com` | — (valor por defecto del código) |
 | `M2_FRONTEND_DIST` | FastAPI → build Vue | `frontend/dist` | `/app/frontend/dist` |
 | `M2_CORS_ORIGINS` | CORS exacto de FastAPI | localhost/127.0.0.1 en 8000 | mismo valor por defecto |
+| `M2_DOWNLOAD_SECRET` | Firma de tokens de descarga (HU-36) | secreto aleatorio local | `${M2_DOWNLOAD_SECRET:?}` |
+| `M2_AUTH_ENABLED` | Activa la sesión HU-53 | `1` (fijar `0` para el modo local sin sesión) | `1` |
+| `M2_AUTH_SECRET` | Firma HMAC de la cookie de sesión; obligatorio con la autenticación activa (la API no arranca sin él) | sin valor | `${M2_AUTH_SECRET:-}` |
+| `M2_AUTH_USERS` | JSON usuario → hash PBKDF2 (HU-53); obligatorio con la autenticación activa | sin valor | `${M2_AUTH_USERS:-}` |
+| `M2_AUTH_COOKIE_SECURE` | Exige HTTPS para la cookie | `0` en HTTP local | `1` |
+| `M2_AUTH_TTL_SECONDS` | Vigencia de la sesión | `86400` | `86400` (o el valor del entorno) |
+| `M2_AUTH_MAX_INTENTOS` | Inicios de sesión fallidos permitidos por cliente antes del `429` | `5` | `5` |
+| `M2_AUTH_VENTANA_INTENTOS_SEGUNDOS` | Ventana del límite de intentos | `300` | `300` |
 | `MLFLOW_TRACKING_URI` | Seguimiento → servidor MLflow o file store (HU-16) | `file:./mlruns` | `http://mlflow:5000` |
 | `MLFLOW_TRACKING_ENABLED` | `0` apaga el seguimiento (no-op) | `1` | `${MLFLOW_TRACKING_ENABLED:-1}` |
 | `MLFLOW_EXPERIMENT_NAME` / `MLFLOW_EXPERIMENT_BANCO` | Nombres de experimento | `m2-cad-generacion` / `m2-cad-banco` | igual |

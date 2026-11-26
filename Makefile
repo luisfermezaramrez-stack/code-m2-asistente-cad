@@ -5,7 +5,7 @@
         precommit-install precommit build up down clean bench bench-report worker \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
-        mlflow api-types api-types-check api-contract api-contract-check
+        mlflow api-types api-types-check api-contract api-contract-check hash-clave
 
 help: ## Lista los objetivos disponibles
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -57,6 +57,9 @@ api-types: ## HU-27: genera TypeScript desde app.openapi() sin servidor ni red
 
 api-types-check: ## HU-27: falla si los tipos OpenAPI versionados están desactualizados
 	uv run --locked python scripts/generate_api_types.py --check
+
+hash-clave: ## HU-53: genera un hash PBKDF2 para M2_AUTH_USERS
+	uv run --locked python -m m2_cad.usuarios hash
 
 api-contract: ## HU-31: genera el contrato OpenAPI v1 congelado
 	uv run --locked python scripts/generate_api_contract.py
