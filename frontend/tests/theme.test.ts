@@ -65,7 +65,7 @@ describe('preferencia de tema', () => {
     expect(activeTheme.value).toBe('light')
   })
 
-  it('persiste la elección del usuario y la restinga al sistema al borrarla', () => {
+  it('persiste la elección del usuario y la devuelve al sistema al borrarla', () => {
     const system = installMatchMedia(true)
     dispose = initTheme()
 
