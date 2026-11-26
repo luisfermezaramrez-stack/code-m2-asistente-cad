@@ -147,7 +147,7 @@ licencia.
 bash scripts/vendor-constraint-kit.sh
 uv sync --locked --dev
 make frontend-install
-make check        # Ruff + Vitest + TypeScript + build + pytest/cobertura
+make check        # Ruff + contratos + Vitest + TypeScript + build + pytest/cobertura
 uv run --locked uvicorn m2_cad.api:app --app-dir src --host 127.0.0.1 --port 8000 --workers 1
 ```
 
@@ -155,7 +155,7 @@ Abrir **http://127.0.0.1:8000/**: FastAPI sirve el build, API, SSE y descargas e
 el mismo origen. No se inicia otro servidor frontend. El desarrollo con HMR
 se explica en [frontend/README.md](frontend/README.md).
 
-### Tipos del API (HU-27)
+### Contrato de la API (HU-27 y HU-31)
 
 Después de modificar el contrato FastAPI, ejecutar `make api-types` y versionar
 `frontend/src/generated/api.ts` con el cambio. El esquema se obtiene de
@@ -166,6 +166,14 @@ claves, GPU ni red una vez instaladas las dependencias Python/npm.
 `make check` y en CI. Si detecta una diferencia, falla e indica `make api-types`.
 `api.ts` consume los tipos generados y conserva `parseJob` para validar datos
 HTTP/SSE en ejecución. Plan y alcance: [SPEC-028](specs/028-hu-27-tipos-openapi/plan.md).
+
+La API pública se sirve bajo `/v1` (por ejemplo `/v1/health` y `/v1/generar`). El
+esquema de esa versión está congelado en [`contracts/openapi-v1.json`](contracts/openapi-v1.json):
+`make api-contract` lo regenera y `make api-contract-check` falla si un campo o una ruta
+cambia sin actualizarlo; ambos forman parte de `make check` y de CI. Las rutas planas
+siguen funcionando como redirecciones `307` con cabeceras `Deprecation`, `Sunset` y
+`Link` durante 90 días. Política completa:
+[versionado de la API](docs/versionado-api.md) · [SPEC-032](specs/032-hu-31-api-v1/plan.md).
 
 Variables del modelo:
 
@@ -250,7 +258,7 @@ memoria holgada: el build compila dependencias CAD).
 | URL | Servicio |
 | --- | --- |
 | http://localhost:8000 | SPA en Vue (mismo origen que la API) |
-| http://localhost:8000/health | Salud de la API (`{"status": "ok"}`) |
+| http://localhost:8000/v1/health | Salud de la API (`{"status": "ok"}`) |
 | http://localhost:8000/docs | Contrato OpenAPI |
 | http://127.0.0.1:5000 | UI de MLflow |
 
