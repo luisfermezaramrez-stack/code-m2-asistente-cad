@@ -290,6 +290,12 @@ CAD puede continuar hasta retornar; no confirma detención remota.
 Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 [CONSTITUTION.md](CONSTITUTION.md).
 
+### Operación e incidentes
+
+Ante una falla del proveedor, credenciales, rollback o restauración de datos, seguir el
+[runbook operativo](docs/runbook-operativo.md). No incluye secretos y sus comandos se ejecutan
+desde la raíz del repositorio.
+
 ### Variables de entorno
 
 | Variable | La usa | Valor local | En Docker la fija |

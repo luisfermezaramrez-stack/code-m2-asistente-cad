@@ -41,6 +41,7 @@ outputs/
 data/outputs/
 artifacts/
 registro*.csv
+backups/
 
 # ===== Archify (carpeta de trabajo del diagrama; la fuente versionada es docs/arquitectura.json) =====
 .archify/
