@@ -80,7 +80,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Pre-commit** | Ruff + higiene de archivos + bloqueo de pesos (`.gguf`, `.safetensors`, …) |
 | **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `main` |
 | **Espejo GitLab** | GitHub es la fuente de verdad; `.github/workflows/espejo-gitlab.yml` replica ramas y etiquetas en GitLab (solo lectura) vía deploy key SSH (`vars.GITLAB_MIRROR_URL`, `secrets.GITLAB_MIRROR_SSH_KEY`) |
-| **Pipeline GitLab** | `.gitlab-ci.yml` repite sobre el espejo la misma verificación que CI (vendor, `uv sync --locked`, `make check`, arranque HU-15 simulado) en `node:24-bookworm` con uv 0.13.5 y la versión de Python de `.python-version`. Corre con push a `main`, lanzamiento manual o pipeline programado: no abre una segunda puerta de integración |
+| **Pipeline GitLab** | `.gitlab-ci.yml` deja evidencia sobre el espejo en tres jobs: `lint` (imagen de uv 0.13.5 con el Python de `.python-version` y `make lint`), `run_test` (`vendor` + `uv sync --locked` + `make frontend-install` + `make test` sobre `node:24-bookworm`) y `build_image` (imagen Docker). Corre con push a la rama por defecto del espejo, lanzamiento manual o pipeline programado: no abre una segunda puerta de integración, que la puerta es el PR en GitHub |
 | **Dependencias automáticas** | [Dependabot](.github/dependabot.yml) (target `main`) |
 | **Despliegue** | Docker multietapa Node/vendor/Python; Compose: `mlflow` (`:5000`) + `m2-cad` (Vue + FastAPI `:8000`), DeepSeek externo |
 

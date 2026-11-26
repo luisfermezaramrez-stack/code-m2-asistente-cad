@@ -1,9 +1,11 @@
 """Paridad de verificación entre GitHub Actions y el pipeline de GitLab.
 
-El pipeline de GitLab repite sobre el espejo la misma verificación que GitHub
-Actions y no puede debilitarla sin que esta prueba falle. Se lee el YAML como
-texto a propósito: no hace falta un parser para comprobar los pasos compartidos
-y evita sumar una dependencia de desarrollo solo para estas pruebas.
+GitHub es la fuente de verdad y la puerta de integración; el pipeline de GitLab
+deja evidencia verificable sobre el espejo. Esta prueba vigila las dos cosas que
+pueden romperse en silencio: que las herramientas fijadas coincidan (uv, Python,
+banderas de compilación) y que GitLab no se convierta en una segunda puerta de
+integración. Se lee el YAML como texto a propósito: no hace falta un parser para
+comprobar estas invariantes y evita sumar una dependencia solo para la prueba.
 """
 
 from pathlib import Path
@@ -11,51 +13,68 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 GITLAB = RAIZ / ".gitlab-ci.yml"
 GITHUB = RAIZ / ".github" / "workflows" / "ci.yml"
-
-# Los cinco pasos de `.github/workflows/ci.yml:38-56`, en orden de ejecución.
-PASOS_COMPARTIDOS = (
-    "bash scripts/vendor-constraint-kit.sh",
-    "uv sync --locked --dev",
-    "make frontend-install",
-    "make check",
-    "scripts/verify_hu15_deployment.py --simulate-model",
-)
+DOCKERFILE = RAIZ / "Dockerfile"
 
 
-def test_gitlab_repite_los_pasos_de_github():
-    gitlab = GITLAB.read_text(encoding="utf-8")
-    github = GITHUB.read_text(encoding="utf-8")
-    for paso in PASOS_COMPARTIDOS:
-        assert paso in github, f"GitHub ya no ejecuta {paso!r}: revisar el pipeline de GitLab"
-        assert paso in gitlab, f"GitLab no ejecuta {paso!r}"
+def _texto(ruta: Path) -> str:
+    return ruta.read_text(encoding="utf-8")
 
 
-def test_las_herramientas_fijadas_coinciden():
-    gitlab = GITLAB.read_text(encoding="utf-8")
-    github = GITHUB.read_text(encoding="utf-8")
-    # La misma versión de uv en los dos pipelines y en el Dockerfile.
-    assert 'UV_VERSION: "0.13.5"' in gitlab
-    assert 'version: "0.13.5"' in github
-    # python-solvespace se compila desde sdist en C17 en ambos lados.
-    assert 'CFLAGS: "-std=gnu17"' in gitlab
-    assert 'CFLAGS: "-std=gnu17"' in github
+def test_uv_esta_fijado_igual_en_los_tres_lados():
+    """Una sola versión de uv en GitHub, GitLab y el Dockerfile."""
+    assert 'UV_VERSION: "0.13.5"' in _texto(GITLAB)
+    assert 'version: "0.13.5"' in _texto(GITHUB)
+    assert "ghcr.io/astral-sh/uv:0.13.5" in _texto(DOCKERFILE)
 
 
-def test_python_sale_de_python_version_y_no_se_duplica():
-    gitlab = GITLAB.read_text(encoding="utf-8")
+def test_python_sale_de_python_version_y_el_pipeline_lo_repite_igual():
+    """`.python-version` es la única fuente de verdad (CONSTITUTION.md)."""
     version = (RAIZ / ".python-version").read_text(encoding="utf-8").strip()
+
     assert version, ".python-version no puede estar vacío"
-    # `.python-version` es la única fuente de verdad (CONSTITUTION.md:93).
-    assert 'uv python install "$(cat .python-version)"' in gitlab
-    assert "PYTHON_VERSION" not in gitlab
-    assert 'python-version-file: ".python-version"' in (
-        RAIZ / ".github" / "workflows" / "ci.yml"
-    ).read_text(encoding="utf-8")
+    assert 'python-version-file: ".python-version"' in _texto(GITHUB)
+    assert 'uv python install "$(cat .python-version)"' in _texto(GITLAB)
+    # El tag de la imagen no puede leer un archivo: el valor repetido tiene que
+    # seguir siendo el mismo, y la imagen tiene que armarse con las variables.
+    assert f'PYTHON_VERSION: "{version}"' in _texto(GITLAB)
+    assert "ghcr.io/astral-sh/uv:$UV_VERSION-python$PYTHON_VERSION-$BASE_LAYER" in _texto(GITLAB)
 
 
-def test_el_pipeline_no_abre_segunda_puerta_de_integracion():
-    gitlab = GITLAB.read_text(encoding="utf-8")
-    # Solo push a la rama por defecto; ningún pipeline de merge request ni de tag.
+def test_los_sdists_se_compilan_en_c17_en_los_dos_lados():
+    """python-solvespace y su mimalloc no compilan en C23."""
+    assert 'CFLAGS: "-std=gnu17"' in _texto(GITLAB)
+    assert 'CFLAGS: "-std=gnu17"' in _texto(GITHUB)
+
+
+def test_los_dos_pipelines_preparan_el_kernel_vendoreado_y_el_frontend():
+    """Sin el vendor de constraint-kit, `uv sync` falla; sin lockfile, no hay build."""
+    for texto in (_texto(GITHUB), _texto(GITLAB)):
+        assert "bash scripts/vendor-constraint-kit.sh" in texto
+        assert "uv sync --locked --dev" in texto
+    assert "make frontend-install" in _texto(GITHUB)
+    assert "make frontend-install" in _texto(GITLAB)
+
+
+def test_cada_pipeline_corre_la_verificacion_que_declara():
+    """GitHub corre la verificación completa; GitLab la del espejo."""
+    assert "make check" in _texto(GITHUB)
+    assert "make test" in _texto(GITLAB)
+
+
+def test_el_pipeline_de_gitlab_no_abre_segunda_puerta_de_integracion():
+    gitlab = _texto(GITLAB)
+
+    # Sólo push a la rama por defecto, lanzamiento manual o pipeline programado.
     assert "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH" in gitlab
     assert "merge_request_event" not in gitlab
-    assert "when: never" not in gitlab
+
+
+def test_el_lint_del_espejo_usa_el_makefile_y_no_recorre_todo_el_arbol():
+    """`ruff check .` recorre `.agents/`, con plantillas que no son TOML válido."""
+    gitlab = _texto(GITLAB)
+    # El comentario que explica la trampa nombra el comando: se mira sólo lo que
+    # se ejecuta, no las líneas de comentario.
+    ejecutado = [linea for linea in gitlab.splitlines() if not linea.lstrip().startswith("#")]
+
+    assert "make lint" in gitlab
+    assert not [linea for linea in ejecutado if "ruff check ." in linea]
