@@ -4,7 +4,6 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend ./
-COPY design/tokens.css /build/design/tokens.css
 RUN npm run typecheck && npm run build
 
 # Vendor obtenido dentro del build, sin preparación manual del host.

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Stage } from './api'
 import { cerrarSesion, estadoSesion, iniciarSesion, sinSesion, type EstadoSesion } from './auth'
+import { activeTheme, initTheme, setTheme, type Theme } from './design/theme'
 import { useGeneration } from './useGeneration'
 
 const GlbViewer = defineAsyncComponent(() => import('./GlbViewer.vue'))
@@ -31,6 +32,16 @@ const status = computed(() => {
 })
 const glb = computed(() => artifacts.value.find((item) => item.format === 'glb'))
 const hasStep = computed(() => artifacts.value.some((item) => item.format === 'step'))
+const themeLabel = computed(() => activeTheme.value === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro')
+let stopTheme: (() => void) | undefined
+
+onMounted(() => { stopTheme = initTheme() })
+onBeforeUnmount(() => stopTheme?.())
+
+function toggleTheme() {
+  const next: Theme = activeTheme.value === 'dark' ? 'light' : 'dark'
+  setTheme(next)
+}
 
 onMounted(async () => {
   sesion.value = await estadoSesion()
@@ -76,9 +87,12 @@ async function submit() {
   <a class="skip" href="#descripcion">Saltar a la solicitud</a>
   <div class="shell">
     <header class="masthead">
-      <p class="brand">M2 / ASISTENTE CAD</p>
-      <h1>De la descripción a la pieza</h1>
-      <p class="muted">Componentes metálicos auxiliares · Solicitudes en español</p>
+      <div>
+        <p class="brand">M2 / ASISTENTE CAD</p>
+        <h1>De la descripción a la pieza</h1>
+        <p class="muted">Componentes metálicos auxiliares · Solicitudes en español</p>
+      </div>
+      <button class="theme-toggle" type="button" :aria-label="themeLabel" @click="toggleTheme">{{ themeLabel }}</button>
     </header>
     <aside class="notice" aria-label="Aviso profesional"><strong>Diseño preliminar: requiere revisión profesional</strong><br>La verificación geométrica no certifica resistencia ni cumplimiento normativo.</aside>
     <section v-if="sesion.requerido && !cargandoSesion" class="panel sesion" aria-labelledby="sesion-title">

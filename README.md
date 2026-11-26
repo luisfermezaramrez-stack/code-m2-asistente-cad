@@ -21,6 +21,7 @@ construirlo.
 - [Qué resuelve](#qué-resuelve)
 - [Alcance](#alcance)
 - [Arquitectura](#arquitectura)
+- [Sistema de diseño](#sistema-de-diseño)
 - [Cómo funciona](#cómo-funciona)
 - [Estructura](#estructura)
 - [Requisitos](#requisitos)
@@ -73,6 +74,13 @@ Docker Compose (`m2-cad` y `mlflow`) y la API externa de DeepSeek. Cada componen
 cita su código en una revisión fija; se regenera con Archify
 ([SPEC-020](specs/020-diagrama-arquitectura/spec.md)).
 
+## Sistema de diseño
+
+Los tokens, la escala tipográfica y los temas claro/oscuro están documentados en
+[`docs/diseno-v2.md`](docs/diseno-v2.md). La fuente única es
+`frontend/src/design/tokens.css`; la preferencia de tema se guarda en el navegador
+y respeta `prefers-color-scheme` cuando no hay elección explícita.
+
 La gestión del proyecto vive en el
 [tablero Kanban de GitHub Projects](https://github.com/users/luisfermezaramrez-stack/projects/1/views/1)
 (Backlog, In Progress, In Review y Done), y cada historia enlaza su especificación en
@@ -97,7 +105,7 @@ licencia.
     m2-asistente-cad/
     ├── src/m2_cad/          pipeline.py · banco.py · api.py · trabajos.py · web.py · registro.py
     ├── frontend/            Vue 3 · Composition API · TypeScript · Vite · Vitest
-    ├── design/              referencia validada y tokens únicos
+    ├── design/              referencia histórica de HU-15 (no importada por la app)
     ├── tests/               test_dataset.py · test_pipeline.py · test_banco.py ·
     │                        test_api.py · test_registro.py · test_sse.py · test_web.py
     ├── data/test_cases.csv  banco de 40 solicitudes
