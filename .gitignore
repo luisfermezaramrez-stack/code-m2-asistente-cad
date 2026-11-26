@@ -40,7 +40,9 @@ models/
 outputs/
 data/outputs/
 artifacts/
+data/*.lock
 registro*.csv
+data/*.lock
 
 # ===== Archify (carpeta de trabajo del diagrama; la fuente versionada es docs/arquitectura.json) =====
 .archify/

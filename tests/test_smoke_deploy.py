@@ -20,7 +20,7 @@ def _transporte(fallar_en: str | None = None):
     negativos = {f["solicitud"] for f in smoke.read_dataset() if f["familia"] == "fuera_alcance"}
 
     def responder(request: httpx.Request) -> httpx.Response:
-        if request.url.path != "/generar":
+        if request.url.path != "/v1/generar":
             return httpx.Response(404)
         texto = json.loads(request.content)["texto"]
         if fallar_en and fallar_en == texto:

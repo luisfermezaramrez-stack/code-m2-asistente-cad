@@ -69,10 +69,12 @@ def comprobar(client: httpx.Client, origen: str) -> dict:
     assert response.status_code == 200 and '<div id="app">' in response.text
     for asset in re.findall(r'(?:src|href)="(/assets/[^\"]+)"', response.text):
         assert client.get(asset).status_code == 200
-    assert client.get("/health").json() == {"status": "ok"}
+    assert client.get("/v1/health").json() == {"status": "ok"}
     assert client.get("/api/no-existe").headers["content-type"] == "application/json"
     headers = {"Accept": "text/event-stream", "Origin": origen}
-    with client.stream("POST", "/generar", json={"texto": "espaciador"}, headers=headers) as stream:
+    with client.stream(
+        "POST", "/v1/generar", json={"texto": "espaciador"}, headers=headers
+    ) as stream:
         token = stream.headers["x-download-token"]
         assert token
         assert stream.headers["x-accel-buffering"] == "no"
@@ -86,7 +88,7 @@ def comprobar(client: httpx.Client, origen: str) -> dict:
     autorizacion = {"X-Download-Token": token}
     tamanos = {}
     for formato in ("step", "glb", "csv"):
-        url = f"/generaciones/{id_}/archivos/{formato}"
+        url = f"/v1/generaciones/{id_}/archivos/{formato}"
         assert client.head(url).status_code == 403
         assert client.head(url, headers=autorizacion).status_code == 200
         archivo = client.get(url, headers=autorizacion)
@@ -96,18 +98,18 @@ def comprobar(client: httpx.Client, origen: str) -> dict:
         tamanos[formato] = len(archivo.content)
 
     for texto, esperado in (("declinar turbina", "declinado"), ("fallar proveedor", "error")):
-        with client.stream("POST", "/generar", json={"texto": texto}, headers=headers) as stream:
+        with client.stream("POST", "/v1/generar", json={"texto": texto}, headers=headers) as stream:
             recibidos = list(eventos(stream))
         assert recibidos[-1]["estado"] == esperado
         assert "10.0.0.9" not in str(recibidos)
 
     with client.stream(
-        "POST", "/generar", json={"texto": "cancelar modelo"}, headers=headers
+        "POST", "/v1/generar", json={"texto": "cancelar modelo"}, headers=headers
     ) as stream:
         for evento in eventos(stream):
             if evento["estado"] == "generando":
                 # Si hay buffering, el trabajo ya terminó y DELETE no devolverá 202.
-                response = client.delete(f"/generaciones/{evento['solicitud_id']}")
+                response = client.delete(f"/v1/generaciones/{evento['solicitud_id']}")
                 assert response.status_code == 202 and not response.json()["terminal"]
             if evento["terminal"]:
                 assert evento["estado"] == "cancelado" and evento["pipeline_detenido"]
@@ -115,7 +117,7 @@ def comprobar(client: httpx.Client, origen: str) -> dict:
                 break
 
     with client.stream(
-        "POST", "/generar", json={"texto": "cancelar desconexion"}, headers=headers
+        "POST", "/v1/generar", json={"texto": "cancelar desconexion"}, headers=headers
     ) as stream:
         for evento in eventos(stream):
             if evento["estado"] == "generando":
@@ -123,7 +125,7 @@ def comprobar(client: httpx.Client, origen: str) -> dict:
                 break
     limite = time.monotonic() + 10
     while time.monotonic() < limite:
-        estado = client.get(f"/generaciones/{id_}").json()
+        estado = client.get(f"/v1/generaciones/{id_}").json()
         if estado["terminal"]:
             assert estado["estado"] == "cancelado" and estado["pipeline_detenido"]
             break
@@ -174,11 +176,11 @@ def main() -> None:
         )
         try:
             origen = f"http://127.0.0.1:{puerto}"
-            with httpx.Client(base_url=origen, timeout=15) as client:
+            with httpx.Client(base_url=origen, timeout=15, follow_redirects=True) as client:
                 limite = time.monotonic() + 30
                 while time.monotonic() < limite:
                     try:
-                        if client.get("/health").status_code == 200:
+                        if client.get("/v1/health").status_code == 200:
                             break
                     except httpx.ConnectError:
                         pass

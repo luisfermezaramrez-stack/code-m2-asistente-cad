@@ -10,18 +10,20 @@ import time
 import uuid
 from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
+from datetime import date
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from m2_cad import seguimiento
 from m2_cad.contratos import EstadoTrabajo
 from m2_cad.control import ControlGeneracion, SolicitudDeclinada
+from m2_cad.control_uso import ControlUso, ErrorControlUso, RegistroIdempotencia
 from m2_cad.observabilidad import (
     configurar_logging,
     contexto_solicitud,
@@ -66,13 +68,19 @@ async def _ciclo_aplicacion(_: FastAPI):
 logger = logging.getLogger(__name__)
 configurar_logging()  # RF-1: configuración central desde la importación del módulo.
 
+VERSION_API = "1.0.0"
+PREFIJO_V1 = "/v1"
+SUNSET_RUTAS_PLANAS = "Tue, 23 Feb 2027 00:00:00 GMT"
+
 app = FastAPI(
     title="M2 CAD Assistant API",
     lifespan=_ciclo_aplicacion,
-    version="0.1.0",
+    version=VERSION_API,
     description="Servicio de generación preliminar de componentes CAD.",
 )
 gestor_trabajos = GestorTrabajos()
+control_uso = ControlUso()
+router = APIRouter(prefix=PREFIJO_V1)
 
 
 class SolicitudGenerar(BaseModel):
@@ -94,7 +102,19 @@ class SolicitudGenerar(BaseModel):
         return valor.strip()
 
 
-@app.get("/health")
+class RespuestaUso(BaseModel):
+    """Gasto acumulado del día y topes vigentes (HU-32, RF-5)."""
+
+    fecha: date
+    costo_usd: float
+    moneda: str
+    generaciones: int
+    presupuesto_diario_usd: float
+    limite_solicitudes_ventana: int
+    ventana_segundos: int
+
+
+@router.get("/health")
 def health() -> dict[str, str]:
     """Comprueba que el proceso de la API está disponible."""
     return {"status": "ok"}
@@ -154,7 +174,7 @@ def _registro_disponible() -> bool:
     return True
 
 
-@app.get("/ready")
+@router.get("/ready")
 def ready() -> JSONResponse:
     """Disponibilidad operativa local; /health conserva el contrato de vida."""
     dependencias = {
@@ -276,6 +296,43 @@ def obtener_gestor_trabajos() -> GestorTrabajos:
     return gestor_trabajos
 
 
+def obtener_control_uso() -> ControlUso:
+    """Control de topes, presupuesto e idempotencia (HU-32); sustituible en pruebas."""
+    return control_uso
+
+
+def _sesion(request: Request) -> str:
+    """Identidad de sesión: cabecera explícita, IP del cliente o anónimo."""
+    cabecera = (request.headers.get("X-Session-ID") or "").strip()
+    if cabecera:
+        return cabecera[:128]
+    cliente = request.client.host if request.client else None
+    return cliente or "anonimo"
+
+
+def _clave_idempotencia(valor: str | None) -> str | None:
+    """Normaliza la cabecera; una clave vacía equivale a no enviarla."""
+    if valor is None:
+        return None
+    return valor.strip() or None
+
+
+def _respuesta_repetida(
+    registro: RegistroIdempotencia, gestor: GestorTrabajos, response: Response
+) -> dict[str, str] | JSONResponse:
+    """Sirve la generación original sin crear otro trabajo ni sumar costo (AC2)."""
+    cabeceras = {
+        "Idempotent-Replay": "true",
+        "X-Solicitud-ID": registro.solicitud_id,
+    }
+    response.headers.update(cabeceras)
+    if registro.respuesta is not None:
+        response.headers.update(registro.cabeceras)
+        return registro.respuesta
+    estado = registro.estado_final or gestor.obtener(registro.solicitud_id).estado()
+    return JSONResponse(estado, headers=cabeceras)
+
+
 def obtener_configuracion_seguimiento() -> seguimiento.Configuracion:
     """Configuración de MLflow de esta solicitud (HU-16); las pruebas la sustituyen."""
     return seguimiento.Configuracion.desde_entorno()
@@ -301,7 +358,7 @@ def _cabeceras_registro(request: Request, identificador: str) -> dict[str, str]:
     }
 
 
-@app.get("/registros/{identificador}")
+@router.get("/registros/{identificador}")
 def consultar_registro(identificador: str) -> dict[str, str]:
     """Consulta una fila existente, sin escribir ni duplicar el registro (HU-07 AC3)."""
     identificador = validar_uuid(identificador)
@@ -314,7 +371,7 @@ def consultar_registro(identificador: str) -> dict[str, str]:
     raise HTTPException(404, "Registro no encontrado.")
 
 
-@app.get("/registros/{identificador}/step")
+@router.get("/registros/{identificador}/step")
 def descargar_step(identificador: str, request: Request) -> FileResponse:
     """Enlaza el STEP del registro persistente, incluso tras reiniciar los trabajos."""
     exigir_token(identificador, request.headers.get("X-Download-Token"))
@@ -342,7 +399,7 @@ def descargar_step(identificador: str, request: Request) -> FileResponse:
 async def registrar_entrada_invalida(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Registra una entrada rechazada una vez, sin arrancar pipeline ni corrida MLflow."""
     respuesta = await request_validation_exception_handler(request, exc)
-    if request.method == "POST" and request.url.path == "/generar":
+    if request.method == "POST" and request.url.path in {"/generar", f"{PREFIJO_V1}/generar"}:
         identificador = _identificador(request)
         with contexto_solicitud(request_id=identificador):
             logger.warning("entrada inválida rechazada en POST /generar")
@@ -377,6 +434,7 @@ def medir_solicitud(
     latencia_ms: float,
     motivo_declinacion: str | None = None,
     error: str | None = None,
+    control_uso: ControlUso | None = None,
 ) -> None:
     """Registra params, métricas, tags y artefactos, y cierra la corrida (AC2/AC3)."""
     corrida.registrar_params(
@@ -398,6 +456,8 @@ def medir_solicitud(
             precio_salida=configuracion.precio_salida,
         )
     )
+    if costo_usd is not None and control_uso is not None:
+        control_uso.registrar_gasto(costo_usd)
     corrida.registrar_metricas(
         latencia_ms=latencia_ms,
         tokens_entrada=tokens_entrada,
@@ -446,6 +506,8 @@ def _generar_sse(
     gestor: GestorTrabajos,
     configuracion: seguimiento.Configuracion,
     inicio: float,
+    control_uso: ControlUso,
+    al_terminal: Callable[[dict], None] | None = None,
 ) -> RespuestaSSE:
     """Ruta SSE: registro CSV y corrida MLflow al alcanzar el estado terminal (HU-15/16).
 
@@ -491,7 +553,10 @@ def _generar_sse(
             latencia_ms=latencia_ms,
             motivo_declinacion=terminal.get("motivo") if estado == "declinada" else None,
             error=f"HTTP {terminal.get('codigo_http', 500)}" if estado == "error" else None,
+            control_uso=control_uso,
         )
+        if al_terminal is not None:
+            al_terminal(terminal)
         logger.info("generación terminada en %s", estado)
 
     trabajo = gestor.crear(solicitud.texto, procesar, registrar_terminal)
@@ -512,6 +577,7 @@ def _generar_json(
     configuracion: seguimiento.Configuracion,
     solicitud_id: str,
     inicio: float,
+    control_uso: ControlUso,
 ) -> dict[str, str]:
     """Ruta JSON: registro y corrida MLflow con el contexto de la solicitud activo."""
     cabeceras = _cabeceras_registro(request, solicitud_id)
@@ -545,6 +611,7 @@ def _generar_json(
             latencia_ms=latencia_ms,
             motivo_declinacion=motivo,
             error=error,
+            control_uso=control_uso,
         )
         logger.warning("generación terminada en %s", estado)
         exc.headers = {**(exc.headers or {}), **cabeceras}
@@ -570,6 +637,7 @@ def _generar_json(
             estado="error",
             latencia_ms=latencia_ms,
             error=type(exc).__name__,
+            control_uso=control_uso,
         )
         logger.warning("generación terminada en error (%s)", type(exc).__name__)
         if isinstance(exc, Exception):
@@ -586,7 +654,14 @@ def _generar_json(
         ruta=obtener_ruta_registro(),
         identificador=solicitud_id,
     )
-    medir_solicitud(corrida, medido, configuracion, estado="entregada", latencia_ms=latencia_ms)
+    medir_solicitud(
+        corrida,
+        medido,
+        configuracion,
+        estado="entregada",
+        latencia_ms=latencia_ms,
+        control_uso=control_uso,
+    )
     response.headers.update(cabeceras)
     response.headers["X-Download-Token"] = emitir_token(solicitud_id)
     response.headers["Cache-Control"] = "no-store"
@@ -598,7 +673,7 @@ def _generar_json(
     return respuesta
 
 
-@app.post(
+@router.post(
     "/generar",
     response_model=dict[str, str],
     responses={
@@ -609,7 +684,9 @@ def _generar_json(
                     "x-event-data-schema": {"$ref": "#/components/schemas/EstadoTrabajo"},
                 }
             }
-        }
+        },
+        409: {"description": "La clave de idempotencia ya se usó con otra solicitud."},
+        429: {"description": "Límite por ventana excedido o presupuesto diario agotado."},
     },
 )
 def generar(
@@ -620,20 +697,73 @@ def generar(
     procesador_sse: Annotated[ProcesadorSSE, Depends(obtener_procesador_sse)],
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
     configuracion: Annotated[seguimiento.Configuracion, Depends(obtener_configuracion_seguimiento)],
-) -> dict[str, str] | StreamingResponse:
+    control: Annotated[ControlUso, Depends(obtener_control_uso)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key", max_length=255)] = None,
+) -> dict[str, str] | StreamingResponse | JSONResponse:
     """Procesa una solicitud CAD validada, la registra (AC3/AC4) y la mide (HU-16)."""
     solicitud_id = _identificador(request)  # RF-5: reutiliza X-Request-ID válido.
     with contexto_solicitud(request_id=solicitud_id):
         inicio = time.perf_counter()
         logger.info("solicitud recibida: POST /generar")
-        if _acepta_sse(request):
-            return _generar_sse(solicitud, request, procesador_sse, gestor, configuracion, inicio)
-        return _generar_json(
-            solicitud, request, response, procesador, configuracion, solicitud_id, inicio
+        sesion = _sesion(request)
+        transporte = "sse" if _acepta_sse(request) else "json"
+        clave = _clave_idempotencia(idempotency_key)
+        repetido, registro = control.reservar_idempotencia(
+            clave, sesion, solicitud.texto, transporte, solicitud_id
         )
+        if repetido:
+            logger.info("generación repetida con la misma clave de idempotencia")
+            return _respuesta_repetida(registro, gestor, response)
+
+        try:
+            control.reservar(sesion)
+        except ErrorControlUso:
+            control.liberar_idempotencia(clave, registro)
+            raise
+
+        def guardar_terminal(terminal: dict) -> None:
+            control.confirmar_idempotencia(clave, registro, estado_final=terminal)
+
+        try:
+            if transporte == "sse":
+                return _generar_sse(
+                    solicitud,
+                    request,
+                    procesador_sse,
+                    gestor,
+                    configuracion,
+                    inicio,
+                    control,
+                    al_terminal=guardar_terminal,
+                )
+            respuesta = _generar_json(
+                solicitud,
+                request,
+                response,
+                procesador,
+                configuracion,
+                solicitud_id,
+                inicio,
+                control,
+            )
+            control.confirmar_idempotencia(
+                clave, registro, respuesta=respuesta, cabeceras=dict(response.headers)
+            )
+            return respuesta
+        except BaseException:
+            control.liberar_idempotencia(clave, registro)
+            raise
 
 
-@app.get("/generaciones/{solicitud_id}", response_model=EstadoTrabajo)
+@router.get("/uso", response_model=RespuestaUso)
+def consultar_uso(
+    control: Annotated[ControlUso, Depends(obtener_control_uso)],
+) -> RespuestaUso:
+    """RF-5/AC4: gasto acumulado del día, sin red ni identificadores de cliente."""
+    return RespuestaUso(**control.gasto_acumulado())
+
+
+@router.get("/generaciones/{solicitud_id}", response_model=EstadoTrabajo)
 def consultar_generacion(
     solicitud_id: str,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
@@ -642,7 +772,7 @@ def consultar_generacion(
     return gestor.obtener(solicitud_id).estado()
 
 
-@app.delete(
+@router.delete(
     "/generaciones/{solicitud_id}",
     response_model=EstadoTrabajo,
     responses={
@@ -664,8 +794,8 @@ def obtener_directorio_salidas() -> Path:
     return Path("outputs").resolve()
 
 
-@app.get("/generaciones/{solicitud_id}/archivos/{formato}")
-@app.head("/generaciones/{solicitud_id}/archivos/{formato}", include_in_schema=False)
+@router.get("/generaciones/{solicitud_id}/archivos/{formato}")
+@router.head("/generaciones/{solicitud_id}/archivos/{formato}", include_in_schema=False)
 def descargar_archivo(
     solicitud_id: str,
     formato: str,
@@ -704,6 +834,51 @@ def descargar_archivo(
         headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
     )
 
+
+def _cabeceras_deprecacion(destino: str) -> dict[str, str]:
+    """Anuncia la sustitución de una ruta plana por su equivalente `/v1` (RF-5)."""
+    return {
+        "Deprecation": "true",
+        "Sunset": SUNSET_RUTAS_PLANAS,
+        "Link": f'<{destino}>; rel="successor-version"',
+    }
+
+
+async def _redirigir_a_v1(request: Request) -> RedirectResponse:
+    """Conserva método, cuerpo y query al pasar una ruta plana a `/v1` (RF-2)."""
+    destino = str(request.url.replace(path=f"{PREFIJO_V1}{request.url.path}"))
+    return RedirectResponse(
+        destino,
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        headers=_cabeceras_deprecacion(destino),
+    )
+
+
+_RUTAS_PLANAS = (
+    ("/health", ("GET",)),
+    ("/ready", ("GET",)),
+    ("/registros/{identificador}", ("GET",)),
+    ("/registros/{identificador}/step", ("GET",)),
+    ("/generar", ("POST",)),
+    ("/generaciones/{solicitud_id}", ("GET", "DELETE")),
+    ("/generaciones/{solicitud_id}/archivos/{formato}", ("GET", "HEAD")),
+)
+
+app.include_router(router)
+
+for _ruta, _metodos in _RUTAS_PLANAS:
+    for _metodo in _metodos:
+        _nombre = (
+            f"legado_{_metodo.lower()}_"
+            f"{_ruta.strip('/').replace('/', '_').replace('{', '').replace('}', '')}"
+        )
+        app.add_api_route(
+            _ruta,
+            _redirigir_a_v1,
+            methods=[_metodo],
+            name=_nombre,
+            include_in_schema=False,
+        )
 
 # Rutas estáticas explícitas; las rutas API desconocidas conservan su 404 JSON.
 configurar_web(app)

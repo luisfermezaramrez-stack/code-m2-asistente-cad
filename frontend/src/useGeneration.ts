@@ -135,7 +135,7 @@ export function useGeneration() {
     let streamOpened = false
     const timer = setTimeout(() => { timedOut = true; control.abort() }, timeoutSeconds.value * 1000)
     try {
-      const response = await fetch('/generar', {
+      const response = await fetch('/v1/generar', {
         method: 'POST', signal: control.signal,
         headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
         body: JSON.stringify({ texto: text }),
