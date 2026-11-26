@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "casos": [
+    {
+      "id": "acepta-plate-hu02-p01",
+      "fuente": "HU02-P01",
+      "resultado": "acepta",
+      "sha256": "3624df618f6c04acca7078f180b804e03881d84836f2e0ad0db3ec30f251e890"
+    },
+    {
+      "id": "acepta-plate-hu02-p05",
+      "fuente": "HU02-P05",
+      "resultado": "acepta",
+      "sha256": "4105a43a1a268ec9ad3ad9d40854d7b06e91f3289a846af229debc1b35bb9428"
+    },
+    {
+      "id": "acepta-sheet_bracket-hu02-p06",
+      "fuente": "HU02-P06",
+      "resultado": "acepta",
+      "sha256": "2d13c330aaa4454f896295ccfb064797ba1f54962da2ebdcd5f28c62381790f0"
+    },
+    {
+      "id": "acepta-sheet_bracket-hu02-p10",
+      "fuente": "HU02-P10",
+      "resultado": "acepta",
+      "sha256": "e6256ebfada9540f1ad272b33469d5eb085a8f9b38f8478d0ae48b4b2e5c307e"
+    },
+    {
+      "id": "acepta-adapter-hu02-p11",
+      "fuente": "HU02-P11",
+      "resultado": "acepta",
+      "sha256": "a906be16368b9ecf2d422e1d3109ff80dc2d9d4e4396bf6b230b8ef1fe556226"
+    },
+    {
+      "id": "acepta-adapter-hu02-p15",
+      "fuente": "HU02-P15",
+      "resultado": "acepta",
+      "sha256": "561aded30c034b3a30f98a984bfd9949e5c0680ca8570f726dae8d3e1266c252"
+    },
+    {
+      "id": "acepta-flange-hu02-p16",
+      "fuente": "HU02-P16",
+      "resultado": "acepta",
+      "sha256": "9bc5276cbc7bd102bfbd529f4394f86a1293c3cdf68fcf903497a8d53bb43b08"
+    },
+    {
+      "id": "acepta-flange-hu02-p20",
+      "fuente": "HU02-P20",
+      "resultado": "acepta",
+      "sha256": "3a3097a9bdc4a1cbc4079d74e0cce23bf63b77a7687ccc3c6f83ada4f01ffa53"
+    },
+    {
+      "id": "acepta-spacer-hu02-p21",
+      "fuente": "HU02-P21",
+      "resultado": "acepta",
+      "sha256": "374ffd372d65a2acc3478075f8149ad757d14e396906bd8ba957ee8c904799ee"
+    },
+    {
+      "id": "acepta-spacer-hu02-p25",
+      "fuente": "HU02-P25",
+      "resultado": "acepta",
+      "sha256": "007bd497341ff56c9100f7cb2a4628b9dc4542937d5a9dc616af692703bde17e"
+    },
+    {
+      "id": "acepta-screw-hu02-p26",
+      "fuente": "HU02-P26",
+      "resultado": "acepta",
+      "sha256": "f120931bf43eec87f8d783065640bf44dc1ac48d09390640c02a02cd063d0a4c"
+    },
+    {
+      "id": "acepta-screw-hu02-p30",
+      "fuente": "HU02-P30",
+      "resultado": "acepta",
+      "sha256": "96cd415349204d2604ddb1f12ce9b317e474d9c13cb6af537d199423179d9dbb"
+    },
+    {
+      "id": "declina-hu02-n01",
+      "programa": {
+        "unsupported": "El cálculo y la certificación estructural están fuera del alcance."
+      },
+      "resultado": "declina"
+    },
+    {
+      "id": "declina-hu02-n02",
+      "programa": {
+        "unsupported": "La verificación y certificación NSR-10 están fuera del alcance."
+      },
+      "resultado": "declina"
+    },
+    {
+      "id": "declina-hu02-n04",
+      "programa": {
+        "unsupported": "La generación Revit/BIM está fuera del alcance."
+      },
+      "resultado": "declina"
+    }
+  ]
+}

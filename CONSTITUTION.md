@@ -193,13 +193,16 @@ code-m2-asistente-cad/
 | `pre-commit` | Hooks antes de cada commit | `make precommit-install` / `make precommit` |
 | GitHub Actions | CI en PRs a `main` | `.github/workflows/ci.yml` |
 | Kernel del autor | 113 pruebas dentro del contenedor `cadkit:0.1` | `make kernel-image` + `make kernel-test` |
+| Corpus dorado | Divergencia geométrica del núcleo por huella de STEP, en cada PR | `make corpus-dorado` |
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
 | Servicio | Vue/FastAPI + DeepSeek externo | `make up` / `make down` |
 
 `make check` ejecuta Ruff, comprobación del contrato congelado, comprobación de tipos
 OpenAPI, Vitest, TypeScript, build y pytest con cobertura; CI reproduce estos controles
 desde lockfiles. Las pruebas con dobles se identifican como simuladas y no prueban
-inferencia real.
+inferencia real. El corpus dorado es un paso propio fuera de `make check`: compara el
+núcleo determinista contra huellas congeladas de STEP (`make corpus-dorado`, SPEC-024) y
+falla nombrando el caso y las huellas esperada y obtenida.
 
 HU-27 define `EstadoTrabajo` en `contratos.py`, compartido por GET/DELETE de
 generaciones y documentado para el JSON `data` de SSE con `x-event-data-schema`.
@@ -328,12 +331,14 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-22 | HU-27: generar tipos frontend desde OpenAPI y comprobarlos en `make check`; compartir `EstadoTrabajo` entre HTTP y documentación SSE | Detectar divergencias del contrato en CI; generador compatible con TypeScript 6, offline tras instalación y sin cambiar el transporte |
 | 2026-11-24 | HU-25: reintentos con plazo total, caché validada, cancelación cooperativa y configuración inválida como 503 en `llm_resiliente.py` | Corregir la revisión del PR #126: evitar esperas multiplicadas, respuestas inválidas cacheadas, llamadas pagas tras cancelar, 500 por configuración inválida y métricas de error distorsionadas |
 | 2026-11-24 | HU-24: logging central en JSON con `request_id`/`job_id` correlacionados y redacción de secretos | Reconstruir cada solicitud con un solo id sin filtrar credenciales; el contexto se copia al hilo SSE y se etiqueta en MLflow |
+| 2026-11-24 | HU-23: corpus dorado de programas DSL con huella congelada del STEP normalizado y paso propio de CI, fuera de `make check` | Detectar divergencias geométricas por debajo de la tolerancia de ±2 % del banco; la huella neutraliza sólo los tres campos que varían entre corridas, para no cegar la detección |
 | 2026-11-25 | HU-31: API versionada `/v1`, contrato OpenAPI congelado y rutas planas deprecadas con `307` | Congelar el contrato público para detectar cambios incompatibles en CI y dar 90 días de convivencia a clientes antiguos |
 | 2026-11-25 | HU-32: `control_uso.py` concentra topes por sesión/ventana, presupuesto diario UTC e idempotencia en memoria; `/v1/uso` agrega `costo_usd` y los rechazos son 429 tipados | Evitar gasto no previsto ni generaciones duplicadas sin tocar el pipeline; con `--workers 1` basta el proceso y la interfaz permite migrar a almacén compartido al escalar |
 | 2026-11-25 | HU-45: cola persistente en `data/cola.json` con bloqueo atómico de SPEC-031 y worker separado (`python -m m2_cad.worker`, `make worker`) | Reiniciar o desplegar sin perder trabajos SSE; la API encola y el worker drena, con eventos completos y registro deduplicado por `solicitud_id` |
 | 2026-11-25 | HU-45 × HU-32: el costo medido por el worker se guarda en la cola y la API lo suma una vez al presupuesto (`tomar_gastos_pendientes`); la idempotencia se vincula al id real del trabajo | El worker corre en otro proceso y no ve el `ControlUso` en memoria de la API; sin esto el presupuesto diario y `/v1/uso` ignoraban las generaciones SSE |
 | 2026-11-25 | HU-53: sesión local con cookie firmada y usuarios PBKDF2 por entorno; activa por defecto, modo local explícito | Controlar acceso y costo en despliegue público sin red, OIDC ni dependencias nuevas; dueño en trabajos y registro con respuestas 404 ajenas |
 | 2026-11-25 | HU-53 × HU-31/32/45: `/v1/auth/*`; la cola guarda el dueño y el worker lo registra; topes e idempotencia por usuario; login con límite de intentos; firma ligada al hash vigente; configuración validada al arrancar | Integrar la autenticación con la API versionada, la cola y el control de uso sin fugas entre usuarios; endurecer la sesión según la revisión del PR #133 |
+>>>>>>> origin/main
 
 ## 10. Notas y tareas pendientes
 
