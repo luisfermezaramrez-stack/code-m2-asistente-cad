@@ -114,3 +114,85 @@ def test_un_422_de_validacion_no_cuenta_como_declinacion(tmp_path):
     codigo = smoke.main(["--n", "1", "--salida", str(tmp_path)], transport=transporte)
 
     assert codigo == 1
+
+
+def _transporte_con_sesion(llamadas: list[httpx.Request]):
+    """API con HU-53 activa: exige la cookie de sesión en /v1/generar."""
+
+    def responder(request: httpx.Request) -> httpx.Response:
+        llamadas.append(request)
+        if request.url.path == "/v1/auth/me":
+            return httpx.Response(200, json={"requerido": True, "autenticado": False})
+        if request.url.path == "/v1/auth/login":
+            datos = json.loads(request.content)
+            if datos != {"usuario": "operador", "clave": "clave-humo"}:
+                return httpx.Response(401, json={"detail": "Usuario o clave incorrectos."})
+            # Cookie Secure como en producción: httpx no la reenviaría por HTTP.
+            return httpx.Response(
+                200,
+                json={"autenticado": True, "usuario": "operador"},
+                headers={"set-cookie": "m2_sesion=tok.firmado; HttpOnly; Secure; Path=/"},
+            )
+        if request.url.path == "/v1/generar":
+            if "m2_sesion=tok.firmado" not in request.headers.get("cookie", ""):
+                return httpx.Response(401, json={"detail": "Inicia sesión para continuar."})
+            return httpx.Response(200, json={"step": "/salidas/pieza.step"})
+        return httpx.Response(404)
+
+    return httpx.MockTransport(responder)
+
+
+def test_humo_inicia_sesion_cuando_la_api_la_exige(tmp_path, monkeypatch):
+    """HU-53: con --usuario y M2_SMOKE_CLAVE, el humo entra y genera con la sesión."""
+    # Arrange
+    llamadas: list[httpx.Request] = []
+    monkeypatch.setenv("M2_SMOKE_CLAVE", "clave-humo")
+
+    # Act
+    codigo = smoke.main(
+        ["--n", "1", "--usuario", "operador", "--salida", str(tmp_path)],
+        transport=_transporte_con_sesion(llamadas),
+    )
+
+    # Assert
+    assert codigo == 0
+    assert [r.url.path for r in llamadas] == ["/v1/auth/me", "/v1/auth/login", "/v1/generar"]
+    assert json.loads((tmp_path / "smoke.json").read_text(encoding="utf-8"))["validas"] == 1
+
+
+def test_humo_sin_credenciales_no_gasta_tokens_si_la_api_exige_sesion(
+    tmp_path, capsys, monkeypatch
+):
+    """HU-53: sin credenciales corta antes de generar, con un mensaje accionable."""
+    # Arrange
+    llamadas: list[httpx.Request] = []
+    monkeypatch.delenv("M2_SMOKE_CLAVE", raising=False)
+    monkeypatch.delenv("M2_SMOKE_USUARIO", raising=False)
+
+    # Act
+    codigo = smoke.main(
+        ["--n", "3", "--salida", str(tmp_path)], transport=_transporte_con_sesion(llamadas)
+    )
+
+    # Assert
+    assert codigo == 2
+    assert "/v1/generar" not in [r.url.path for r in llamadas]
+    assert "--usuario" in capsys.readouterr().err
+    assert not (tmp_path / "smoke.json").exists()
+
+
+def test_humo_con_clave_incorrecta_no_gasta_tokens(tmp_path, monkeypatch):
+    """HU-53: un login rechazado termina con código 2 y sin generar."""
+    # Arrange
+    llamadas: list[httpx.Request] = []
+    monkeypatch.setenv("M2_SMOKE_CLAVE", "mala")
+
+    # Act
+    codigo = smoke.main(
+        ["--n", "1", "--usuario", "operador", "--salida", str(tmp_path)],
+        transport=_transporte_con_sesion(llamadas),
+    )
+
+    # Assert
+    assert codigo == 2
+    assert "/v1/generar" not in [r.url.path for r in llamadas]
