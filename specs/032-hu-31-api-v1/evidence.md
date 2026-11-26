@@ -5,7 +5,7 @@
 - **Rama de corrección:** `fix/hu-31-revisiones-pr130`
 - **Base:** `origin/main` en `a71c3cc` (PR #130 ya fusionado)
 - **PR:** [#130](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/130) (fusionado, con comentarios de revisión pendientes)
-- **PR de corrección:** se registra al publicar (ver §7)
+- **PR de corrección:** [#138](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/138)
 
 ## 1. Criterios de aceptación
 
@@ -123,4 +123,4 @@ de revisión se atienden en el PR de corrección de §7.
 | `Sunset` fijo acortaba el plazo con el retraso | `M2_SUNSET_RUTAS_PLANAS` configurable | `.env.example`, `docs/versionado-api.md`, `plan.md` |
 | `_redirigir_a_v1` no contemplaba `root_path` | Destino construido con `root_path` | `src/m2_cad/api.py`, `test_ac1_redireccion_respeta_root_path` |
 
-PR de corrección: pendiente de registrar tras la publicación de la rama.
+PR de corrección: [#138](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/138).
