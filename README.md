@@ -243,7 +243,8 @@ esquema de esa versión está congelado en [`contracts/openapi-v1.json`](contrac
 `make api-contract` lo regenera y `make api-contract-check` falla si un campo o una ruta
 cambia sin actualizarlo; ambos forman parte de `make check` y de CI. Las rutas planas
 siguen funcionando como redirecciones `307` con cabeceras `Deprecation`, `Sunset` y
-`Link` durante 90 días. Política completa:
+`Link` durante 90 días. Los clientes deben seguir la redirección `307`
+(`curl -L`, o `follow_redirects=True` en `httpx`); política completa:
 [versionado de la API](docs/versionado-api.md) · [SPEC-032](specs/032-hu-31-api-v1/plan.md).
 
 Variables del modelo:
@@ -503,7 +504,7 @@ docker compose -f docker-compose.yml -f docker-compose.gemma.yml up -d llama
 make verify-serve                        # AC2: n_ctx=8192 y VRAM <= 16 GB
 ```
 
-4. Comprobar desde tu máquina: `curl http://<IP-pública>:8000/health`.
+4. Comprobar desde tu máquina: `curl http://<IP-pública>:8000/v1/health`.
    La verificación del modelo en 8080 se ejecuta dentro de la instancia, no desde el navegador.
 5. Terminar la instancia (se factura por hora) cuando cierres la validación.
 

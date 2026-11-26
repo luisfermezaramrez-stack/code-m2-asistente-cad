@@ -59,7 +59,7 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [029](029-hu-28-escaneo-seguridad/) | HU-28 · Escaneo de dependencias y secretos en CI | 0 | Carlos | #88 | — | Spec-first | Propuesta |
 | [030](030-hu-29-runbook-operativo/) | HU-29 · Runbook operativo | 0 | Carlos | #89 | #136 | Spec-first | En revisión |
 | [031](031-hu-30-persistencia-registro/) | HU-30 · Persistencia transaccional, retención y backup del registro | 1 | Juan Camilo | #90 | — | Spec-first | Propuesta |
-| [032](032-hu-31-api-v1/) | HU-31 · API `/v1` versionada con contrato congelado | 1 | Juan Camilo | #91 | #130 | Spec-first | En revisión |
+| [032](032-hu-31-api-v1/) | HU-31 · API `/v1` versionada con contrato congelado | 1 | Juan Camilo | #91 | #130, #138 | Spec-first | Correcciones en #138 |
 | [033](033-hu-32-costo-limites-idempotencia/) | HU-32 · Control de costo, límites de uso e idempotencia | 1 | Juan Camilo | #92 | #131 | Spec-first | En revisión |
 | [034](034-hu-33-prompts-versionados/) | HU-33 · Prompts versionados como artefactos | 1 | Luis Meza | #93 | — | Spec-first | Propuesta |
 | [035](035-hu-34-sistema-diseno-v2/) | HU-34 · Sistema de diseño v2: tokens, tipografía y modo oscuro | 1 | Carlos | #94 | #137 | Spec-first | En revisión |
