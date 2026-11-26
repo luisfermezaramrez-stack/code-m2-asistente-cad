@@ -23,12 +23,16 @@ def ejecutar_smoke(cliente, tracking, *, salida: Path, mlflow_ui: str) -> tuple[
     caso = next(c for c in casos if c["id"] == "HU02-P01")
     assert caso["resultado_esperado"] != "declinar"
     # Solo lecturas previas: si faltan servicios/contrato, no se envía al modelo.
-    cliente.get("/health").raise_for_status()
+    cliente.get("/v1/health").raise_for_status()
     esquema = cliente.get("/openapi.json")
     esquema.raise_for_status()
     rutas = esquema.json()["paths"]
     if (
-        not {"/generar", "/registros/{identificador}", "/registros/{identificador}/step"}
+        not {
+            "/v1/generar",
+            "/v1/registros/{identificador}",
+            "/v1/registros/{identificador}/step",
+        }
         <= rutas.keys()
     ):
         raise RuntimeError("La API no contiene la trazabilidad HU-07 actual.")

@@ -9,12 +9,15 @@ Especificación: specs/004-registro-solicitudes/spec.md
 - AC4: excluye nombres y correos (Ley 1581 de 2012).
 """
 
+import csv
+import io
 import re
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
-from m2_cad.persistencia_registro import anexar_sin_duplicar
+from m2_cad.autenticacion import ANONIMO
+from m2_cad.persistencia_registro import _bloqueo, _publicar_bytes, anexar_sin_duplicar
 
 CAMPOS = [
     "id",
@@ -25,6 +28,7 @@ CAMPOS = [
     "latencia_ms",
     "error",
     "version",
+    "usuario",
 ]
 
 RUTA_DEFAULT = Path("data/registro.csv")
@@ -42,6 +46,27 @@ PATRON_NOMBRE = re.compile(
 
 # HU-14: la solicitud llega en español al modelo; no hay traducción que registrar.
 SIN_TRADUCCION = "no aplica"
+_RUTAS_MIGRADAS: set[Path] = set()
+
+
+def _asegurar_columna_usuario(ruta: Path) -> None:
+    """HU-53: añade `usuario` a CSV anteriores sin borrar ni alterar sus filas."""
+    if not ruta.exists():
+        return
+    with _bloqueo(ruta):
+        with ruta.open(encoding="utf-8", newline="") as archivo:
+            lector = csv.DictReader(archivo)
+            actuales = lector.fieldnames or []
+            if actuales == CAMPOS:
+                return
+            if actuales and actuales != CAMPOS[:-1]:
+                raise ValueError("La cabecera del registro no coincide con CAMPOS.")
+            filas = [{**fila, "usuario": ANONIMO} for fila in lector]
+        salida = io.StringIO(newline="")
+        escritor = csv.DictWriter(salida, fieldnames=CAMPOS)
+        escritor.writeheader()
+        escritor.writerows(filas)
+        _publicar_bytes(ruta, salida.getvalue().encode("utf-8"))
 
 
 def _sanitizar(texto: str) -> str:
@@ -66,8 +91,9 @@ def registrar(
     ruta: Path = RUTA_DEFAULT,
     *,
     identificador: str | None = None,
+    usuario: str = ANONIMO,
 ) -> dict[str, str]:
-    """Registra una solicitud con los 8 campos de la especificación.
+    """Registra una solicitud con los campos de la especificación.
 
     Devuelve la fila escrita. Los campos sin valor conocido quedan con un
     marcador explícito ('ninguno', 'desconocida', '0'), nunca vacíos (AC3).
@@ -81,6 +107,12 @@ def registrar(
         "latencia_ms": _a_valor_conocido(latencia_ms, "0"),
         "error": _a_valor_conocido(error, "ninguno"),
         "version": _a_valor_conocido(version, "desconocida"),
+        "usuario": _a_valor_conocido(usuario, ANONIMO),
     }
 
+    destino = Path(ruta).resolve()
+    if destino not in _RUTAS_MIGRADAS:
+        # Una vez por archivo y proceso: evita leer la cabecera en cada escritura.
+        _asegurar_columna_usuario(destino)
+        _RUTAS_MIGRADAS.add(destino)
     return anexar_sin_duplicar(Path(ruta), fila, CAMPOS)

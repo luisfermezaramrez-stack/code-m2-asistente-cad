@@ -4,7 +4,6 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend ./
-COPY design/tokens.css /build/design/tokens.css
 RUN npm run typecheck && npm run build
 
 # Vendor obtenido dentro del build, sin preparación manual del host.
@@ -49,7 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
-    CMD ["/app/.venv/bin/python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+    CMD ["/app/.venv/bin/python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/v1/health', timeout=3)"]
 
 # Un worker: trabajos SSE y cancelación en memoria del proceso.
 CMD ["uv", "run", "--no-sync", "uvicorn", "m2_cad.api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

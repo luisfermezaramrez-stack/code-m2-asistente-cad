@@ -5,7 +5,9 @@ a { color: var(--color-accent); text-underline-offset: var(--space-1); }
 .skip { position: absolute; top: var(--space-2); left: var(--space-4); transform: translateY(-200%); padding: var(--space-3); background: var(--color-surface); z-index: 1; }
 .skip:focus { transform: none; }
 .shell { max-width: var(--layout-max); margin-inline: auto; padding: var(--space-6); }
-.masthead { margin-bottom: var(--space-5); }
+.masthead { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-5); }
+.masthead > div { min-width: 0; }
+.theme-toggle { min-height: var(--control-min); font-size: var(--text-small); }
 .brand { color: var(--color-muted); font: var(--text-small)/var(--line-body) var(--font-technical); }
 h1, h2, h3 { line-height: var(--line-heading); margin: 0 0 var(--space-4); font-weight: var(--weight-strong); }
 h1 { font-size: var(--text-title); }

@@ -1,5 +1,9 @@
 # HU-15 · Validación de referencia y propuesta de implementación
 
+Referencia histórica: las medidas y el contraste aquí registrados corresponden a la maqueta
+de HU-15. La validación del frontend con ambos temas está en
+[`docs/diseno-v2.md`](../docs/diseno-v2.md) y `frontend/tests/tokens.test.ts`.
+
 ## Comprobaciones realizadas
 
 Se abrió el HTML local en Chrome 157.0.8103.78, sin instalar paquetes en el
