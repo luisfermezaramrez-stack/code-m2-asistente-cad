@@ -9,8 +9,10 @@ import subprocess
 import sys
 import time
 from dataclasses import asdict
+from datetime import date
 from pathlib import Path
 from threading import Thread
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -19,8 +21,9 @@ from fastapi.testclient import TestClient
 from m2_cad import api, seguimiento
 from m2_cad.cola_trabajos import ColaTrabajos, TrabajoPersistido
 from m2_cad.control import ControlGeneracion
+from m2_cad.control_uso import ConfiguracionUso, ControlUso
 from m2_cad.registro import SIN_TRADUCCION, registrar
-from m2_cad.worker import ejecutar
+from m2_cad.worker import consumir, ejecutar
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -240,7 +243,7 @@ def test_api_sse_encola_sin_ejecutar_el_pipeline(cola_tmp):
     with TestClient(api.app) as cliente:
         with cliente.stream(
             "POST",
-            "/generar",
+            "/v1/generar",
             json={"texto": "soporte para bandeja"},
             headers={"Accept": "text/event-stream"},
         ) as respuesta:
@@ -259,10 +262,101 @@ def test_consultar_y_cancelar_generacion_usan_la_cola(cola_tmp):
         "soporte para bandeja", configuracion=_configuracion(), ruta_registro=registro
     )
     with TestClient(api.app) as cliente:
-        consulta = cliente.get(f"/generaciones/{trabajo.id}")
+        consulta = cliente.get(f"/v1/generaciones/{trabajo.id}")
         assert consulta.status_code == 200
         assert consulta.json()["estado"] == "iniciando"
 
-        cancelacion = cliente.delete(f"/generaciones/{trabajo.id}")
+        cancelacion = cliente.delete(f"/v1/generaciones/{trabajo.id}")
         assert cancelacion.status_code == 202
         assert cancelacion.json()["cancelacion_solicitada"] is True
+
+
+SSE = {"Accept": "text/event-stream"}
+
+
+@pytest.fixture
+def api_con_cola_y_uso(cola_tmp):
+    """API con cola activa, worker en un hilo y control de uso aislado (HU-32 × HU-45)."""
+    cola, _, ruta = cola_tmp
+    control = ControlUso()
+    configuracion = seguimiento.Configuracion(activo=False, precio_entrada=1.0, precio_salida=2.0)
+    api.app.dependency_overrides[api.obtener_control_uso] = lambda: control
+    api.app.dependency_overrides[api.obtener_configuracion_seguimiento] = lambda: configuracion
+    try:
+        with TestClient(api.app) as cliente:
+            worker = Thread(
+                target=consumir,
+                args=(cola, procesar_simulado),
+                kwargs={"intervalo": 0.01, "finalizador": lambda *_: None},
+                daemon=True,
+            )
+            worker.start()
+            yield SimpleNamespace(cliente=cliente, cola=cola, control=control, ruta=ruta)
+            cola.cerrar()
+            worker.join(timeout=5)
+    finally:
+        api.app.dependency_overrides.pop(api.obtener_control_uso, None)
+        api.app.dependency_overrides.pop(api.obtener_configuracion_seguimiento, None)
+
+
+def test_hu32_gasto_encolado_cuenta_una_vez_y_activa_el_presupuesto(api_con_cola_y_uso):
+    """El costo que mide el worker llega al presupuesto y a /v1/uso una sola vez."""
+    # Arrange
+    sim = api_con_cola_y_uso
+    costo = seguimiento.costo_usd(10, 4, precio_entrada=1.0, precio_salida=2.0)
+
+    # Act
+    respuesta = sim.cliente.post("/v1/generar", json={"texto": "soporte"}, headers=SSE)
+    sim.control.configuracion = ConfiguracionUso(presupuesto_diario_usd=costo / 2)
+    rechazo = sim.cliente.post("/v1/generar", json={"texto": "otro soporte"}, headers=SSE)
+    primera = sim.cliente.get("/v1/uso").json()
+    segunda = sim.cliente.get("/v1/uso").json()
+
+    # Assert
+    assert respuesta.status_code == 200
+    assert sim.cola.estado(respuesta.headers["x-registro-id"])["estado"] == "verificado"
+    assert rechazo.status_code == 429
+    assert rechazo.headers["X-Limite-Tipo"] == "presupuesto"
+    assert primera["costo_usd"] == pytest.approx(costo)
+    assert primera["generaciones"] == 1
+    assert segunda == primera
+    assert len(json.loads(sim.ruta.read_text(encoding="utf-8"))["trabajos"]) == 1
+
+
+def test_hu32_idempotencia_repite_el_trabajo_encolado(api_con_cola_y_uso):
+    """Repetir la clave devuelve el trabajo de la cola, sin encolar otro (AC2)."""
+    # Arrange
+    sim = api_con_cola_y_uso
+    cabeceras = {**SSE, "Idempotency-Key": "pedido-cola"}
+
+    # Act
+    original = sim.cliente.post("/v1/generar", json={"texto": "soporte"}, headers=cabeceras)
+    repetida = sim.cliente.post("/v1/generar", json={"texto": "soporte"}, headers=cabeceras)
+
+    # Assert
+    identificador = original.headers["x-registro-id"]
+    assert repetida.status_code == 200
+    assert repetida.headers["Idempotent-Replay"] == "true"
+    assert repetida.headers["X-Solicitud-ID"] == identificador
+    assert repetida.json()["solicitud_id"] == identificador
+    assert repetida.json()["estado"] == "verificado"
+    assert len(json.loads(sim.ruta.read_text(encoding="utf-8"))["trabajos"]) == 1
+
+
+def test_hu32_gasto_encolado_se_atribuye_al_dia_en_que_termino(cola_tmp):
+    """Un trabajo terminado ayer no infla el gasto de hoy al contabilizarse tarde."""
+    # Arrange
+    cola, registro, _ = cola_tmp
+    trabajo = cola.encolar("soporte", configuracion=_configuracion(), ruta_registro=registro)
+    cola.guardar_medicion(trabajo.id, {"tokens_entrada": 10, "tokens_salida": 4})
+    cola.publicar_evento(trabajo.id, "verificado", resultado={})
+    with cola._editar() as datos:  # Simula un trabajo que terminó el día anterior.
+        datos["trabajos"][trabajo.id]["actualizado_en"] = "2026-11-24T23:59:00+00:00"
+
+    # Act
+    pendientes = cola.tomar_gastos_pendientes()
+
+    # Assert
+    assert [pendiente["dia"] for pendiente in pendientes] == [date(2026, 11, 24)]
+    assert pendientes[0]["medicion"] == {"tokens_entrada": 10, "tokens_salida": 4}
+    assert cola.tomar_gastos_pendientes() == []

@@ -1,6 +1,6 @@
-import type { ConsultarGeneracionGeneracionesSolicitudIdGetResponse } from './generated/api'
+import type { ConsultarGeneracionV1GeneracionesSolicitudIdGetResponse } from './generated/api'
 
-export type Job = ConsultarGeneracionGeneracionesSolicitudIdGetResponse
+export type Job = ConsultarGeneracionV1GeneracionesSolicitudIdGetResponse
 export type Stage = Job['estado']
 // Formatos y enlaces descubiertos por HEAD: estado local de UI, no un cuerpo JSON.
 export type Format = 'step' | 'glb' | 'csv'
@@ -25,7 +25,7 @@ export function parseJob(value: unknown): Job {
   return job
 }
 
-export function jobUrl(id: string): string { return `/generaciones/${encodeURIComponent(id)}` }
+export function jobUrl(id: string): string { return `/v1/generaciones/${encodeURIComponent(id)}` }
 export function artifactUrl(id: string, format: Format): string { return `${jobUrl(id)}/archivos/${format}` }
 
 export function publicMessage(text: unknown, fallback: string): string {

@@ -28,6 +28,8 @@ htmlcov/
 .ruff_cache/
 .mypy_cache/
 .dmypy.json
+# Cachés que GitLab CI escribe dentro del proyecto (UV_CACHE_DIR, npm_config_cache).
+.cache/
 
 # ===== Pesos del modelo (9,8 GB): nunca se versionan =====
 *.gguf
@@ -38,7 +40,9 @@ models/
 outputs/
 data/outputs/
 artifacts/
+data/*.lock
 registro*.csv
+data/*.lock
 
 # ===== HU-45: estado local de la cola persistente y locks SPEC-031 =====
 data/cola.json

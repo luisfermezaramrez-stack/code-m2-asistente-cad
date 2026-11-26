@@ -203,6 +203,35 @@ class ColaTrabajos:
             if trabajo is not None:
                 trabajo["medicion"] = json.loads(_codificar(medicion))
 
+    def tomar_gastos_pendientes(self) -> list[dict]:
+        """Entrega una sola vez la medición de cada trabajo terminal (HU-32 × HU-45).
+
+        Marca ``gasto_contabilizado`` bajo el mismo bloqueo, así dos lecturas
+        concurrentes nunca suman dos veces el mismo trabajo. Sin pendientes no reescribe
+        el archivo.
+        """
+        with _bloqueo(self.ruta):
+            datos = self._cargar()
+            pendientes = [
+                trabajo
+                for trabajo in datos["trabajos"].values()
+                if trabajo["estado"] in TERMINALES and not trabajo.get("gasto_contabilizado")
+            ]
+            if not pendientes:
+                return []
+            for trabajo in pendientes:
+                trabajo["gasto_contabilizado"] = True
+            _publicar_bytes(self.ruta, _codificar(datos).encode("utf-8"))
+        return [
+            {
+                "id": trabajo["id"],
+                "medicion": copy.deepcopy(trabajo.get("medicion") or {}),
+                "configuracion": copy.deepcopy(trabajo.get("configuracion") or {}),
+                "dia": datetime.fromisoformat(trabajo["actualizado_en"]).astimezone(UTC).date(),
+            }
+            for trabajo in pendientes
+        ]
+
     def marcar_registrado(self, solicitud_id: str) -> None:
         with self._editar() as datos:
             trabajo = datos["trabajos"].get(solicitud_id)

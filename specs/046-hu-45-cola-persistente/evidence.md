@@ -55,8 +55,26 @@ porque `anexar_sin_duplicar` usa el `solicitud_id`, y el flag `registrado` impid
 el finalizador en la misma ejecución. Queda fuera de alcance un protocolo transaccional
 entre inferencia, registro y publicación.
 
-## Integración pendiente
+## Integración con HU-31 y HU-32
 
-PR #130 (HU-31) y PR #131 (HU-32) siguen abiertos sobre `main`. HU-45 no depende de
-`/v1` ni del control de uso, pero sus cambios en `src/m2_cad/api.py` requerirán resolver
-solapamientos al fusionarlos. No se fusionó ninguno de esos PR aquí.
+PR #130 (HU-31) y PR #131 (HU-32) se fusionaron en `main` mientras este PR estaba
+abierto. Al integrar `main` aparecieron, además de los conflictos de texto en
+`src/m2_cad/api.py` y `CONSTITUTION.md`, dos incompatibilidades que las pruebas no
+mostraban porque `tests/conftest.py` desactiva la cola:
+
+- **Presupuesto y `/v1/uso`.** HU-32 suma el gasto en memoria de la API desde el callback
+  terminal, que con la cola nunca corre: el worker está en otro proceso. Ahora
+  `ColaTrabajos.tomar_gastos_pendientes()` entrega, una sola vez y bajo el bloqueo de la
+  cola, la medición de cada trabajo terminado, y la API la suma
+  (`_conciliar_gasto_cola`) antes de `reservar` y al consultar `/v1/uso`. El gasto se
+  atribuye al día UTC en que terminó el trabajo.
+- **Idempotencia.** La clave guardaba el id de la solicitud, pero el trabajo SSE tiene su
+  propio id, y con la cola nunca se confirmaba el estado final: la repetición respondía
+  404. `ControlUso.vincular_idempotencia` asocia la clave al id real del trabajo, y la
+  repetición consulta la cola antes que el gestor en memoria.
+
+Pruebas con la cola activa y un worker en un hilo:
+`test_hu32_gasto_encolado_cuenta_una_vez_y_activa_el_presupuesto`,
+`test_hu32_idempotencia_repite_el_trabajo_encolado` y
+`test_hu32_gasto_encolado_se_atribuye_al_dia_en_que_termino`. Las dos primeras fallan sin
+la integración (RED observado) y pasan con ella.

@@ -95,7 +95,7 @@ def evaluar_caso(cliente, caso):
         "familia": caso["familia"],
         "positivo": caso["resultado_esperado"] != "declinar",
         "request_id": identificador,
-        "registro_url": str(cliente.base_url).rstrip("/") + f"/registros/{identificador}",
+        "registro_url": str(cliente.base_url).rstrip("/") + f"/v1/registros/{identificador}",
         "registro_confirmado": False,
         "step": "no disponible",
         "error_silencioso": False,
@@ -104,7 +104,7 @@ def evaluar_caso(cliente, caso):
     try:
         # El único dato de entrada al modelo es el texto; ID solo en cabecera HTTP.
         respuesta = cliente.post(
-            "/generar",
+            "/v1/generar",
             json={"texto": caso["solicitud"]},
             headers={"X-Request-ID": identificador, "Accept": "application/json"},
         )
@@ -127,7 +127,7 @@ def evaluar_caso(cliente, caso):
 
     # Un timeout puede ocurrir después de registrar: conserva el ID y busca evidencia.
     try:
-        registro = cliente.get(f"/registros/{identificador}")
+        registro = cliente.get(f"/v1/registros/{identificador}")
         fila = registro.json()
         if (
             registro.status_code == 200
