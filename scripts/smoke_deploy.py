@@ -75,14 +75,29 @@ def clasificar(respuesta: httpx.Response) -> tuple[str, str]:
 def autenticar(cliente: httpx.Client, usuario: str | None, clave: str | None) -> str | None:
     """Inicia sesión si la API la exige (HU-53); devuelve un error legible o None."""
     try:
-        estado = cliente.get("/v1/auth/me").json()
-    except (httpx.HTTPError, ValueError):
+        consulta = cliente.get("/v1/auth/me")
+    except httpx.HTTPError as exc:
+        return f"No se pudo consultar la sesión: {type(exc).__name__}."
+    if consulta.status_code >= 500:
+        return f"No se pudo consultar la sesión (HTTP {consulta.status_code})."
+    try:
+        estado = consulta.json()
+    except ValueError:
         return None  # API sin sesión: modo local o anterior a HU-53.
     if not isinstance(estado, dict) or not estado.get("requerido"):
         return None
     if not usuario or not clave:
         return "La API exige sesión: indica --usuario y define M2_SMOKE_CLAVE en el entorno."
-    respuesta = cliente.post("/v1/auth/login", json={"usuario": usuario, "clave": clave})
+    url = cliente.base_url
+    if url.scheme == "http" and url.host not in {"localhost", "127.0.0.1", "::1"}:
+        print(
+            f"Aviso: la clave viaja sin cifrar hacia {url.host}; usa HTTPS fuera de esta máquina.",
+            file=sys.stderr,
+        )
+    try:
+        respuesta = cliente.post("/v1/auth/login", json={"usuario": usuario, "clave": clave})
+    except httpx.HTTPError as exc:
+        return f"No se pudo iniciar sesión como {usuario}: {type(exc).__name__}."
     if respuesta.status_code != 200:
         return f"No se pudo iniciar sesión como {usuario} (HTTP {respuesta.status_code})."
     # La cookie es Secure: httpx no la reenvía por HTTP, así que se envía explícita.

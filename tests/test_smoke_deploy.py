@@ -196,3 +196,114 @@ def test_humo_con_clave_incorrecta_no_gasta_tokens(tmp_path, monkeypatch):
     # Assert
     assert codigo == 2
     assert "/v1/generar" not in [r.url.path for r in llamadas]
+
+
+def _transporte_sesion_variante(me: httpx.Response | None, login, llamadas: list[str]):
+    """Variantes de /v1/auth: `me` fijo y `login` como respuesta o excepción."""
+
+    def responder(request: httpx.Request) -> httpx.Response:
+        llamadas.append(request.url.path)
+        if request.url.path == "/v1/auth/me":
+            return me
+        if request.url.path == "/v1/auth/login":
+            if isinstance(login, Exception):
+                raise login
+            return login
+        if request.url.path == "/v1/generar":
+            return httpx.Response(200, json={"step": "/salidas/pieza.step"})
+        return httpx.Response(404)
+
+    return httpx.MockTransport(responder)
+
+
+REQUERIDA = httpx.Response(200, json={"requerido": True, "autenticado": False})
+
+
+@pytest.mark.parametrize(
+    ("me", "login", "fragmento"),
+    [
+        (REQUERIDA, httpx.ConnectError("sin red"), "No se pudo iniciar sesión"),
+        (httpx.Response(503), None, "No se pudo consultar la sesión"),
+        (REQUERIDA, httpx.Response(200, json={"autenticado": True}), "cookie de sesión"),
+    ],
+    ids=["login-sin-red", "me-5xx", "login-sin-cookie"],
+)
+def test_humo_termina_con_codigo_2_y_sin_mostrar_la_clave(
+    me, login, fragmento, tmp_path, capsys, monkeypatch
+):
+    """La sesión fallida nunca genera ni imprime la clave."""
+    # Arrange
+    llamadas: list[str] = []
+    monkeypatch.setenv("M2_SMOKE_CLAVE", "clave-secreta-humo")
+
+    # Act
+    codigo = smoke.main(
+        ["--n", "1", "--usuario", "operador", "--salida", str(tmp_path)],
+        transport=_transporte_sesion_variante(me, login, llamadas),
+    )
+
+    # Assert
+    salida = capsys.readouterr()
+    assert codigo == 2
+    assert "/v1/generar" not in llamadas
+    assert fragmento in salida.err
+    assert "clave-secreta-humo" not in salida.out + salida.err
+
+
+def test_humo_sin_sesion_requerida_no_inicia_sesion(tmp_path, monkeypatch):
+    """Modo local (`requerido: false`): genera sin pasar por el login."""
+    # Arrange
+    llamadas: list[str] = []
+    monkeypatch.setenv("M2_SMOKE_CLAVE", "clave-humo")
+    me = httpx.Response(200, json={"requerido": False, "autenticado": False})
+
+    # Act
+    codigo = smoke.main(
+        ["--n", "1", "--usuario", "operador", "--salida", str(tmp_path)],
+        transport=_transporte_sesion_variante(me, None, llamadas),
+    )
+
+    # Assert
+    assert codigo == 0
+    assert llamadas == ["/v1/auth/me", "/v1/generar"]
+
+
+def test_humo_toma_el_usuario_de_m2_smoke_usuario(tmp_path, monkeypatch):
+    """Sin --usuario, el usuario sale del entorno."""
+    # Arrange
+    llamadas: list[httpx.Request] = []
+    monkeypatch.setenv("M2_SMOKE_USUARIO", "operador")
+    monkeypatch.setenv("M2_SMOKE_CLAVE", "clave-humo")
+
+    # Act
+    codigo = smoke.main(
+        ["--n", "1", "--salida", str(tmp_path)], transport=_transporte_con_sesion(llamadas)
+    )
+
+    # Assert
+    assert codigo == 0
+    assert json.loads(llamadas[1].content)["usuario"] == "operador"
+
+
+@pytest.mark.parametrize(
+    ("base_url", "avisa"),
+    [
+        ("http://203.0.113.7:8000", True),
+        ("http://127.0.0.1:8000", False),
+        ("http://localhost:8000", False),
+        ("https://cad.example.org", False),
+    ],
+)
+def test_humo_avisa_si_la_clave_viaja_sin_cifrar(base_url, avisa, tmp_path, capsys, monkeypatch):
+    """La clave por HTTP hacia otra máquina viaja en claro: se advierte."""
+    # Arrange
+    monkeypatch.setenv("M2_SMOKE_CLAVE", "clave-humo")
+
+    # Act
+    smoke.main(
+        ["--n", "1", "--usuario", "operador", "--base-url", base_url, "--salida", str(tmp_path)],
+        transport=_transporte_con_sesion([]),
+    )
+
+    # Assert
+    assert ("sin cifrar" in capsys.readouterr().err) is avisa
