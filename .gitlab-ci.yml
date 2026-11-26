@@ -55,6 +55,7 @@ workflow:
     # Solo la rama por defecto del espejo: no hay segunda puerta de integración.
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "api"'
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
 
 stages:
@@ -117,6 +118,13 @@ run_test:
   # `make test` depende de `frontend-build` (npm): la imagen de uv no trae Node.
   # Se usa la misma versión mayor que GitHub Actions.
   image: node:24-bookworm
+  # El Python de `.python-version` se instala en este job, así que hereda
+  # habilitada la descarga del intérprete (el `never` global es para `lint`).
+  variables:
+    UV_PYTHON_DOWNLOADS: "automatic"
+  # Compilar los sdists de llama-cpp-python y python-solvespace no entra en el
+  # timeout por defecto.
+  timeout: 45 minutes
   before_script:
     # Bibliotecas nativas del kernel CAD: los wheels manylinux de OpenCascade y
     # VTK enlazan contra GL/X11 y fallan al importar sin ellas.
@@ -155,6 +163,12 @@ run_test:
 # -----------------------------------------------------------------------------
 build_image:
   stage: build
+  # REGISTRY_USER y REGISTRY_PASS son variables protegidas: sólo existen en la
+  # rama por defecto y en las etiquetas. En una rama de validación el job no
+  # tendría con qué autenticarse, así que no se agrega en vez de fallar sin
+  # explicar por qué.
+  rules:
+    - if: '$REGISTRY_USER && $REGISTRY_PASS'
   image: docker:29.10.0-cli
   services:
     - docker:29.10.0-dind
