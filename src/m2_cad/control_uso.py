@@ -180,13 +180,17 @@ class ControlUso:
                 raise LimiteVentanaExcedido(limite, ventana, espera)
             cola.append(ahora)
 
-    def registrar_gasto(self, costo_usd: float) -> None:
-        """AC4: suma el costo ya calculado por el seguimiento, nunca uno inventado."""
+    def registrar_gasto(self, costo_usd: float, *, dia: date | None = None) -> None:
+        """AC4: suma el costo ya calculado por el seguimiento, nunca uno inventado.
+
+        ``dia`` atribuye el gasto al día UTC en que terminó un trabajo de la cola
+        (HU-45); sin él cuenta para hoy.
+        """
         if not math.isfinite(costo_usd) or costo_usd < 0:
             logger.warning("Costo ignorado por no ser finito y no negativo: %r", costo_usd)
             return
         with self._lock:
-            dia = self._hoy()
+            dia = dia or self._hoy()
             self._gasto[dia] += costo_usd
             self._generaciones[dia] += 1
 
@@ -242,6 +246,16 @@ class ControlUso:
         with self._lock:
             if self._idempotencia.get(clave) is registro:
                 del self._idempotencia[clave]
+
+    def vincular_idempotencia(
+        self, clave: str | None, registro: RegistroIdempotencia, solicitud_id: str
+    ) -> None:
+        """Asocia la clave al id real del trabajo SSE, que difiere del de la solicitud."""
+        if not clave:
+            return
+        with self._lock:
+            if self._idempotencia.get(clave) is registro:
+                registro.solicitud_id = solicitud_id
 
     def confirmar_idempotencia(
         self,

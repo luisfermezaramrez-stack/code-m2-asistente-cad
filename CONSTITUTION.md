@@ -314,6 +314,8 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-24 | HU-24: logging central en JSON con `request_id`/`job_id` correlacionados y redacción de secretos | Reconstruir cada solicitud con un solo id sin filtrar credenciales; el contexto se copia al hilo SSE y se etiqueta en MLflow |
 | 2026-11-25 | HU-31: API versionada `/v1`, contrato OpenAPI congelado y rutas planas deprecadas con `307` | Congelar el contrato público para detectar cambios incompatibles en CI y dar 90 días de convivencia a clientes antiguos |
 | 2026-11-25 | HU-32: `control_uso.py` concentra topes por sesión/ventana, presupuesto diario UTC e idempotencia en memoria; `/v1/uso` agrega `costo_usd` y los rechazos son 429 tipados | Evitar gasto no previsto ni generaciones duplicadas sin tocar el pipeline; con `--workers 1` basta el proceso y la interfaz permite migrar a almacén compartido al escalar |
+| 2026-11-25 | HU-45: cola persistente en `data/cola.json` con bloqueo atómico de SPEC-031 y worker separado (`python -m m2_cad.worker`, `make worker`) | Reiniciar o desplegar sin perder trabajos SSE; la API encola y el worker drena, con eventos completos y registro deduplicado por `solicitud_id` |
+| 2026-11-25 | HU-45 × HU-32: el costo medido por el worker se guarda en la cola y la API lo suma una vez al presupuesto (`tomar_gastos_pendientes`); la idempotencia se vincula al id real del trabajo | El worker corre en otro proceso y no ve el `ControlUso` en memoria de la API; sin esto el presupuesto diario y `/v1/uso` ignoraban las generaciones SSE |
 
 ## 10. Notas y tareas pendientes
 

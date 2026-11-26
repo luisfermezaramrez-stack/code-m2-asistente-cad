@@ -152,6 +152,17 @@ make check        # Ruff + contratos + Vitest + TypeScript + build + pytest/cobe
 uv run --locked uvicorn m2_cad.api:app --app-dir src --host 127.0.0.1 --port 8000 --workers 1
 ```
 
+En otra terminal, para que los flujos SSE sobrevivan a un reinicio, arrancar el
+worker (HU-45):
+
+```bash
+make worker    # python -m m2_cad.worker; comparte data/cola.json con la API
+```
+
+Si el worker no está corriendo, la API encola la solicitud y el cliente SSE espera
+hasta que un worker la procese. El apagado ordenado del worker deja de aceptar
+trabajos nuevos y termina el trabajo en curso antes de salir.
+
 Abrir **http://127.0.0.1:8000/**: FastAPI sirve el build, API, SSE y descargas en
 el mismo origen. No se inicia otro servidor frontend. El desarrollo con HMR
 se explica en [frontend/README.md](frontend/README.md).
@@ -292,7 +303,7 @@ No hace falta GPU, pesos, Node ni preparar el vendor en el host: la imagen lo re
 
 ```bash
 echo "DEEPSEEK_API_KEY=sk-..." > .env
-make up            # docker compose up: m2-cad (API + SPA) y MLflow, en primer plano
+make up            # docker compose up: m2-cad (API + SPA), worker y MLflow
 make down          # en otra terminal: detiene y elimina todos los contenedores
 ```
 
@@ -306,6 +317,7 @@ memoria holgada: el build compila dependencias CAD).
 | http://localhost:8000/v1/uso | Gasto acumulado del día (HU-32) |
 | http://localhost:8000/docs | Contrato OpenAPI |
 | http://127.0.0.1:5000 | UI de MLflow |
+| `m2-cad-worker` | Worker SSE separado; consume `/app/data/cola.json` |
 
 Ambos puertos se publican solo en `127.0.0.1`; nada queda expuesto en la red.
 Si un puerto está ocupado, liberarlo o cambiar el lado izquierdo del mapeo en
@@ -340,6 +352,17 @@ SSE no tiene middleware de compresión/buffering y devuelve `no-cache, no-transf
 y `X-Accel-Buffering: no`. No se deben añadir proxies que acumulen eventos.
 Cancelar pide una detención cooperativa local: una llamada bloqueante al modelo o
 CAD puede continuar hasta retornar; no confirma detención remota.
+
+HU-45 conserva la cola de trabajos en `data/cola.json` con escritura atómica
+(SPEC-031). La API sólo encola; el worker publica cada etapa como un evento SSE
+completo. Tras un reinicio, los trabajos no terminados se reanudan y el registro
+conserva una sola fila por `solicitud_id`. El flag `M2_COLA_HABILITADA=0` existe
+sólo para la batería de pruebas SSE heredada, que ejecuta en proceso.
+
+Con la cola activa, el costo de cada generación SSE lo mide el worker y queda en la
+cola. La API lo suma una sola vez al presupuesto diario de HU-32, en el día UTC en que
+terminó el trabajo, antes de aceptar otra solicitud y al consultar `GET /v1/uso`.
+Repetir una `Idempotency-Key` devuelve el estado del trabajo encolado.
 Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 [CONSTITUTION.md](CONSTITUTION.md).
 
@@ -361,6 +384,8 @@ Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 | `M2_PRESUPUESTO_DIARIO_USD` | Presupuesto UTC en USD (`0` desactiva; HU-32) | `0` | `0` |
 | `LLM_MODEL_VERSION` | Versión publicada por el proveedor (AC7) | id del modelo servido | id del modelo servido |
 | `M2_LOG_LEVEL` | Nivel del logging JSON de `m2_cad` (HU-24) | `INFO` | `INFO` (o el valor del entorno) |
+| `M2_COLA_HABILITADA` | `1` usa cola + worker; `0` ejecuta SSE en proceso (HU-45) | `1` | `1` |
+| `M2_COLA_PATH` | JSON compartido por API y worker (HU-45) | `data/cola.json` | `/app/data/cola.json` |
 | `LLM_MAX_RETRIES` | Reintentos del LLM ante 5xx transitorios/timeout (HU-25) | `2` | `2` |
 | `LLM_RETRY_BASE_SECONDS` / `LLM_RETRY_MAX_SECONDS` | Backoff exponencial (HU-25) | `0.25` / `3` | igual |
 | `LLM_CACHE_TTL_SECONDS` / `LLM_CACHE_MAX_ITEMS` | Caché de respuestas del LLM (HU-25) | `1800` / `256` | igual |

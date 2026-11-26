@@ -10,6 +10,7 @@ import time
 import uuid
 from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
+from dataclasses import asdict
 from datetime import date
 from pathlib import Path
 from typing import Annotated
@@ -21,6 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Stre
 from pydantic import BaseModel, Field, field_validator
 
 from m2_cad import seguimiento
+from m2_cad.cola_trabajos import ColaTrabajos
 from m2_cad.contratos import EstadoTrabajo
 from m2_cad.control import ControlGeneracion, SolicitudDeclinada
 from m2_cad.control_uso import ControlUso, ErrorControlUso, RegistroIdempotencia
@@ -44,7 +46,7 @@ async def _limpieza_periodica(politica) -> None:
     """Limpieza no invasiva: no se ejecuta si existe un trabajo en proceso."""
     while True:
         try:
-            if not gestor_trabajos.hay_trabajos_activos():
+            if not (gestor_trabajos.hay_trabajos_activos() or cola_trabajos.hay_trabajos_activos()):
                 await asyncio.to_thread(depurar_outputs, Path("outputs"), dias=politica.dias)
         except Exception:
             logger.exception("No se pudo aplicar la política de retención.")
@@ -53,7 +55,8 @@ async def _limpieza_periodica(politica) -> None:
 
 @asynccontextmanager
 async def _ciclo_aplicacion(_: FastAPI):
-    """Activa retención solo cuando está configurada; finaliza el limpiador al cerrar."""
+    """Abre la cola al arrancar y detiene la retención al cerrar (HU-45, RF-4)."""
+    cola_trabajos.abrir()
     politica = leer_politica()
     tarea = asyncio.create_task(_limpieza_periodica(politica)) if politica else None
     try:
@@ -79,6 +82,7 @@ app = FastAPI(
     description="Servicio de generación preliminar de componentes CAD.",
 )
 gestor_trabajos = GestorTrabajos()
+cola_trabajos = ColaTrabajos()
 control_uso = ControlUso()
 router = APIRouter(prefix=PREFIJO_V1)
 
@@ -296,6 +300,21 @@ def obtener_gestor_trabajos() -> GestorTrabajos:
     return gestor_trabajos
 
 
+def obtener_cola_trabajos() -> ColaTrabajos:
+    """Cola persistente de SSE; sustituible en pruebas (HU-45)."""
+    return cola_trabajos
+
+
+def _estado_trabajo(solicitud_id: str, gestor: GestorTrabajos, cola: ColaTrabajos) -> dict:
+    """Estado público de un trabajo encolado (HU-45) o ejecutado en proceso."""
+    try:
+        return cola.estado(solicitud_id)
+    except HTTPException as exc:
+        if exc.status_code != status.HTTP_404_NOT_FOUND:
+            raise
+    return gestor.obtener(solicitud_id).estado()
+
+
 def obtener_control_uso() -> ControlUso:
     """Control de topes, presupuesto e idempotencia (HU-32); sustituible en pruebas."""
     return control_uso
@@ -318,7 +337,10 @@ def _clave_idempotencia(valor: str | None) -> str | None:
 
 
 def _respuesta_repetida(
-    registro: RegistroIdempotencia, gestor: GestorTrabajos, response: Response
+    registro: RegistroIdempotencia,
+    gestor: GestorTrabajos,
+    cola: ColaTrabajos,
+    response: Response,
 ) -> dict[str, str] | JSONResponse:
     """Sirve la generación original sin crear otro trabajo ni sumar costo (AC2)."""
     cabeceras = {
@@ -329,7 +351,7 @@ def _respuesta_repetida(
     if registro.respuesta is not None:
         response.headers.update(registro.cabeceras)
         return registro.respuesta
-    estado = registro.estado_final or gestor.obtener(registro.solicitud_id).estado()
+    estado = registro.estado_final or _estado_trabajo(registro.solicitud_id, gestor, cola)
     return JSONResponse(estado, headers=cabeceras)
 
 
@@ -425,6 +447,38 @@ def _clasificar(exc: HTTPException) -> tuple[str, str | None, str | None]:
     return "error", None, getattr(exc, "clase", type(exc).__name__)
 
 
+def _costo_medido(medido: dict, precio_entrada: float, precio_salida: float) -> float | None:
+    """Costo de una medición; sin usage no hay costo (0.0 distorsionaría MLflow)."""
+    tokens_entrada = medido.get("tokens_entrada")
+    tokens_salida = medido.get("tokens_salida")
+    if tokens_entrada is None and tokens_salida is None:
+        return None
+    return seguimiento.costo_usd(
+        tokens_entrada,
+        tokens_salida,
+        precio_entrada=precio_entrada,
+        precio_salida=precio_salida,
+    )
+
+
+def _conciliar_gasto_cola(cola: ColaTrabajos, control: ControlUso) -> None:
+    """Suma una sola vez el costo de los trabajos que terminó el worker (HU-32 × HU-45).
+
+    El worker corre en otro proceso y no ve el ``ControlUso`` de la API: su medición
+    queda en la cola y se contabiliza aquí antes de reservar y al consultar ``/v1/uso``.
+    """
+    defecto = seguimiento.Configuracion(activo=False)
+    for pendiente in cola.tomar_gastos_pendientes():
+        configuracion = pendiente["configuracion"]
+        costo = _costo_medido(
+            pendiente["medicion"],
+            configuracion.get("precio_entrada", defecto.precio_entrada),
+            configuracion.get("precio_salida", defecto.precio_salida),
+        )
+        if costo is not None:
+            control.registrar_gasto(costo, dia=pendiente["dia"])
+
+
 def medir_solicitud(
     corrida: seguimiento.Corrida,
     medido: dict,
@@ -445,17 +499,7 @@ def medir_solicitud(
     )
     tokens_entrada = medido.get("tokens_entrada")
     tokens_salida = medido.get("tokens_salida")
-    # Sin usage no se registra costo 0.0: distorsionaría los promedios de MLflow.
-    costo_usd = (
-        None
-        if tokens_entrada is None and tokens_salida is None
-        else seguimiento.costo_usd(
-            tokens_entrada,
-            tokens_salida,
-            precio_entrada=configuracion.precio_entrada,
-            precio_salida=configuracion.precio_salida,
-        )
-    )
+    costo_usd = _costo_medido(medido, configuracion.precio_entrada, configuracion.precio_salida)
     if costo_usd is not None and control_uso is not None:
         control_uso.registrar_gasto(costo_usd)
     corrida.registrar_metricas(
@@ -494,6 +538,12 @@ _ESTADOS_CORRIDA_SSE = {
 }
 
 
+def _usa_cola_persistente() -> bool:
+    """El despliegue usa cola/worker; las pruebas heredadas pueden desactivarla."""
+    valor = os.environ.get("M2_COLA_HABILITADA", "1").strip().lower()
+    return valor not in {"0", "false", "no", "off"}
+
+
 def _acepta_sse(request: Request) -> bool:
     tipos = [tipo.split(";")[0].strip() for tipo in request.headers.get("accept", "").split(",")]
     return "text/event-stream" in tipos
@@ -504,10 +554,13 @@ def _generar_sse(
     request: Request,
     procesador_sse: ProcesadorSSE,
     gestor: GestorTrabajos,
+    cola: ColaTrabajos,
     configuracion: seguimiento.Configuracion,
     inicio: float,
+    request_id: str,
     control_uso: ControlUso,
     al_terminal: Callable[[dict], None] | None = None,
+    al_crear: Callable[[str], None] | None = None,
 ) -> RespuestaSSE:
     """Ruta SSE: registro CSV y corrida MLflow al alcanzar el estado terminal (HU-15/16).
 
@@ -559,7 +612,19 @@ def _generar_sse(
             al_terminal(terminal)
         logger.info("generación terminada en %s", estado)
 
-    trabajo = gestor.crear(solicitud.texto, procesar, registrar_terminal)
+    if _usa_cola_persistente() and procesador_sse is procesar_con_progreso:
+        # Despliegue: la API sólo encola; el worker ejecuta y registra (HU-45, AC3).
+        trabajo = cola.encolar(
+            solicitud.texto,
+            request_id=request_id,
+            configuracion=asdict(configuracion),
+            ruta_registro=obtener_ruta_registro(),
+        )
+    else:
+        # Compatibilidad con la batería SSE heredada que inyecta su propio procesador.
+        trabajo = gestor.crear(solicitud.texto, procesar, registrar_terminal)
+    if al_crear is not None:
+        al_crear(trabajo.id)
     with contexto_solicitud(job_id=trabajo.id):
         logger.info("trabajo SSE creado")
     respuesta = RespuestaSSE(trabajo, request)
@@ -696,6 +761,7 @@ def generar(
     procesador: Annotated[Procesador, Depends(obtener_procesador)],
     procesador_sse: Annotated[ProcesadorSSE, Depends(obtener_procesador_sse)],
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
+    cola: Annotated[ColaTrabajos, Depends(obtener_cola_trabajos)],
     configuracion: Annotated[seguimiento.Configuracion, Depends(obtener_configuracion_seguimiento)],
     control: Annotated[ControlUso, Depends(obtener_control_uso)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key", max_length=255)] = None,
@@ -713,9 +779,11 @@ def generar(
         )
         if repetido:
             logger.info("generación repetida con la misma clave de idempotencia")
-            return _respuesta_repetida(registro, gestor, response)
+            return _respuesta_repetida(registro, gestor, cola, response)
 
         try:
+            if _usa_cola_persistente():
+                _conciliar_gasto_cola(cola, control)
             control.reservar(sesion)
         except ErrorControlUso:
             control.liberar_idempotencia(clave, registro)
@@ -731,10 +799,15 @@ def generar(
                     request,
                     procesador_sse,
                     gestor,
+                    cola,
                     configuracion,
                     inicio,
+                    solicitud_id,
                     control,
                     al_terminal=guardar_terminal,
+                    al_crear=lambda trabajo_id: control.vincular_idempotencia(
+                        clave, registro, trabajo_id
+                    ),
                 )
             respuesta = _generar_json(
                 solicitud,
@@ -758,8 +831,11 @@ def generar(
 @router.get("/uso", response_model=RespuestaUso)
 def consultar_uso(
     control: Annotated[ControlUso, Depends(obtener_control_uso)],
+    cola: Annotated[ColaTrabajos, Depends(obtener_cola_trabajos)],
 ) -> RespuestaUso:
     """RF-5/AC4: gasto acumulado del día, sin red ni identificadores de cliente."""
+    if _usa_cola_persistente():
+        _conciliar_gasto_cola(cola, control)
     return RespuestaUso(**control.gasto_acumulado())
 
 
@@ -767,9 +843,10 @@ def consultar_uso(
 def consultar_generacion(
     solicitud_id: str,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
+    cola: Annotated[ColaTrabajos, Depends(obtener_cola_trabajos)],
 ) -> dict:
     """Consulta la confirmación terminal incluso después de perder la conexión SSE."""
-    return gestor.obtener(solicitud_id).estado()
+    return _estado_trabajo(solicitud_id, gestor, cola)
 
 
 @router.delete(
@@ -783,9 +860,15 @@ def cancelar_generacion(
     solicitud_id: str,
     response: Response,
     gestor: Annotated[GestorTrabajos, Depends(obtener_gestor_trabajos)],
+    cola: Annotated[ColaTrabajos, Depends(obtener_cola_trabajos)],
 ) -> dict:
     """202 pide detenerse; solo un estado terminal confirma el desenlace real."""
-    estado = gestor.obtener(solicitud_id).cancelar()
+    try:
+        estado = cola.cancelar(solicitud_id)
+    except HTTPException as exc:
+        if exc.status_code != status.HTTP_404_NOT_FOUND:
+            raise
+        estado = gestor.obtener(solicitud_id).cancelar()
     response.status_code = 200 if estado["terminal"] else 202
     return estado
 
