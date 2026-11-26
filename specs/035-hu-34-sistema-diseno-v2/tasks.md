@@ -17,7 +17,7 @@
 - [x] T10 — Quitar la copia de `design/tokens.css` del `Dockerfile` y el `fs.allow` externo de
   `vite.config.ts` (AC4).
 - [x] T11 — Ejecutar frontend test/typecheck/build, Ruff y pytest con build compilado.
-- [ ] T12 — Registrar evidencia en `specs/Evidence.md`, abrir PR y actualizar `specs/README.md`.
+- [x] T12 — Registrar evidencia en `specs/Evidence.md`, abrir PR #137 y actualizar `specs/README.md`.
 
 ## Evidencia
 

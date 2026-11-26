@@ -6,7 +6,7 @@
 - **Rama:** `feature/hu-34-sistema-diseno-v2`
 - **Worktree:** `C:\Users\cetd9\AppData\Local\Temp\opencode\hu34-design-v2`
 - **Base:** `origin/main` en `cf7e908ff4cf69e61844a850f846d7807c3d3c2c`
-- **PR:** pendiente de apertura al cierre de esta evidencia.
+- **PR:** [#137](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/137)
 
 ## Criterios de aceptación
 
