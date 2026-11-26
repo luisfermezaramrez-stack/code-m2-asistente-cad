@@ -10,7 +10,7 @@
 ## Fase 2 — Implementación
 - [x] Crear `APIRouter(prefix="/v1")` y migrar todas las rutas API al router.
 - [x] Registrar redirecciones planas fuera del schema con 307 y cabeceras de deprecación.
-- [x] Ajustar `registrar_entrada_invalida` para aceptar `/generar` y `/v1/generar`.
+- [x] Registrar `RequestValidationError` en `/v1/generar` (la ruta plana redirige antes de validar).
 - [x] Fijar `info.version = "1.0.0"`.
 - [x] Crear `src/m2_cad/contrato_api.py` con carga y comparación del contrato.
 - [x] Generar `contracts/openapi-v1.json` desde `app.openapi()`.
@@ -34,6 +34,15 @@
 - [x] Crear `evidence.md` con resultados verificables y limitaciones.
 - [x] Revisar el diff, hacer commit y publicar la rama.
 - [x] Abrir Pull Request hacia `main` y solicitar revisión.
+
+## Fase 5 — Correcciones de la revisión de #130
+- [x] Proxy de Vite restringido a `/v1` con prueba de regresión en Vitest.
+- [x] `HEALTHCHECK` de Docker consultando `/v1/health`.
+- [x] Documentar que AC1 exige seguir la redirección `307` (`curl -L`, `follow_redirects=True`).
+- [x] Emitir y citar `Deprecation` como fecha RFC 9745 (`@1795564800`), con `Sunset` RFC 8594.
+- [x] Quitar `/generar` del manejador de 422 y conservar `root_path` en las redirecciones.
+- [x] Hacer configurable `M2_SUNSET_RUTAS_PLANAS` para no acortar el plazo anunciado.
+- [x] Verificaciones completas y PR de corrección enlazado desde #130.
 
 ## Criterios de cierre
 - AC1: 0 regresiones funcionales para clientes de rutas planas.

@@ -91,7 +91,8 @@ def test_ac1_rutas_planas_redirigen_con_deprecacion(ruta, metodo):
     # Assert
     assert respuesta.status_code == 307
     assert respuesta.headers["location"].startswith("http://testserver/v1")
-    assert respuesta.headers["deprecation"] == "true"
+    assert respuesta.headers["deprecation"] == api.DEPRECACION_RUTAS_PLANAS
+    assert api.DEPRECACION_RUTAS_PLANAS.startswith("@")
     assert respuesta.headers["sunset"] == api.SUNSET_RUTAS_PLANAS
     assert 'rel="successor-version"' in respuesta.headers["link"]
 
@@ -103,6 +104,16 @@ def test_ac1_redireccion_conserva_la_query():
 
     # Assert
     assert respuesta.headers["location"] == "http://testserver/v1/registros/abc?origen=prueba"
+
+
+def test_ac1_redireccion_respeta_root_path():
+    # Act
+    with TestClient(api.app, root_path="/api") as client:
+        respuesta = client.get("/health", follow_redirects=False)
+
+    # Assert
+    assert respuesta.status_code == 307
+    assert respuesta.headers["location"] == "http://testserver/api/v1/health"
 
 
 def test_ac2_quitar_un_campo_del_esquema_rompe_el_contrato():
@@ -138,7 +149,10 @@ def test_ac4_la_politica_de_deprecacion_esta_documentada():
     # Assert
     assert "90 días" in texto
     assert "Deprecation" in texto and "Sunset" in texto
+    assert "RFC 9745" in texto and "RFC 8594" in texto
+    assert api.DEPRECACION_RUTAS_PLANAS in texto
     assert api.SUNSET_RUTAS_PLANAS in texto
+    assert "follow_redirects" in texto and "curl -L" in texto
 
 
 @pytest.mark.parametrize("prefijo", ["", "/v1"])
