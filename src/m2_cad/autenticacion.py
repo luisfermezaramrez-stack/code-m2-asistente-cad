@@ -18,6 +18,7 @@ import secrets
 import threading
 import time
 from collections import defaultdict, deque
+from contextlib import suppress
 
 from fastapi import HTTPException, Request, Response
 
@@ -26,7 +27,9 @@ ANONIMO = "anónimo"
 ITERACIONES = 200_000
 
 _USUARIO_RE = re.compile(r"[A-Za-z0-9_.-]{1,64}")
-_HASH_RE = re.compile(r"pbkdf2_sha256\$(\d{1,7})\$([A-Za-z0-9_-]{20,24})\$([A-Za-z0-9_-]{42,44})")
+_HASH_RE = re.compile(
+    r"pbkdf2_sha256\$([1-9]\d{0,6})\$([A-Za-z0-9_-]{20,24})\$([A-Za-z0-9_-]{42,44})"
+)
 _SESION_RE = re.compile(r"v1\.([A-Za-z0-9_-]{1,86})\.([0-9]{1,12})\.([0-9a-f]{64})")
 
 
@@ -238,10 +241,17 @@ class IntentosAgotados(HTTPException):
         )
 
 
-class LimiteIntentos:
-    """Intentos fallidos de login por cliente en una ventana deslizante (S7).
+FACTOR_LIMITE_POR_CLIENTE = 4
 
-    El estado vive en el proceso, igual que los topes de HU-32 (``--workers 1``).
+
+class LimiteIntentos:
+    """Intentos fallidos de login en una ventana deslizante (S7).
+
+    Cada intento se anota antes de derivar la clave, bajo un único lock, así las
+    peticiones concurrentes no pasan todas el control. Se cuenta por cliente y
+    usuario (``M2_AUTH_MAX_INTENTOS``) y por cliente (4 veces ese valor). Un acierto
+    retira sólo su propia marca: entrar con otra cuenta no borra los fallos
+    acumulados contra un usuario. El estado vive en el proceso (``--workers 1``).
     """
 
     def __init__(self, reloj=None) -> None:
@@ -255,22 +265,28 @@ class LimiteIntentos:
             fallos.popleft()
         return fallos
 
-    def comprobar(self, clave: str) -> None:
-        """Rechaza con 429 antes de derivar la clave si ya agotó los intentos."""
+    def intentar(self, cliente: str, usuario: str) -> tuple[tuple[str, ...], float]:
+        """Anota un intento o responde 429 si alguno de sus contadores está agotado."""
         maximo, ventana = _limites_intentos()
+        claves = (f"par:{cliente}\n{usuario}", f"cliente:{cliente}")
+        topes = (maximo, maximo * FACTOR_LIMITE_POR_CLIENTE)
         ahora = self._reloj()
         with self._lock:
-            fallos = self._vigentes(clave, ahora, ventana)
-            if len(fallos) >= maximo:
-                raise IntentosAgotados(max(1, math.ceil(ventana - (ahora - fallos[0]))))
+            for clave, tope in zip(claves, topes, strict=True):
+                fallos = self._vigentes(clave, ahora, ventana)
+                if len(fallos) >= tope:
+                    raise IntentosAgotados(max(1, math.ceil(ventana - (ahora - fallos[0]))))
+            for clave in claves:
+                self._fallos[clave].append(ahora)
+        return claves, ahora
 
-    def fallar(self, clave: str) -> None:
+    def acertar(self, marca: tuple[tuple[str, ...], float]) -> None:
+        """Retira la marca del intento exitoso; los demás fallos siguen contando."""
+        claves, instante = marca
         with self._lock:
-            self._fallos[clave].append(self._reloj())
-
-    def reiniciar(self, clave: str) -> None:
-        with self._lock:
-            self._fallos.pop(clave, None)
+            for clave in claves:
+                with suppress(ValueError):
+                    self._fallos[clave].remove(instante)
 
 
 def estado_sesion(request: Request) -> dict[str, bool | str | None]:
@@ -281,12 +297,21 @@ def estado_sesion(request: Request) -> dict[str, bool | str | None]:
     return {"requerido": True, "autenticado": usuario is not None, "usuario": usuario}
 
 
-def garantizar_propietario(usuario: str, propietario: str | None) -> None:
-    """RF-4: 404 para no revelar la existencia de trabajos ajenos."""
+NO_ENCONTRADA = "Solicitud desconocida o fuera de retención."
+
+
+def garantizar_propietario(
+    usuario: str, propietario: str | None, detalle: str = NO_ENCONTRADA
+) -> None:
+    """RF-4: 404 para no revelar la existencia de recursos ajenos.
+
+    ``detalle`` es el mismo texto que da un recurso inexistente, así la respuesta
+    no distingue «ajeno» de «no existe».
+    """
     if not autenticacion_activa():
         return
     if not propietario or propietario != usuario:
-        raise HTTPException(404, "Solicitud no encontrada.")
+        raise HTTPException(404, detalle)
 
 
 def fijar_cookie(response: Response, token: str) -> None:

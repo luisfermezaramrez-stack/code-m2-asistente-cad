@@ -215,7 +215,7 @@
   "paths": {
     "/v1/auth/login": {
       "post": {
-        "description": "AC1: emite una cookie firmada sólo para credenciales válidas.\n\nLos intentos fallidos se limitan por cliente (429 con ``Retry-After``) antes de\nderivar la clave, para frenar la fuerza bruta sin gastar CPU en PBKDF2.",
+        "description": "AC1: emite una cookie firmada sólo para credenciales válidas.\n\nLos intentos se anotan y limitan (429 con ``Retry-After``) antes de derivar la\nclave, para frenar la fuerza bruta sin gastar CPU en PBKDF2.",
         "operationId": "iniciar_sesion_v1_auth_login_post",
         "requestBody": {
           "content": {

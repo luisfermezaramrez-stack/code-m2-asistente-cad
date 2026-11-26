@@ -167,17 +167,16 @@ def iniciar_sesion(
 ) -> dict[str, bool | str]:
     """AC1: emite una cookie firmada sólo para credenciales válidas.
 
-    Los intentos fallidos se limitan por cliente (429 con ``Retry-After``) antes de
-    derivar la clave, para frenar la fuerza bruta sin gastar CPU en PBKDF2.
+    Los intentos se anotan y limitan (429 con ``Retry-After``) antes de derivar la
+    clave, para frenar la fuerza bruta sin gastar CPU en PBKDF2.
     """
     if not autenticacion_activa():
         raise HTTPException(404, "La autenticación no está activada.")
     cliente = request.client.host if request.client else "desconocido"
-    limite.comprobar(cliente)
+    marca = limite.intentar(cliente, credenciales.usuario)
     if not verificar_usuario(credenciales.usuario, credenciales.clave):
-        limite.fallar(cliente)
         raise HTTPException(401, "Usuario o clave incorrectos.")
-    limite.reiniciar(cliente)
+    limite.acertar(marca)
     fijar_cookie(response, emitir_sesion(credenciales.usuario))
     return {"autenticado": True, "usuario": credenciales.usuario}
 
@@ -483,7 +482,7 @@ def consultar_registro(
 ) -> dict[str, str]:
     """Consulta una fila propia, sin revelar la de otros usuarios (HU-53, AC2)."""
     fila = _leer_registro(identificador)
-    garantizar_propietario(usuario, fila.get("usuario"))
+    garantizar_propietario(usuario, fila.get("usuario"), "Registro no encontrado.")
     return fila
 
 
@@ -496,7 +495,7 @@ def descargar_step(
     """Enlaza el STEP propio del registro persistente, incluso tras reiniciar."""
     exigir_token(identificador, request.headers.get("X-Download-Token"))
     fila = _leer_registro(identificador)
-    garantizar_propietario(usuario, fila.get("usuario"))
+    garantizar_propietario(usuario, fila.get("usuario"), "Registro no encontrado.")
     try:
         resultado = ast.literal_eval(fila["resultado"])
         ruta = Path(resultado["step"]).resolve()
@@ -521,6 +520,15 @@ async def registrar_entrada_invalida(request: Request, exc: RequestValidationErr
     """Registra una entrada rechazada una vez, sin arrancar pipeline ni corrida MLflow."""
     respuesta = await request_validation_exception_handler(request, exc)
     if request.method == "POST" and request.url.path in {"/generar", f"{PREFIJO_V1}/generar"}:
+        usuario = usuario_de_sesion(request)
+        if autenticacion_activa() and usuario == ANONIMO:
+            # Un JSON mal formado falla antes de resolver la sesión: sin este corte,
+            # un anónimo escribiría filas en el registro (HU-53, AC1).
+            return JSONResponse(
+                {"detail": "Inicia sesión para continuar."},
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                headers={"WWW-Authenticate": 'Cookie realm="M2 CAD"'},
+            )
         identificador = _identificador(request)
         with contexto_solicitud(request_id=identificador):
             logger.warning("entrada inválida rechazada en POST /generar")
@@ -534,7 +542,7 @@ async def registrar_entrada_invalida(request: Request, exc: RequestValidationErr
             version=seguimiento.version_modelo(),
             ruta=obtener_ruta_registro(),
             identificador=identificador,
-            usuario=usuario_de_sesion(request),
+            usuario=usuario,
         )
         respuesta.headers.update(_cabeceras_registro(request, identificador))
     return respuesta

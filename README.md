@@ -181,9 +181,17 @@ descarga de HU-36 se exige además de la sesión.
 
 Protecciones de la sesión:
 
-- Tras `M2_AUTH_MAX_INTENTOS` inicios fallidos (5 por defecto) en
-  `M2_AUTH_VENTANA_INTENTOS_SEGUNDOS` (300), el cliente recibe `429` con `Retry-After`,
-  incluso con la clave correcta. El contador vive en el proceso (`--workers 1`).
+- Tras `M2_AUTH_MAX_INTENTOS` inicios fallidos (5 por defecto) contra un usuario desde
+  un mismo cliente, o 4 veces ese valor desde el cliente contra cualquier usuario, en
+  `M2_AUTH_VENTANA_INTENTOS_SEGUNDOS` (300), se responde `429` con `Retry-After`, incluso
+  con la clave correcta. Cada intento se anota antes de verificar la clave, así las
+  peticiones simultáneas no esquivan el límite, y entrar con otra cuenta no borra los
+  fallos acumulados. El contador vive en el proceso (`--workers 1`) y usa la IP que ve
+  uvicorn: detrás de un proxy inverso hay que habilitar `--proxy-headers` con
+  `--forwarded-allow-ips`, o todos los clientes compartirían el mismo contador.
+- Un recurso de otro usuario responde el mismo `404` que uno inexistente. Sin sesión,
+  `POST /v1/generar` responde `401` aunque el cuerpo sea inválido, y no escribe en el
+  registro.
 - Un usuario inexistente cuesta lo mismo que una clave errónea: el tiempo de respuesta
   no revela qué usuarios existen.
 - La firma de la cookie depende del hash vigente del usuario: quitarlo de

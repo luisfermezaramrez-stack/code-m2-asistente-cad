@@ -506,3 +506,121 @@ def test_migracion_del_registro_se_comprueba_una_vez_por_archivo(tmp_path, monke
     # Assert
     assert len(llamadas) == 1
     assert len(filas_csv(ruta)) == 3
+
+
+def test_login_concurrente_no_supera_el_limite(entorno):
+    """H1: los intentos simultáneos se anotan bajo un lock; no pasan todos el control."""
+    # Arrange
+    import threading
+
+    limite = LimiteIntentos()
+    barrera = threading.Barrier(30)
+    admitidos: list[int] = []
+
+    def intentar():
+        barrera.wait()
+        try:
+            limite.intentar("10.0.0.1", "ana")
+            admitidos.append(1)
+        except Exception:
+            pass
+
+    hilos = [threading.Thread(target=intentar) for _ in range(30)]
+
+    # Act
+    for hilo in hilos:
+        hilo.start()
+    for hilo in hilos:
+        hilo.join()
+
+    # Assert
+    assert len(admitidos) == 5
+
+
+def test_login_exitoso_de_otra_cuenta_no_borra_los_fallos(entorno):
+    """H2: entrar con la propia cuenta no reinicia la fuerza bruta contra otra."""
+    # Arrange
+    contra_ana = {"usuario": "ana", "clave": "mala"}
+
+    # Act
+    with TestClient(api.app) as cliente:
+        primeros = [cliente.post("/v1/auth/login", json=contra_ana).status_code for _ in range(4)]
+        de_bob = cliente.post(
+            "/v1/auth/login", json={"usuario": "bob", "clave": entorno.claves["bob"]}
+        )
+        quinto = cliente.post("/v1/auth/login", json=contra_ana)
+        correcta = cliente.post(
+            "/v1/auth/login", json={"usuario": "ana", "clave": entorno.claves["ana"]}
+        )
+
+    # Assert
+    assert primeros == [401] * 4
+    assert de_bob.status_code == 200
+    assert quinto.status_code == 401
+    assert correcta.status_code == 429
+
+
+def test_anonimo_con_json_mal_formado_no_escribe_en_el_registro(entorno):
+    """H3: sin sesión, un cuerpo inválido es 401 y no crea filas."""
+    # Act
+    with TestClient(api.app) as cliente:
+        respuesta = cliente.post(
+            "/v1/generar", content=b"{no json", headers={"Content-Type": "application/json"}
+        )
+
+    # Assert
+    assert respuesta.status_code == 401
+    assert not entorno.ruta_registro.exists()
+
+
+def test_recurso_ajeno_responde_igual_que_uno_inexistente(entorno):
+    """H5: el 404 no distingue «de otro usuario» de «no existe»."""
+    # Arrange
+    salidas = entorno.tmp_path / "outputs"
+    salidas.mkdir()
+    archivo = salidas / "pieza.step"
+    archivo.write_text("STEP", encoding="utf-8")
+
+    # Act
+    with entrar("ana", entorno.claves["ana"]) as ana:
+        identificador, _ = generar_sse(ana, archivo)
+        with entrar("bob", entorno.claves["bob"]) as bob:
+            otro = uuid.uuid4().hex
+            pares = [
+                (bob.get(f"/v1/generaciones/{identificador}"), bob.get(f"/v1/generaciones/{otro}")),
+                (bob.get(f"/v1/registros/{identificador}"), bob.get(f"/v1/registros/{otro}")),
+            ]
+
+    # Assert
+    for ajeno, inexistente in pares:
+        assert ajeno.status_code == inexistente.status_code == 404
+        assert ajeno.json() == inexistente.json()
+
+
+def test_hash_sin_iteraciones_es_configuracion_invalida(entorno, monkeypatch):
+    """H6: un hash con 0 iteraciones se rechaza al validar, no con un 500 al entrar."""
+    # Arrange
+    guardado = usuarios()["ana"].split("$")
+    guardado[1] = "0"
+    monkeypatch.setenv("M2_AUTH_USERS", json.dumps({"ana": "$".join(guardado)}))
+
+    # Act / Assert
+    with pytest.raises(RuntimeError, match="hash inválido"):
+        autenticacion.validar_configuracion()
+
+
+def test_limite_por_cliente_sobrevive_a_un_acierto(entorno, monkeypatch):
+    """H2: el contador por cliente (4 × máximo) no se borra al entrar con otra cuenta."""
+    # Arrange
+    monkeypatch.setenv("M2_AUTH_MAX_INTENTOS", "1")
+    limite = LimiteIntentos()
+
+    # Act
+    limite.intentar("10.0.0.1", "ana")  # fallo: no se retira
+    limite.acertar(limite.intentar("10.0.0.1", "bob"))
+    for usuario in ("carla", "dario", "eva"):
+        limite.intentar("10.0.0.1", usuario)
+
+    # Assert
+    with pytest.raises(autenticacion.IntentosAgotados):
+        limite.intentar("10.0.0.1", "fabio")

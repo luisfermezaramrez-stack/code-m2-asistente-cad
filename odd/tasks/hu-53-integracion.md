@@ -19,15 +19,17 @@ Rama: `feature/hu-53-autenticacion` · Entrega: merge de `main` + commits de cor
 
 | ID | Specs | Ruta | Estado | Commit |
 | --- | --- | --- | --- | --- |
-| T1 | S1 | inline | hecho | merge local |
-| T2 | S2, S3, S9 | inline | hecho | merge local |
-| T3 | S4, S5, S6 | inline | hecho | merge local |
-| T4 | S7 | inline | hecho | merge local |
-| T5 | S8 | inline | hecho | merge local |
-| T6 | S1–S9 | verificador independiente (riesgo: item 2, seguridad) | pendiente | — |
+| T1 | S1 | inline | hecho | d604675 |
+| T2 | S2, S3, S9 | inline | hecho | d604675 |
+| T3 | S4, S5, S6 | inline | hecho | d604675 |
+| T4 | S7 | inline | hecho | d604675 |
+| T5 | S8 | inline | hecho | d604675 |
+| T6 | S1–S9 | verificador independiente (riesgo: item 2, seguridad) | hecho; correcciones H1–H3, H5, H6 | ver L4 |
 
 ## Log
 
 - L1 (2026-11-25): "corrige este PR para que todo este en orden y poder aprobarlo, ademas resuelve los conflictos"
 - L2: hallazgos de la revisión de PR #133 validados por el agente de `w6:p1`; RDD apagado en este clon (`clone_local: off`).
 - L3: conflictos resueltos (10 archivos). Correcciones S2–S9 con pruebas nuevas en `tests/test_hu53_autenticacion.py`; cada una validada por mutación (9/9 RED). Decisiones: con autenticación la clave de idempotencia se acota al usuario (evita 409 cruzado) y `/v1/uso` exige sesión. `make check`: 475 pytest (93,31 %), 58 Vitest; smoke HG-15 correcto. Pendiente: `.env.example` sin las variables nuevas (lectura bloqueada por una regla de permisos).
+- L4: verificador independiente sobre d604675: sin bypass del aislamiento; S7 parcial. Una tanda de corrección: H1 (límite concurrente), H2 (acierto de otra cuenta reiniciaba), H3 (anónimo escribía en el registro con JSON mal formado), H5 (404 distinguible), H6 (hash con 0 iteraciones). Mutación 6/6 RED tras agregar `test_limite_por_cliente_sobrevive_a_un_acierto`. Documentados sin cambio: H4 (anterior), H7 (diseño), H8 (proxy). `make check`: 481 pytest (93,34 %), 58 Vitest.
+- L5 (2026-11-25): "ya habilite el RDD haz la verificacion"

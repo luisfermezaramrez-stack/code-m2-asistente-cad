@@ -90,6 +90,22 @@ PR #133 se corrigió:
 | `auth.ts` asumía modo local ante un error | Devuelve `sesionRequerida` | `frontend/tests/auth.test.ts` |
 | Migración del CSV en cada escritura | Una comprobación por archivo y proceso | `test_migracion_del_registro_se_comprueba_una_vez_por_archivo` |
 
+Verificación independiente sobre `d604675` (sin bypass del aislamiento; S7 parcial). Se
+corrigió en una sola tanda:
+
+| Hallazgo | Corrección | Prueba |
+| --- | --- | --- |
+| H1: el límite se esquivaba con intentos concurrentes | `LimiteIntentos.intentar` comprueba y anota bajo un lock | `test_login_concurrente_no_supera_el_limite` |
+| H2: un acierto de otra cuenta reiniciaba el contador | Contadores por cliente+usuario y por cliente; un acierto retira sólo su marca | `test_login_exitoso_de_otra_cuenta_no_borra_los_fallos`, `test_limite_por_cliente_sobrevive_a_un_acierto` |
+| H3: un anónimo escribía en el registro con JSON mal formado | El manejador de 422 responde 401 sin registrar | `test_anonimo_con_json_mal_formado_no_escribe_en_el_registro` |
+| H5: el texto del 404 distinguía «ajeno» de «inexistente» | Mismo detalle que el recurso inexistente | `test_recurso_ajeno_responde_igual_que_uno_inexistente` |
+| H6: un hash con 0 iteraciones pasaba la validación | La expresión exige al menos una iteración | `test_hash_sin_iteraciones_es_configuracion_invalida` |
+
+Quedan documentados, sin cambio: H4 (reutilizar un `X-Request-ID` existente deja la
+generación fuera del registro; anterior a HU-53, sin fuga de datos), H7 (el logout no
+revoca un token copiado; diseño sin estado) y H8 (detrás de un proxy inverso hay que
+configurar `--proxy-headers`).
+
 `tests/conftest.py` mantiene la autenticación y la cola apagadas para la batería
 heredada; las pruebas de esta sección las activan. Cada prueba se validó por mutación:
 al quitar la corrección correspondiente, la prueba falla.
@@ -109,5 +125,5 @@ La autenticación, el aislamiento por propietario y la trazabilidad están imple
 y cubiertos por pruebas. Ruff, Vitest, TypeScript, build, generación de tipos, pre-commit
 y la suite completa (426 pruebas, 94,26 % de cobertura) estaban en verde en local antes de
 integrar `main`. Tras la integración y las correcciones de la sección 5, `make check` pasa
-con 475 pruebas de pytest (93,31 % de cobertura) y 58 de Vitest, y el smoke HG-15
+con 481 pruebas de pytest (93,34 % de cobertura) y 58 de Vitest, y el smoke HG-15
 (`--simulate-model`) termina correcto.
