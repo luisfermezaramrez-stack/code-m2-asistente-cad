@@ -79,6 +79,51 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "RespuestaUso": {
+        "description": "Gasto acumulado del día y topes vigentes (HU-32, RF-5).",
+        "properties": {
+          "costo_usd": {
+            "title": "Costo Usd",
+            "type": "number"
+          },
+          "fecha": {
+            "format": "date",
+            "title": "Fecha",
+            "type": "string"
+          },
+          "generaciones": {
+            "title": "Generaciones",
+            "type": "integer"
+          },
+          "limite_solicitudes_ventana": {
+            "title": "Limite Solicitudes Ventana",
+            "type": "integer"
+          },
+          "moneda": {
+            "title": "Moneda",
+            "type": "string"
+          },
+          "presupuesto_diario_usd": {
+            "title": "Presupuesto Diario Usd",
+            "type": "number"
+          },
+          "ventana_segundos": {
+            "title": "Ventana Segundos",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fecha",
+          "costo_usd",
+          "moneda",
+          "generaciones",
+          "presupuesto_diario_usd",
+          "limite_solicitudes_ventana",
+          "ventana_segundos"
+        ],
+        "title": "RespuestaUso",
+        "type": "object"
+      },
       "SolicitudGenerar": {
         "description": "Define y valida la entrada del servicio CAD.",
         "properties": {
@@ -284,6 +329,25 @@
       "post": {
         "description": "Procesa una solicitud CAD validada, la registra (AC3/AC4) y la mide (HU-16).",
         "operationId": "generar_v1_generar_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -317,6 +381,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "La clave de idempotencia ya se usó con otra solicitud."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -326,6 +393,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "description": "Límite por ventana excedido o presupuesto diario agotado."
           }
         },
         "summary": "Generar"
@@ -451,6 +521,25 @@
           }
         },
         "summary": "Descargar Step"
+      }
+    },
+    "/v1/uso": {
+      "get": {
+        "description": "RF-5/AC4: gasto acumulado del día, sin red ni identificadores de cliente.",
+        "operationId": "consultar_uso_v1_uso_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUso"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Consultar Uso"
       }
     }
   }

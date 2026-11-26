@@ -26,6 +26,7 @@ construirlo.
 - [Requisitos](#requisitos)
 - [Versiones](#versiones)
 - [Instalación y uso](#instalación-y-uso)
+- [Control de costo, límites e idempotencia](#control-de-costo-límites-e-idempotencia-hu-32)
 - [Entorno en la nube (Lambda)](#entorno-en-la-nube-lambda)
 - [Metas (objetivos 1–4)](#metas-objetivos-14)
 - [Informe final](docs/informe-final.md)
@@ -240,6 +241,49 @@ Sin servidor (o con `MLFLOW_TRACKING_ENABLED=0`) la generación concluye igual y
 del seguimiento se emite como advertencia en el log: es observabilidad, no criterio de
 aceptación de la pieza. `mlruns/`, `mlflow.db` y `mlflow-artifacts/` están en `.gitignore`.
 
+### Control de costo, límites e idempotencia (HU-32)
+
+`POST /v1/generar` acepta dos cabeceras opcionales:
+
+| Cabecera | Efecto |
+| --- | --- |
+| `Idempotency-Key` | Reenviar la misma clave devuelve la generación original (JSON o estado SSE) sin crear otro trabajo ni sumar costo. Reutilizarla con otro texto/sesión/transporte da `409`. |
+| `X-Session-ID` | Identifica la sesión para el tope por ventana; si no se envía se usa la IP del cliente. |
+
+`GET /v1/uso` publica el gasto acumulado del día en UTC, sin datos personales:
+
+```json
+{
+  "fecha": "2026-11-25",
+  "costo_usd": 0.0004,
+  "moneda": "USD",
+  "generaciones": 2,
+  "presupuesto_diario_usd": 0,
+  "limite_solicitudes_ventana": 0,
+  "ventana_segundos": 60
+}
+```
+
+Los topes se configuran con `M2_LIMITE_SOLICITUDES_VENTANA`, `M2_VENTANA_SEGUNDOS` y
+`M2_PRESUPUESTO_DIARIO_USD`. Cero desactiva cada control, así que sin variables nuevas
+el comportamiento es el de siempre. Los rechazos son `429` con `X-Limite-Tipo:
+ventana|presupuesto` (y `Retry-After` cuando aplica); el límite de capacidad de 128
+trabajos sigue siendo un `503` distinto. El estado vive en el proceso (`--workers 1`);
+al escalar se migraría a un almacén compartido sin cambiar la API.
+
+Ejemplo con un tope de 2 solicitudes por minuto y presupuesto de 0,10 USD:
+
+```bash
+export M2_LIMITE_SOLICITUDES_VENTANA=2 M2_VENTANA_SEGUNDOS=60
+export M2_PRESUPUESTO_DIARIO_USD=0.10
+curl -H 'X-Session-ID: disenador-1' -H 'Idempotency-Key: pedido-42' \
+  -H 'Content-Type: application/json' -d '{"texto":"Espaciador de 14 mm"}' \
+  http://127.0.0.1:8000/v1/generar
+curl http://127.0.0.1:8000/v1/uso
+```
+
+Detalle, decisiones y evidencia: [SPEC-033](specs/033-hu-32-costo-limites-idempotencia/).
+
 
 ### Despliegue local con Docker Compose (HU-10)
 
@@ -259,6 +303,7 @@ memoria holgada: el build compila dependencias CAD).
 | --- | --- |
 | http://localhost:8000 | SPA en Vue (mismo origen que la API) |
 | http://localhost:8000/v1/health | Salud de la API (`{"status": "ok"}`) |
+| http://localhost:8000/v1/uso | Gasto acumulado del día (HU-32) |
 | http://localhost:8000/docs | Contrato OpenAPI |
 | http://127.0.0.1:5000 | UI de MLflow |
 
@@ -310,7 +355,10 @@ Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 | `MLFLOW_TRACKING_URI` | Seguimiento → servidor MLflow o file store (HU-16) | `file:./mlruns` | `http://mlflow:5000` |
 | `MLFLOW_TRACKING_ENABLED` | `0` apaga el seguimiento (no-op) | `1` | `${MLFLOW_TRACKING_ENABLED:-1}` |
 | `MLFLOW_EXPERIMENT_NAME` / `MLFLOW_EXPERIMENT_BANCO` | Nombres de experimento | `m2-cad-generacion` / `m2-cad-banco` | igual |
-| `MLFLOW_PRECIO_ENTRADA` / `MLFLOW_PRECIO_SALIDA` | USD por millón de tokens para `costo_usd` | `0` | `0` |
+| `MLFLOW_PRECIO_ENTRADA` / `MLFLOW_PRECIO_SALIDA` | USD por millón de tokens para `costo_usd` (HU-32 lo agrega en `/v1/uso`) | `0` | `0` |
+| `M2_LIMITE_SOLICITUDES_VENTANA` | Solicitudes permitidas por sesión y ventana (HU-32; `0` desactiva) | `0` | `0` |
+| `M2_VENTANA_SEGUNDOS` | Duración de la ventana de uso (HU-32) | `60` | `60` |
+| `M2_PRESUPUESTO_DIARIO_USD` | Presupuesto UTC en USD (`0` desactiva; HU-32) | `0` | `0` |
 | `LLM_MODEL_VERSION` | Versión publicada por el proveedor (AC7) | id del modelo servido | id del modelo servido |
 | `M2_LOG_LEVEL` | Nivel del logging JSON de `m2_cad` (HU-24) | `INFO` | `INFO` (o el valor del entorno) |
 | `LLM_MAX_RETRIES` | Reintentos del LLM ante 5xx transitorios/timeout (HU-25) | `2` | `2` |
