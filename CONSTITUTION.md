@@ -129,7 +129,7 @@ code-m2-asistente-cad/
 ├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
 ├── specs/                      # specs SDD 001–023 (Spec Kit, Retroactiva, Spec-first); índice en specs/README.md
 ├── scripts/                    # fetch-model, verify-serve, vendor, cloud (Lambda/Vast.ai)
-├── docs/                       # documentación, sistema de diseño, política de versionado y diagrama
+├── docs/                       # documentación, sistema de diseño, runbook operativo, política de versionado y diagrama
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
 ├── .github/                    # CI, labels, Dependabot, plantillas de PR e issues
 ├── .opencode/rules/            # reglas para agentes (tgrep)
@@ -177,8 +177,12 @@ code-m2-asistente-cad/
   - La fuente única de tokens del frontend es `frontend/src/design/tokens.css`; los
     componentes solo consumen variables CSS. El tema se resuelve en `frontend/src/design/theme.ts`
     y se documenta en `docs/diseno-v2.md`.
+- **Operación:** las respuestas a incidentes viven en `docs/runbook-operativo.md`; sus comandos
+  de diagnóstico no imprimen secretos y los respaldos se guardan en `data/backups/` (volumen
+  `./data`, gitignored), así sobreviven a recrear los contenedores.
 
 ## 6. Calidad y automatización
+
 
 | Herramienta | Rol | Comando |
 |-------------|-----|---------|
