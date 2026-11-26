@@ -65,10 +65,13 @@ expiración de ventana, costo no finito y ausencia de clave.
 
 ## 5. Integración con HU-31
 
-HU-32 nace de `origin/main` porque PR #130 (API `/v1`) sigue abierto. Ambos
-tocan `api.py`, así que al fusionar se resuelve el solapamiento y, si el contrato
-congelado de HU-31 incorpora `/uso`, se regenera `contracts/openapi-v1.json` en
-esa integración. No se ha fusionado ni reescrito ninguna rama ajena.
+HU-32 nace de `origin/main` antes de que se fusionara PR #130 (API `/v1`). Al
+integrar `main` en esta rama se resolvió el solapamiento en `api.py`: `GET /uso` se
+publica como `GET /v1/uso` en el router versionado (ruta nueva, sin redirección
+plana), `POST /v1/generar` documenta `Idempotency-Key` y la respuesta `429`
+(`X-Session-ID` se lee de las cabeceras y no figura en el esquema), y se regeneraron `contracts/openapi-v1.json` y `frontend/src/generated/api.ts`.
+Según `docs/versionado-api.md`, añadir cabeceras opcionales, una respuesta y una ruta
+nueva es compatible con v1. No se ha reescrito ninguna rama ajena.
 
 ## Key Learnings:
 

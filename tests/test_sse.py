@@ -114,7 +114,7 @@ def test_sse_entrada_invalida_conserva_422_sin_iniciar_trabajo(entorno):
 
 
 def test_openapi_conserva_contrato_json_y_anuncia_sse():
-    contenido = api.app.openapi()["paths"]["/generar"]["post"]["responses"]["200"]["content"]
+    contenido = api.app.openapi()["paths"]["/v1/generar"]["post"]["responses"]["200"]["content"]
     assert contenido["application/json"]["schema"]["additionalProperties"] == {"type": "string"}
     assert contenido["text/event-stream"]["schema"] == {"type": "string"}
 
@@ -207,8 +207,8 @@ class ConexionASGI:
             "http_version": "1.1",
             "method": "POST",
             "scheme": "http",
-            "path": "/generar",
-            "raw_path": b"/generar",
+            "path": "/v1/generar",
+            "raw_path": b"/v1/generar",
             "query_string": b"",
             "root_path": "",
             "headers": [(b"content-type", b"application/json"), (b"accept", b"text/event-stream")],
@@ -260,7 +260,9 @@ def test_cancelacion_difiere_confirmacion_hasta_salida_real(entorno, desconectar
     async def escenario():
         conexion = await ConexionASGI().abrir()
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=api.app), base_url="http://test"
+            transport=httpx.ASGITransport(app=api.app),
+            base_url="http://test",
+            follow_redirects=True,
         ) as client:
             try:
                 assert (await conexion.evento())["estado"] == "validando"
@@ -310,7 +312,9 @@ def test_fallo_bloqueante_durante_cancelacion_sigue_siendo_error(entorno):
     async def escenario():
         conexion = await ConexionASGI().abrir()
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=api.app), base_url="http://test"
+            transport=httpx.ASGITransport(app=api.app),
+            base_url="http://test",
+            follow_redirects=True,
         ) as client:
             try:
                 await conexion.evento()

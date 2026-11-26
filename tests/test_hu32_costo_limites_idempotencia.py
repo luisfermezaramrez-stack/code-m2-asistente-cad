@@ -57,7 +57,7 @@ def api_simulado(tmp_path, monkeypatch):
 
 
 def _generar(client: TestClient, texto: str = "Espaciador de 14 mm", **cabeceras):
-    return client.post("/generar", json={"texto": texto}, headers=cabeceras)
+    return client.post("/v1/generar", json={"texto": texto}, headers=cabeceras)
 
 
 def test_ac1_presupuesto_excedido_no_llama_al_modelo(api_simulado):
@@ -72,7 +72,7 @@ def test_ac1_presupuesto_excedido_no_llama_al_modelo(api_simulado):
     assert respuesta.headers["X-Limite-Tipo"] == "presupuesto"
     assert "Presupuesto diario" in respuesta.json()["detail"]
     assert sim.llamadas["modelo"] == 0
-    assert sim.client.get("/uso").json()["costo_usd"] == pytest.approx(0.0002)
+    assert sim.client.get("/v1/uso").json()["costo_usd"] == pytest.approx(0.0002)
 
 
 def test_ac2_idempotencia_no_duplica_gasto_ni_trabajo(api_simulado):
@@ -89,7 +89,7 @@ def test_ac2_idempotencia_no_duplica_gasto_ni_trabajo(api_simulado):
     assert segunda.headers["Idempotent-Replay"] == "true"
     assert segunda.headers["X-Registro-ID"] == primera.headers["X-Registro-ID"]
     assert sim.llamadas["modelo"] == 1
-    uso = sim.client.get("/uso").json()
+    uso = sim.client.get("/v1/uso").json()
     assert uso["costo_usd"] == pytest.approx(0.0002)
     assert uso["generaciones"] == 1
 
@@ -132,7 +132,7 @@ def test_ac4_gasto_acumulado_suma_costo_de_cada_generacion(api_simulado):
     assert _generar(sim.client, texto="Pieza A").status_code == 200
     assert _generar(sim.client, texto="Pieza B").status_code == 200
 
-    uso = sim.client.get("/uso").json()
+    uso = sim.client.get("/v1/uso").json()
     assert uso["fecha"] == datetime.now(timezone.utc).date().isoformat()
     assert uso["moneda"] == "USD"
     assert uso["costo_usd"] == pytest.approx(0.0004)
@@ -144,7 +144,7 @@ def test_ac4_gasto_acumulado_suma_costo_de_cada_generacion(api_simulado):
 def test_sin_topes_ni_clave_el_comportamiento_no_cambia(api_simulado):
     """RNF-2: sin configuración ni Idempotency-Key no aparecen cabeceras nuevas."""
     sim = api_simulado
-    assert sim.client.get("/uso").json()["costo_usd"] == 0
+    assert sim.client.get("/v1/uso").json()["costo_usd"] == 0
 
     respuesta = _generar(sim.client)
 
@@ -166,7 +166,7 @@ def test_reintento_sse_devuelve_estado_terminal(api_simulado):
     assert primera.status_code == 200
     solicitud_id = primera.headers["X-Registro-ID"]
     for _ in range(100):
-        estado = sim.client.get(f"/generaciones/{solicitud_id}").json()
+        estado = sim.client.get(f"/v1/generaciones/{solicitud_id}").json()
         if estado["terminal"]:
             break
         time.sleep(0.01)

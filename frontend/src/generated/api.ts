@@ -143,7 +143,7 @@ export type ValidationError = {
     type: string;
 };
 
-export type CancelarGeneracionGeneracionesSolicitudIdDeleteData = {
+export type CancelarGeneracionV1GeneracionesSolicitudIdDeleteData = {
     body?: never;
     path: {
         /**
@@ -152,19 +152,19 @@ export type CancelarGeneracionGeneracionesSolicitudIdDeleteData = {
         solicitud_id: string;
     };
     query?: never;
-    url: '/generaciones/{solicitud_id}';
+    url: '/v1/generaciones/{solicitud_id}';
 };
 
-export type CancelarGeneracionGeneracionesSolicitudIdDeleteErrors = {
+export type CancelarGeneracionV1GeneracionesSolicitudIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CancelarGeneracionGeneracionesSolicitudIdDeleteError = CancelarGeneracionGeneracionesSolicitudIdDeleteErrors[keyof CancelarGeneracionGeneracionesSolicitudIdDeleteErrors];
+export type CancelarGeneracionV1GeneracionesSolicitudIdDeleteError = CancelarGeneracionV1GeneracionesSolicitudIdDeleteErrors[keyof CancelarGeneracionV1GeneracionesSolicitudIdDeleteErrors];
 
-export type CancelarGeneracionGeneracionesSolicitudIdDeleteResponses = {
+export type CancelarGeneracionV1GeneracionesSolicitudIdDeleteResponses = {
     /**
      * Successful Response
      */
@@ -175,9 +175,9 @@ export type CancelarGeneracionGeneracionesSolicitudIdDeleteResponses = {
     202: EstadoTrabajo;
 };
 
-export type CancelarGeneracionGeneracionesSolicitudIdDeleteResponse = CancelarGeneracionGeneracionesSolicitudIdDeleteResponses[keyof CancelarGeneracionGeneracionesSolicitudIdDeleteResponses];
+export type CancelarGeneracionV1GeneracionesSolicitudIdDeleteResponse = CancelarGeneracionV1GeneracionesSolicitudIdDeleteResponses[keyof CancelarGeneracionV1GeneracionesSolicitudIdDeleteResponses];
 
-export type ConsultarGeneracionGeneracionesSolicitudIdGetData = {
+export type ConsultarGeneracionV1GeneracionesSolicitudIdGetData = {
     body?: never;
     path: {
         /**
@@ -186,28 +186,28 @@ export type ConsultarGeneracionGeneracionesSolicitudIdGetData = {
         solicitud_id: string;
     };
     query?: never;
-    url: '/generaciones/{solicitud_id}';
+    url: '/v1/generaciones/{solicitud_id}';
 };
 
-export type ConsultarGeneracionGeneracionesSolicitudIdGetErrors = {
+export type ConsultarGeneracionV1GeneracionesSolicitudIdGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ConsultarGeneracionGeneracionesSolicitudIdGetError = ConsultarGeneracionGeneracionesSolicitudIdGetErrors[keyof ConsultarGeneracionGeneracionesSolicitudIdGetErrors];
+export type ConsultarGeneracionV1GeneracionesSolicitudIdGetError = ConsultarGeneracionV1GeneracionesSolicitudIdGetErrors[keyof ConsultarGeneracionV1GeneracionesSolicitudIdGetErrors];
 
-export type ConsultarGeneracionGeneracionesSolicitudIdGetResponses = {
+export type ConsultarGeneracionV1GeneracionesSolicitudIdGetResponses = {
     /**
      * Successful Response
      */
     200: EstadoTrabajo;
 };
 
-export type ConsultarGeneracionGeneracionesSolicitudIdGetResponse = ConsultarGeneracionGeneracionesSolicitudIdGetResponses[keyof ConsultarGeneracionGeneracionesSolicitudIdGetResponses];
+export type ConsultarGeneracionV1GeneracionesSolicitudIdGetResponse = ConsultarGeneracionV1GeneracionesSolicitudIdGetResponses[keyof ConsultarGeneracionV1GeneracionesSolicitudIdGetResponses];
 
-export type DescargarArchivoGeneracionesSolicitudIdArchivosFormatoGetData = {
+export type DescargarArchivoV1GeneracionesSolicitudIdArchivosFormatoGetData = {
     body?: never;
     path: {
         /**
@@ -220,26 +220,26 @@ export type DescargarArchivoGeneracionesSolicitudIdArchivosFormatoGetData = {
         formato: string;
     };
     query?: never;
-    url: '/generaciones/{solicitud_id}/archivos/{formato}';
+    url: '/v1/generaciones/{solicitud_id}/archivos/{formato}';
 };
 
-export type DescargarArchivoGeneracionesSolicitudIdArchivosFormatoGetErrors = {
+export type DescargarArchivoV1GeneracionesSolicitudIdArchivosFormatoGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DescargarArchivoGeneracionesSolicitudIdArchivosFormatoGetError = DescargarArchivoGeneracionesSolicitudIdArchivosFormatoGetErrors[keyof DescargarArchivoGeneracionesSolicitudIdArchivosFormatoGetErrors];
+export type DescargarArchivoV1GeneracionesSolicitudIdArchivosFormatoGetError = DescargarArchivoV1GeneracionesSolicitudIdArchivosFormatoGetErrors[keyof DescargarArchivoV1GeneracionesSolicitudIdArchivosFormatoGetErrors];
 
-export type DescargarArchivoGeneracionesSolicitudIdArchivosFormatoGetResponses = {
+export type DescargarArchivoV1GeneracionesSolicitudIdArchivosFormatoGetResponses = {
     /**
      * Successful Response
      */
     200: unknown;
 };
 
-export type GenerarGenerarPostData = {
+export type GenerarV1GenerarPostData = {
     body: SolicitudGenerar;
     headers?: {
         /**
@@ -249,10 +249,10 @@ export type GenerarGenerarPostData = {
     };
     path?: never;
     query?: never;
-    url: '/generar';
+    url: '/v1/generar';
 };
 
-export type GenerarGenerarPostErrors = {
+export type GenerarV1GenerarPostErrors = {
     /**
      * La clave de idempotencia ya se usó con otra solicitud.
      */
@@ -267,11 +267,11 @@ export type GenerarGenerarPostErrors = {
     429: unknown;
 };
 
-export type GenerarGenerarPostError = GenerarGenerarPostErrors[keyof GenerarGenerarPostErrors];
+export type GenerarV1GenerarPostError = GenerarV1GenerarPostErrors[keyof GenerarV1GenerarPostErrors];
 
-export type GenerarGenerarPostResponses = {
+export type GenerarV1GenerarPostResponses = {
     /**
-     * Response Generar Generar Post
+     * Response Generar V1 Generar Post
      *
      * Successful Response
      */
@@ -280,18 +280,18 @@ export type GenerarGenerarPostResponses = {
     };
 };
 
-export type GenerarGenerarPostResponse = GenerarGenerarPostResponses[keyof GenerarGenerarPostResponses];
+export type GenerarV1GenerarPostResponse = GenerarV1GenerarPostResponses[keyof GenerarV1GenerarPostResponses];
 
-export type HealthHealthGetData = {
+export type HealthV1HealthGetData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/health';
+    url: '/v1/health';
 };
 
-export type HealthHealthGetResponses = {
+export type HealthV1HealthGetResponses = {
     /**
-     * Response Health Health Get
+     * Response Health V1 Health Get
      *
      * Successful Response
      */
@@ -300,23 +300,23 @@ export type HealthHealthGetResponses = {
     };
 };
 
-export type HealthHealthGetResponse = HealthHealthGetResponses[keyof HealthHealthGetResponses];
+export type HealthV1HealthGetResponse = HealthV1HealthGetResponses[keyof HealthV1HealthGetResponses];
 
-export type ReadyReadyGetData = {
+export type ReadyV1ReadyGetData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/ready';
+    url: '/v1/ready';
 };
 
-export type ReadyReadyGetResponses = {
+export type ReadyV1ReadyGetResponses = {
     /**
      * Successful Response
      */
     200: unknown;
 };
 
-export type ConsultarRegistroRegistrosIdentificadorGetData = {
+export type ConsultarRegistroV1RegistrosIdentificadorGetData = {
     body?: never;
     path: {
         /**
@@ -325,21 +325,21 @@ export type ConsultarRegistroRegistrosIdentificadorGetData = {
         identificador: string;
     };
     query?: never;
-    url: '/registros/{identificador}';
+    url: '/v1/registros/{identificador}';
 };
 
-export type ConsultarRegistroRegistrosIdentificadorGetErrors = {
+export type ConsultarRegistroV1RegistrosIdentificadorGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ConsultarRegistroRegistrosIdentificadorGetError = ConsultarRegistroRegistrosIdentificadorGetErrors[keyof ConsultarRegistroRegistrosIdentificadorGetErrors];
+export type ConsultarRegistroV1RegistrosIdentificadorGetError = ConsultarRegistroV1RegistrosIdentificadorGetErrors[keyof ConsultarRegistroV1RegistrosIdentificadorGetErrors];
 
-export type ConsultarRegistroRegistrosIdentificadorGetResponses = {
+export type ConsultarRegistroV1RegistrosIdentificadorGetResponses = {
     /**
-     * Response Consultar Registro Registros  Identificador  Get
+     * Response Consultar Registro V1 Registros  Identificador  Get
      *
      * Successful Response
      */
@@ -348,9 +348,9 @@ export type ConsultarRegistroRegistrosIdentificadorGetResponses = {
     };
 };
 
-export type ConsultarRegistroRegistrosIdentificadorGetResponse = ConsultarRegistroRegistrosIdentificadorGetResponses[keyof ConsultarRegistroRegistrosIdentificadorGetResponses];
+export type ConsultarRegistroV1RegistrosIdentificadorGetResponse = ConsultarRegistroV1RegistrosIdentificadorGetResponses[keyof ConsultarRegistroV1RegistrosIdentificadorGetResponses];
 
-export type DescargarStepRegistrosIdentificadorStepGetData = {
+export type DescargarStepV1RegistrosIdentificadorStepGetData = {
     body?: never;
     path: {
         /**
@@ -359,37 +359,37 @@ export type DescargarStepRegistrosIdentificadorStepGetData = {
         identificador: string;
     };
     query?: never;
-    url: '/registros/{identificador}/step';
+    url: '/v1/registros/{identificador}/step';
 };
 
-export type DescargarStepRegistrosIdentificadorStepGetErrors = {
+export type DescargarStepV1RegistrosIdentificadorStepGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DescargarStepRegistrosIdentificadorStepGetError = DescargarStepRegistrosIdentificadorStepGetErrors[keyof DescargarStepRegistrosIdentificadorStepGetErrors];
+export type DescargarStepV1RegistrosIdentificadorStepGetError = DescargarStepV1RegistrosIdentificadorStepGetErrors[keyof DescargarStepV1RegistrosIdentificadorStepGetErrors];
 
-export type DescargarStepRegistrosIdentificadorStepGetResponses = {
+export type DescargarStepV1RegistrosIdentificadorStepGetResponses = {
     /**
      * Successful Response
      */
     200: unknown;
 };
 
-export type ConsultarUsoUsoGetData = {
+export type ConsultarUsoV1UsoGetData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/uso';
+    url: '/v1/uso';
 };
 
-export type ConsultarUsoUsoGetResponses = {
+export type ConsultarUsoV1UsoGetResponses = {
     /**
      * Successful Response
      */
     200: RespuestaUso;
 };
 
-export type ConsultarUsoUsoGetResponse = ConsultarUsoUsoGetResponses[keyof ConsultarUsoUsoGetResponses];
+export type ConsultarUsoV1UsoGetResponse = ConsultarUsoV1UsoGetResponses[keyof ConsultarUsoV1UsoGetResponses];
