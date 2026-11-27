@@ -103,11 +103,12 @@ describe('AC1 y AC2 · URL propia y estado recuperable', () => {
 })
 
 describe('AC3 · Estados nuevos del shell diferenciados', () => {
+  let service: FakeCadService
   let router: Router
   let wrapper: VueWrapper
 
   beforeEach(async () => {
-    const service = new FakeCadService()
+    service = new FakeCadService()
     vi.stubGlobal('fetch', service.fetch)
     router = createAppRouter(createMemoryHistory())
     await router.push('/')
@@ -128,21 +129,47 @@ describe('AC3 · Estados nuevos del shell diferenciados', () => {
   }
 
   it('distingue vacío, cargando y error en historial y ajustes', async () => {
-    const casos = [
-      ['/historial', 'No hay solicitudes registradas', 'Cargando el historial', 'No se pudo cargar el historial'],
-      ['/ajustes', 'No hay ajustes adicionales', 'Cargando los ajustes', 'No se pudieron cargar los ajustes'],
+    let liberar: () => void = () => {}
+    service.esperaRegistros = new Promise<void>((resolve) => { liberar = resolve })
+    await visitar('/historial')
+
+    let bloque = wrapper.get('.estado-vista')
+    expect(bloque.classes()).toContain('estado-vista--cargando')
+    expect(bloque.text()).toContain('Cargando el historial')
+    expect(bloque.attributes('aria-busy')).toBe('true')
+
+    liberar()
+    await flushPromises()
+    bloque = wrapper.get('.estado-vista')
+    expect(bloque.classes()).toContain('estado-vista--vacio')
+    expect(bloque.text()).toContain('No hay solicitudes registradas')
+    expect(bloque.attributes('role')).toBe('status')
+    expect(bloque.attributes('aria-busy')).toBe('false')
+
+    await visitar('/nueva-solicitud')
+    service.registrosStatus = 503
+    await visitar('/historial')
+    bloque = wrapper.get('.estado-vista')
+    expect(bloque.classes()).toContain('estado-vista--error')
+    expect(bloque.text()).toContain('No se pudo cargar el historial')
+    expect(bloque.attributes('role')).toBe('alert')
+    expect(bloque.attributes('aria-busy')).toBe('false')
+
+    // Ajustes conserva los estados de la consulta hasta que tenga datos propios.
+    const estadosAjustes = [
+      ['vacio', 'No hay ajustes adicionales'],
+      ['cargando', 'Cargando los ajustes'],
+      ['error', 'No se pudieron cargar los ajustes'],
     ] as const
 
-    for (const [ruta, vacio, cargando, error] of casos) {
-      for (const [estado, texto] of [['vacio', vacio], ['cargando', cargando], ['error', error]] as const) {
-        await visitar(`${ruta}?estado=${estado}`)
+    for (const [estado, texto] of estadosAjustes) {
+      await visitar(`/ajustes?estado=${estado}`)
 
-        const bloque = wrapper.get('.estado-vista')
-        expect(bloque.classes()).toContain(`estado-vista--${estado}`)
-        expect(bloque.text()).toContain(texto)
-        expect(bloque.attributes('role')).toBe(estado === 'error' ? 'alert' : 'status')
-        expect(bloque.attributes('aria-busy')).toBe(estado === 'cargando' ? 'true' : 'false')
-      }
+      const ajustes = wrapper.get('.estado-vista')
+      expect(ajustes.classes()).toContain(`estado-vista--${estado}`)
+      expect(ajustes.text()).toContain(texto)
+      expect(ajustes.attributes('role')).toBe(estado === 'error' ? 'alert' : 'status')
+      expect(ajustes.attributes('aria-busy')).toBe(estado === 'cargando' ? 'true' : 'false')
     }
   })
 
@@ -177,13 +204,14 @@ describe('AC4 · Navegación sólo con teclado', () => {
     vi.unstubAllGlobals()
   })
 
-  it('alcanza las tres entradas con Tab y Shift+Tab desde el propio nav', async () => {
+  it('alcanza todas las entradas con Tab y Shift+Tab desde el propio nav', async () => {
     const enlaces = wrapper.findAll('nav a')
-    expect(enlaces).toHaveLength(3)
+    // HU-51 añadió «Métricas»: la navegación por teclado tiene que seguir cubriéndolas todas.
+    expect(enlaces).toHaveLength(4)
 
     const [primero, segundo, tercero] = enlaces.map(
       (enlace) => enlace.element as HTMLAnchorElement,
-    ) as [HTMLAnchorElement, HTMLAnchorElement, HTMLAnchorElement]
+    ) as [HTMLAnchorElement, HTMLAnchorElement, HTMLAnchorElement, HTMLAnchorElement]
     primero.focus()
     expect(document.activeElement).toBe(primero)
 
@@ -203,7 +231,7 @@ describe('AC4 · Navegación sólo con teclado', () => {
     ;(skip.element as HTMLAnchorElement).focus()
     expect(document.activeElement).toBe(skip.element)
 
-    const ajustes = wrapper.findAll('nav a')[2]!.element as HTMLAnchorElement
+    const ajustes = wrapper.findAll('nav a')[3]!.element as HTMLAnchorElement
     ajustes.focus()
     await wrapper.get('nav').trigger('keydown', { key: 'Enter' })
     await flushPromises()
