@@ -56,4 +56,11 @@ Los seis fallos restantes de `pytest` son del checkout Windows y reproducen limi
 5. `tests/test_hu30_retencion.py::test_ac4_no_borra_directorio_con_enlace_interno` — misma causa `WinError 1314`.
 6. `tests/test_seguimiento.py::test_sobrecarga_del_seguimiento_local_es_menor_a_50_ms` — `p95=175.0 ms` en esta máquina; objetivo ≤ 50 ms.
 
+## CI del PR #148
+
+- `test`: pass (1 m 37 s) — [run](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/45991902834/job/140481657265).
+- `e2e`: pass (42 s) — [run](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/45991902834/job/140481657736).
+- `dependencias`: pass; `espejo`: pass.
+- `secretos`: fail — 4 hallazgos de `gitleaks` (`generic-api-key`) en `tests/test_metricas.py:575`, `:576`, `:598` y `:599`, introducidos por el commit `09cca944d81801f376b45bc447cf0e3138d78dc2` (`fix(hu-51)`), que ya es ancestro de `main` y no toca esta HU. No se retiró historial ni se añadió una excepción de seguridad: queda para el equipo.
+
 Nota: el aviso de chunk grande de `GlbViewer` en `vite build` ya existía en HU-38 y no cambia con esta HU.
