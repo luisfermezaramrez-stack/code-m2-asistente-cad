@@ -47,7 +47,7 @@ Revisión solicitada a: `luisfermezaramrez-stack`
 | `git tag --list` | Solo `v1.0`, `v1.0.1` — no se crearon etiquetas |
 | Auditoría `jan-project-standard` | `OK 4 · DIFIERE 21 · FALTA 0` |
 | `--titulo "feat(hu-55): ..."` local | `Título convencional: feat(hu-55)` |
-| CI manual (PR #153) | https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46022344146 — `test` ✓, `e2e` ✓, `titulo-pr`/`release` omitidos por ser `workflow_dispatch` |
+| CI manual (PR #153) | https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46023426257 sobre `8ff67e0` — `test` ✓, `e2e` ✓, `titulo-pr`/`release` omitidos por ser `workflow_dispatch`; el commit posterior solo actualiza esta evidencia |
 
 Las 6 fallas de `make check` son preexistentes y ajenas a HU-55:
 
