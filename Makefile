@@ -50,7 +50,7 @@ cov: frontend-build ## Corre pytest con reporte de cobertura
 
 lint: ## Ruff con reglas E, F, I, B
 	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py \
-		scripts/generate_api_contract.py scripts/verify_corpus_dorado.py
+		scripts/generate_api_contract.py scripts/verify_corpus_dorado.py scripts/verify_prompts.py
 
 format: ## Aplica ruff format
 	uv run ruff format src tests

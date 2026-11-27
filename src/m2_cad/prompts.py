@@ -128,9 +128,16 @@ def _prompt_de(entrada: dict, raiz: Path) -> Prompt:
     calculado = sha256_texto(texto)
     if calculado != str(entrada["sha256"]):
         raise ErrorPrompt(_mensaje_hash(entrada, calculado))
+    try:
+        version = int(entrada["version"])
+    except (TypeError, ValueError) as exc:
+        raise ErrorPrompt(
+            f"{raiz / MANIFIESTO}: la entrada «{entrada.get('id')}» declara `version` = "
+            f"{entrada['version']!r}; tiene que ser un entero."
+        ) from exc
     return Prompt(
         id=str(entrada["id"]),
-        version=int(entrada["version"]),
+        version=version,
         archivo=archivo,
         sha256=str(entrada["sha256"]),
         texto=texto,
@@ -184,6 +191,13 @@ def verificar(*, raiz: Path | None = None) -> list[str]:
     except ErrorPrompt as exc:
         return [str(exc)]
 
+    if not entradas:
+        return [
+            f"El manifiesto de prompts no declara ninguna entrada "
+            f"({base / MANIFIESTO}): el pipeline necesita la versión vigente de "
+            f"«{PROMPT_VIGENTE}»."
+        ]
+
     errores: list[str] = []
     vistas: set[tuple[str, object]] = set()
     vigentes: dict[str, int] = {}
@@ -196,6 +210,12 @@ def verificar(*, raiz: Path | None = None) -> list[str]:
             continue
         id_prompt = str(entrada["id"])
         version = entrada["version"]
+        if not isinstance(version, int) or isinstance(version, bool):
+            errores.append(
+                f"{base / MANIFIESTO}: la entrada «{id_prompt}» declara `version` = "
+                f"{version!r}; tiene que ser un entero."
+            )
+            continue
         archivo = str(entrada["archivo"])
         declarado = entrada["sha256"]
         vigentes.setdefault(id_prompt, 0)
@@ -226,4 +246,9 @@ def verificar(*, raiz: Path | None = None) -> list[str]:
                 f"El prompt {id_prompt} declara {cuenta} versiones vigentes; debe declarar "
                 "exactamente una."
             )
+    if PROMPT_VIGENTE not in vigentes:
+        errores.append(
+            f"El manifiesto no declara la versión vigente del prompt «{PROMPT_VIGENTE}» que "
+            f"usa el pipeline ({base / MANIFIESTO})."
+        )
     return errores

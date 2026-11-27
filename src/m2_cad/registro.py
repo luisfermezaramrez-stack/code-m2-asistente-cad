@@ -39,14 +39,18 @@ CAMPOS = [
     "prompt_hash",
 ]
 
+# HU-33: si la solicitud no llegó al modelo no hay prompt usado, pero el campo nunca
+# queda vacío (SPEC-004, AC3).
+SIN_PROMPT = "no aplica"
+
 # Valor de cada columna añadida después de la primera versión del registro.
 # HU-53 añadió `usuario`; HU-26 añadió `causa` (etiqueta de la declinación); HU-33
 # añade `prompt` (id y versión, p. ej. `planner-v1`) y `prompt_hash` (sha256 del texto).
 _DEFECTOS_NUEVAS = {
     "usuario": ANONIMO,
     "causa": NINGUNA,
-    "prompt": "no aplica",
-    "prompt_hash": "no aplica",
+    "prompt": SIN_PROMPT,
+    "prompt_hash": SIN_PROMPT,
 }
 
 RUTA_DEFAULT = Path("data/registro.csv")
@@ -64,9 +68,6 @@ PATRON_NOMBRE = re.compile(
 
 # HU-14: la solicitud llega en español al modelo; no hay traducción que registrar.
 SIN_TRADUCCION = "no aplica"
-# HU-33: si la solicitud no llegó al modelo no hay prompt usado, pero el campo nunca
-# queda vacío (SPEC-004, AC3).
-SIN_PROMPT = "no aplica"
 _RUTAS_MIGRADAS: set[Path] = set()
 
 

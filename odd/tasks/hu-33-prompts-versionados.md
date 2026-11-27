@@ -96,7 +96,9 @@ cargador y expone `Prompt(id, version, archivo, sha256, texto)`, `Prompt.etiquet
 `verificar()`, `sha256_texto()` y `ErrorPrompt`. El manifiesto `prompts/manifest.toml`
 declara id, versión, archivo, sha256, descripción y un solo `vigente = true` por id; subir
 de versión es un archivo nuevo más una entrada nueva, nunca una edición en el lugar.
-`prompts/planner-v1.txt` (2086 caracteres, sha256 `b64b187d…b6d3`) es byte a byte igual al
+`prompts/planner-v1.txt` (2086 caracteres cargados, sha256 `b64b187d…b6d3`; el archivo
+añade un único salto de línea final que el cargador recorta, así que su `sha256sum` no es el
+del manifiesto: el hash válido es siempre `prompts.cargar().sha256`) es idéntico al
 `PROMPT_SISTEMA` anterior: `pipeline.PROMPT_SISTEMA == prompts.cargar().texto` lo prueba.
 
 L5 — Evidencia de AC3 y RNF-2: `pytest tests/test_prompts.py` carga el prompt por id
@@ -123,8 +125,8 @@ HU-30 se ajustó a una cabecera prefijo real (`CAMPOS[:10]`), que es lo que siem
 L8 — `make check` en verde (ver reporte del orquestador). La rama queda lista para PR; no se
 hizo push ni PR.
 
-L9 — Corte de entrega: dos commits (`403c7f1` comportamiento y pruebas, `3c27447`
-documentación), ~1.157 líneas autoradas. El cambio es una sola unidad de comportamiento
+L9 — Corte de entrega: tres commits (`403c7f1` comportamiento y pruebas, `f2c79c4`
+documentación, `d9c22c3` arreglo del empaquetado), ~1.157 líneas autoradas. El cambio es una sola unidad de comportamiento
 —prompt como artefacto, su trazabilidad y su puerta de CI— con las pruebas y la
 documentación al lado, así que se entrega como una PR de la HU, no encadenada. Push y PR
 quedan a decisión del humano.
@@ -135,3 +137,15 @@ no `prompts/`) fallaba al arrancar con `ErrorPrompt: No se encontró el manifies
 Corregido con `COPY prompts ./prompts` y una prueba que compara el `Dockerfile` con los
 directorios que el paquete lee en tiempo de import (`tests/test_prompts.py::test_la_imagen_copia_los_artefactos_que_el_pipeline_lee_al_importar`), observada en rojo antes del
 arreglo. Después del arreglo: `make check` 574 pruebas, cobertura 92,46 %.
+
+L11 — Verificación independiente (agente verificador, copia temporal y offline). Cumple S1 a
+S13; S14 queda literal-parcial por diseño (las filas rechazadas antes de llamar al modelo
+llevan `no aplica`). Encontró el mismo blocker del empaquetado (L10) y tres huecos reales de
+la puerta, corregidos con RED observado: `verificar()` daba por íntegro un manifiesto sin
+entradas y no exigía el id que carga el pipeline, y una `version` no entera salía como
+`ValueError` en vez de `ErrorPrompt`; además el script de la puerta no estaba en `make lint`.
+La corrección vive en `verificar`/`_prompt_de` con pruebas para cada hueco.
+
+L12 — Cierre: `make check` en verde con 577 pruebas y cobertura 92,49 %. La imagen Docker
+copia `prompts/` y una prueba compara el `Dockerfile` con los directorios que el paquete lee
+al importar. Push y PR quedan a decisión del humano.

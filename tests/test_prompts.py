@@ -370,8 +370,8 @@ def test_verificar_detecta_una_entrada_sin_clave_requerida(tmp_path):
 
     errores = prompts.verificar(raiz=raiz)
 
-    assert len(errores) == 1
-    assert "archivo" in errores[0]
+    assert any("archivo" in error for error in errores)
+    assert any(prompts.PROMPT_VIGENTE in error for error in errores)
 
 
 def test_cargar_rechaza_un_id_desconocido(tmp_path):
@@ -441,3 +441,47 @@ def test_la_imagen_copia_los_artefactos_que_el_pipeline_lee_al_importar():
         assert f"COPY {directorio} ./{directorio}" in dockerfile, (
             f"la imagen no copia {directorio}/ y el módulo lo lee en tiempo de import"
         )
+
+
+def _copia_con_manifiesto(tmp_path, contenido: str):
+    """Copia real de prompts/ con el manifiesto sustituido por `contenido`."""
+    import shutil
+
+    copia = tmp_path / "prompts"
+    shutil.copytree(RAIZ / "prompts", copia)
+    (copia / prompts.MANIFIESTO).write_text(contenido, encoding="utf-8")
+    return copia
+
+
+def test_un_manifiesto_sin_entradas_no_puede_pasar_la_puerta(tmp_path):
+    """AC2: la puerta falla si el manifiesto no declara ningún prompt."""
+    copia = _copia_con_manifiesto(tmp_path, "version = 1\n")
+
+    errores = prompts.verificar(raiz=copia)
+
+    assert errores, "un manifiesto sin entradas no puede considerarse íntegro"
+    assert prompts.PROMPT_VIGENTE in " ".join(errores)
+    with pytest.raises(prompts.ErrorPrompt):
+        prompts.cargar(raiz=copia)
+
+
+def test_una_version_no_entera_falla_la_puerta_y_el_cargador(tmp_path):
+    """AC2: una `version` con tipo inválido se informa como ErrorPrompt, no como ValueError."""
+    real = (RAIZ / "prompts" / prompts.MANIFIESTO).read_text(encoding="utf-8")
+    roto = real.replace("version = 1\narchivo", 'version = "v2"\narchivo')
+    copia = _copia_con_manifiesto(tmp_path, roto)
+
+    assert prompts.verificar(raiz=copia)
+    with pytest.raises(prompts.ErrorPrompt):
+        prompts.cargar(raiz=copia)
+
+
+def test_el_manifiesto_debe_declarar_el_prompt_que_usa_el_pipeline(tmp_path):
+    """AC2: si desaparece el id que el pipeline carga, la puerta falla."""
+    real = (RAIZ / "prompts" / prompts.MANIFIESTO).read_text(encoding="utf-8")
+    copia = _copia_con_manifiesto(tmp_path, real.replace('id = "planner"', 'id = "otro"'))
+
+    errores = prompts.verificar(raiz=copia)
+
+    assert errores
+    assert prompts.PROMPT_VIGENTE in " ".join(errores)
