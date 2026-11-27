@@ -203,13 +203,15 @@ code-m2-asistente-cad/
 | Prompts versionados | id, versión y hash del prompt; CI falla si el texto cambia sin subir versión | `make prompts-check` | SPEC-034 |
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
 | E2E del frontend | Playwright (un solo Chromium) sobre el build real con backend simulado; axe-core audita WCAG 2.1 AA en cuatro vistas y dos temas | `make e2e` |
+| Sitio de documentación | MkDocs 1.6.1 con staging generado, nav del runbook y enlaces estrictos | `make docs-build` / `make docs-serve` |
 | Servicio | Vue/FastAPI + DeepSeek externo | `make up` / `make down` |
 
 `make check` ejecuta Ruff, comprobación del contrato congelado, comprobación de tipos
-OpenAPI, Vitest, TypeScript, build y pytest con cobertura; CI reproduce estos controles
-desde lockfiles. Las pruebas con dobles se identifican como simuladas y no prueban
-inferencia real. Los E2E (HU-41) son un paso propio, fuera de `make check` porque
-necesitan un navegador: `make e2e` construye la SPA, la sirve con `vite preview` y corre
+OpenAPI, Vitest, TypeScript, build, sitio con `mkdocs build --strict` y pytest con
+cobertura; CI reproduce estos controles desde lockfiles. Las pruebas con dobles se
+identifican como simuladas y no prueban inferencia real. Los E2E (HU-41) son un paso
+propio, fuera de `make check` porque necesitan un navegador: `make e2e` construye la
+SPA, la sirve con `vite preview` y corre
 los escenarios de Playwright contra un backend simulado con `page.route` sobre `/v1`, sin
 red externa, API key ni GPU. CI los corre en el job `e2e` y, ante un fallo, publica la
 captura y la traza (AC2 de SPEC-042); Vitest sigue siendo la suite de componentes. Desde
@@ -406,6 +408,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-26 | HU-38: `vue-router` da URL propia a nueva solicitud, historial y ajustes; `App.vue` es el shell, `useGeneration.ts` recupera borrador y timeout, y `web.py` sirve esas vistas sin relajar el 404 JSON de API y `/assets` | Compartir o reabrir una vista concreta sin perder su estado, conservando el flujo SSE y la navegación por teclado; los estados nuevos del shell se distinguen con componentes presentacionales y la ruta comodín |
 | 2026-11-27 | HU-37: `GET /v1/registros` lista sólo las solicitudes propias con campos mínimos y filtros en el servidor; el estado se deriva en el backend con precedencia documentada y `GET /v1/registros/{id}` emite `X-Download-Token` tras sesión y propiedad; `/historial` deja de leer `?estado=` y la reapertura vive en `/historial/:identificador` | Consultar y reabrir solicitudes sin copia autoritativa en el cliente ni recorrer ids, y descargar el STEP pasado el reinicio sin relajar `exigir_token`; derivar el estado sólo en el backend evita que la misma regla viva en Python y en TypeScript |
 | 2026-11-27 | HU-39: `viewerMedidas.ts` separa `caja_mm`, unidades y direcciones de vista; `GlbViewer.vue` usa `OrthographicCamera`, cotas y PNG reproducible con `preserveDrawingBuffer` + re-render | Revisar la pieza desde tres vistas canónicas con el mismo encuadre, medir contra la caja verificada y exportar la vista sin GPU real; las cotas nunca se leen del CSV y los controles/atajos de HU-16 permanecen |
+| 2026-11-27 | HU-54: sitio MkDocs sobre staging generado desde los Markdown versionados, navegación con el runbook y workflow de GitHub Pages desde `main` | MkDocs exige `docs_dir` hijo de la config, así que el staging conserva las rutas y enlaces originales sin duplicar documentos; `--strict` convierte enlaces rotos en fallo de CI |
 
 ## 10. Notas y tareas pendientes
 

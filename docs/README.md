@@ -1,6 +1,11 @@
 # Documentación
 
-Carpeta de documentación del proyecto. Convenciones sugeridas:
+Carpeta de documentación del proyecto. El sitio navegable se genera desde la raíz con
+`make docs-build`: la navegación está en [`../mkdocs.yml`](../mkdocs.yml) y el runbook
+operativo se sirve desde [esta sección](./runbook-operativo.md) sin duplicar su texto.
+
+Convenciones sugeridas (los directorios `adr/`, `spikes/` y `research/` se crearán cuando
+haya contenido para ellos):
 
 | Documento | Contenido |
 |-----------|-----------|
