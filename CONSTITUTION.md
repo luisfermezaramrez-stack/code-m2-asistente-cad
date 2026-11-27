@@ -201,7 +201,7 @@ code-m2-asistente-cad/
 | Seguridad | gitleaks y pip-audit en cada PR | `make security` | SPEC-029 |
 | Prompts versionados | id, versión y hash del prompt; CI falla si el texto cambia sin subir versión | `make prompts-check` | SPEC-034 |
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
-| E2E del frontend | Playwright (un solo Chromium) sobre el build real con backend simulado | `make e2e` |
+| E2E del frontend | Playwright (un solo Chromium) sobre el build real con backend simulado; axe-core audita WCAG 2.1 AA en cuatro vistas y dos temas | `make e2e` |
 | Servicio | Vue/FastAPI + DeepSeek externo | `make up` / `make down` |
 
 `make check` ejecuta Ruff, comprobación del contrato congelado, comprobación de tipos
@@ -211,7 +211,10 @@ inferencia real. Los E2E (HU-41) son un paso propio, fuera de `make check` porqu
 necesitan un navegador: `make e2e` construye la SPA, la sirve con `vite preview` y corre
 los escenarios de Playwright contra un backend simulado con `page.route` sobre `/v1`, sin
 red externa, API key ni GPU. CI los corre en el job `e2e` y, ante un fallo, publica la
-captura y la traza (AC2 de SPEC-042); Vitest sigue siendo la suite de componentes. El corpus dorado es un paso propio fuera de `make check`: compara el
+captura y la traza (AC2 de SPEC-042); Vitest sigue siendo la suite de componentes. Desde
+HU-40 (SPEC-041) la misma suite inyecta axe-core y audita nueva solicitud, resultado,
+historial y ajustes en claro y oscuro, además del flujo completo por teclado: una
+violación crítica, seria o de contraste falla CI sin nueva puerta de integración. El corpus dorado es un paso propio fuera de `make check`: compara el
 núcleo determinista contra huellas congeladas de STEP (`make corpus-dorado`, SPEC-024) y
 falla nombrando el caso y las huellas esperada y obtenida.
 
@@ -382,6 +385,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-25 | HU-53: sesión local con cookie firmada y usuarios PBKDF2 por entorno; activa por defecto, modo local explícito | Controlar acceso y costo en despliegue público sin red, OIDC ni dependencias nuevas; dueño en trabajos y registro con respuestas 404 ajenas |
 | 2026-11-25 | HU-53 × HU-31/32/45: `/v1/auth/*`; la cola guarda el dueño y el worker lo registra; topes e idempotencia por usuario; login con límite de intentos; firma ligada al hash vigente; configuración validada al arrancar | Integrar la autenticación con la API versionada, la cola y el control de uso sin fugas entre usuarios; endurecer la sesión según la revisión del PR #133 |
 | 2026-11-27 | HU-26: `declinacion.py` concentra el catálogo cerrado de causas, el mensaje legible y la tabla que traduce los códigos del verificador; el registro gana la columna `causa` y MLflow la etiqueta `causa_declinacion`; la causa no viaja en el cuerpo de `/v1` | Un motivo en texto libre no explica la declinación al usuario ni sirve como dimensión de métricas; asignar la causa en el origen evita heurísticas sobre texto y conserva el contrato HTTP y los tipos del frontend |
+| 2026-11-27 | HU-40: quitar el manejador de `App.vue` que atrapaba `Tab` en la navegación, hacer `ol.steps` región viva persistente y añadir axe-core a los E2E sobre cuatro vistas × dos temas | Eliminar la trampa de teclado y anunciar cada etapa sin mover el foco; convertir la auditoría manual en una comprobación de CI sin red, API key ni GPU y sin reescribir la UI |
 | 2026-11-26 | HU-38: `vue-router` da URL propia a nueva solicitud, historial y ajustes; `App.vue` es el shell, `useGeneration.ts` recupera borrador y timeout, y `web.py` sirve esas vistas sin relajar el 404 JSON de API y `/assets` | Compartir o reabrir una vista concreta sin perder su estado, conservando el flujo SSE y la navegación por teclado; los estados nuevos del shell se distinguen con componentes presentacionales y la ruta comodín |
 
 ## 10. Notas y tareas pendientes

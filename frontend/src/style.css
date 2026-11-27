@@ -35,6 +35,7 @@ button:disabled { cursor: not-allowed; background: var(--color-surface-subtle); 
 .settings { margin-block: var(--space-4); }
 summary { cursor: pointer; min-height: var(--control-min); padding-block: var(--space-2); }
 .steps { padding-inline-start: var(--space-5); margin: 0; }
+.steps--vacio { padding-inline-start: 0; }
 .steps li { border-bottom: var(--border-width) solid var(--color-border); padding-block: var(--space-2); }
 .state { padding: var(--space-4); border-inline-start: var(--focus-width) solid currentColor; border-radius: var(--radius-small); margin-bottom: var(--space-4); }
 .state p:last-child { margin-bottom: 0; }

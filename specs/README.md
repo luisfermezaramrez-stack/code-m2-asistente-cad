@@ -68,7 +68,7 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [038](038-hu-37-historial-ui/) | HU-37 · Historial de solicitudes en la UI | 2 | Carlos | #97 | — | Spec-first | Propuesta |
 | [039](039-hu-38-app-shell/) | HU-38 · App shell y navegación por vistas | 2 | Carlos | #98 | #142 | Spec-first | En revisión |
 | [040](040-hu-39-visor-ortogonal-medidas/) | HU-39 · Visor 3D: vistas ortogonales, medidas y captura | 2 | Carlos | #99 | — | Spec-first | Propuesta |
-| [041](041-hu-40-wcag-aa/) | HU-40 · Cierre de brechas WCAG 2.1 AA | 2 | Carlos | #100 | — | Spec-first | Propuesta |
+| [041](041-hu-40-wcag-aa/) | HU-40 · Cierre de brechas WCAG 2.1 AA | 2 | Carlos | #100 | — | Spec-first | Implementada (PR pendiente) |
 | [042](042-hu-41-e2e-playwright/) | HU-41 · E2E del frontend con Playwright en CI | 2 | Carlos | #101 | #144 | Spec-first | En revisión |
 | [043](043-hu-42-exportacion-dxf/) | HU-42 · Exportación DXF de planos 2D | 2 | Luis Meza | #102 | — | Spec-first | Propuesta |
 | [044](044-hu-43-exportacion-pdf/) | HU-43 · Exportación PDF de planos con cotas | 2 | Luis Meza | #103 | — | Spec-first | Propuesta |
