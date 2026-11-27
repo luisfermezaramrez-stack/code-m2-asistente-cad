@@ -82,6 +82,71 @@ export type HttpValidationError = {
 };
 
 /**
+ * PanoramaMetricas
+ *
+ * Panorama de uso, calidad y costo en una ventana (HU-51, SPEC-052, AC1).
+ *
+ * `disponible: false` es un estado degradado explícito: la fuente (MLflow) no
+ * está accesible, así que los agregados vienen vacíos y `motivo` lo explica.
+ */
+export type PanoramaMetricas = {
+    /**
+     * Costo Usd
+     */
+    costo_usd: number;
+    /**
+     * Declinaciones Por Causa
+     */
+    declinaciones_por_causa: {
+        [key: string]: number;
+    };
+    /**
+     * Declinadas
+     */
+    declinadas: number;
+    /**
+     * Desde
+     */
+    desde: string;
+    /**
+     * Disponible
+     */
+    disponible: boolean;
+    /**
+     * Entregadas
+     */
+    entregadas: number;
+    /**
+     * Errores
+     */
+    errores: number;
+    /**
+     * Generado En
+     */
+    generado_en: string;
+    /**
+     * Hasta
+     */
+    hasta: string;
+    /**
+     * Latencia Media Ms
+     */
+    latencia_media_ms?: number | null;
+    /**
+     * Mlflow Ui
+     */
+    mlflow_ui: string;
+    /**
+     * Motivo
+     */
+    motivo?: string | null;
+    /**
+     * Solicitudes
+     */
+    solicitudes: number;
+};
+
+/**
  * RespuestaEdicion
  *
  * Nueva versión verificada de la pieza, con el diff del programa (HU-35, AC1).
@@ -604,6 +669,36 @@ export type HealthV1HealthGetResponses = {
 };
 
 export type HealthV1HealthGetResponse = HealthV1HealthGetResponses[keyof HealthV1HealthGetResponses];
+
+export type PanoramaMetricasV1MetricasGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Horas
+         */
+        horas?: number;
+    };
+    url: '/v1/metricas';
+};
+
+export type PanoramaMetricasV1MetricasGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PanoramaMetricasV1MetricasGetError = PanoramaMetricasV1MetricasGetErrors[keyof PanoramaMetricasV1MetricasGetErrors];
+
+export type PanoramaMetricasV1MetricasGetResponses = {
+    /**
+     * Panorama o estado degradado explícito.
+     */
+    200: PanoramaMetricas;
+};
+
+export type PanoramaMetricasV1MetricasGetResponse = PanoramaMetricasV1MetricasGetResponses[keyof PanoramaMetricasV1MetricasGetResponses];
 
 export type ReadyV1ReadyGetData = {
     body?: never;
