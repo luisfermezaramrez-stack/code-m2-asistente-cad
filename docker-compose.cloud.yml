@@ -1,0 +1,71 @@
+name: m2-cad-cloud
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      M2_DOMAIN: ${M2_DOMAIN:?Defina M2_DOMAIN}
+      M2_TLS_EMAIL: ${M2_TLS_EMAIL:-}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      m2-cad:
+        condition: service_healthy
+
+  m2-cad:
+    image: ${M2_IMAGE:?Defina M2_IMAGE}
+    restart: unless-stopped
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?Defina DEEPSEEK_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-v4-pro}
+      M2_AUTH_ENABLED: "1"
+      M2_AUTH_COOKIE_SECURE: "1"
+      M2_AUTH_SECRET: ${M2_AUTH_SECRET:?Defina M2_AUTH_SECRET}
+      M2_AUTH_USERS: ${M2_AUTH_USERS:?Defina M2_AUTH_USERS}
+      M2_CORS_ORIGINS: https://${M2_DOMAIN:?Defina M2_DOMAIN}
+      M2_COLA_HABILITADA: "1"
+      M2_COLA_PATH: /app/data/cola.json
+      M2_DOWNLOAD_SECRET: ${M2_DOWNLOAD_SECRET:?Defina M2_DOWNLOAD_SECRET}
+      M2_DOWNLOAD_TTL_SECONDS: ${M2_DOWNLOAD_TTL_SECONDS:-3600}
+      M2_LOG_LEVEL: ${M2_LOG_LEVEL:-INFO}
+      MLFLOW_TRACKING_ENABLED: ${MLFLOW_TRACKING_ENABLED:-0}
+    volumes:
+      - m2-cad-data:/app/data
+      - m2-cad-outputs:/app/outputs
+
+  m2-cad-worker:
+    image: ${M2_IMAGE:?Defina M2_IMAGE}
+    command: ["uv", "run", "--no-sync", "python", "-m", "m2_cad.worker"]
+    restart: unless-stopped
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?Defina DEEPSEEK_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-v4-pro}
+      M2_CORS_ORIGINS: https://${M2_DOMAIN:?Defina M2_DOMAIN}
+      M2_COLA_HABILITADA: "1"
+      M2_COLA_PATH: /app/data/cola.json
+      M2_DOWNLOAD_SECRET: ${M2_DOWNLOAD_SECRET:?Defina M2_DOWNLOAD_SECRET}
+      M2_DOWNLOAD_TTL_SECONDS: ${M2_DOWNLOAD_TTL_SECONDS:-3600}
+      M2_LOG_LEVEL: ${M2_LOG_LEVEL:-INFO}
+      MLFLOW_TRACKING_ENABLED: ${MLFLOW_TRACKING_ENABLED:-0}
+    volumes:
+      - m2-cad-data:/app/data
+      - m2-cad-outputs:/app/outputs
+    depends_on:
+      m2-cad:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "true"]
+
+volumes:
+  caddy-config:
+  caddy-data:
+  m2-cad-data:
+  m2-cad-outputs:

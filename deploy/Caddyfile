@@ -1,0 +1,15 @@
+{
+	email {$M2_TLS_EMAIL}
+}
+
+{$M2_DOMAIN} {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+	reverse_proxy m2-cad:8000 {
+		header_up X-Forwarded-Proto https
+		flush_interval -1
+	}
+}

@@ -132,6 +132,16 @@ def test_el_chequeo_de_prompts_entra_en_check_y_en_el_job_lint():
 
     lint = _job_gitlab("lint")
     assert "uv run --no-sync make prompts-check" in lint
+
+
+def test_la_configuracion_cloud_entra_en_check_y_en_el_espejo():
+    """HU-47/RNF-3: la misma validación sin red corre en las dos puertas."""
+    makefile = _texto(MAKEFILE)
+    lint = _job_gitlab("lint")
+
+    assert "cloud-config-check" in _dependencias("check", makefile)
+    assert "cloud-config-check:" in makefile
+    assert "uv run --no-sync make cloud-config-check" in lint
     # El job `lint` del espejo cubre entonces AC2 igual que `make check` en GitHub.
 
 
