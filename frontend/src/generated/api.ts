@@ -153,6 +153,37 @@ export type PanoramaMetricas = {
 };
 
 /**
+ * RegistroResumen
+ *
+ * Solicitud registrada tal como la muestra el historial (HU-37, RF-1/RF-2).
+ *
+ * Sólo los campos que la vista necesita: ni prompt, ni usuario, ni rutas de
+ * artefactos ni datos de la fila completa (S6).
+ */
+export type RegistroResumen = {
+    /**
+     * Estado
+     */
+    estado: 'construida' | 'declinada' | 'error' | 'desconocida';
+    /**
+     * Hora
+     */
+    hora: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Motivo
+     */
+    motivo?: string | null;
+    /**
+     * Texto
+     */
+    texto: string;
+};
+
+/**
  * RespuestaEdicion
  *
  * Nueva versión verificada de la pieza, con el diff del programa (HU-35, AC1).
@@ -214,6 +245,18 @@ export type RespuestaEdicion = {
      * Volumen Mm3
      */
     volumen_mm3: string;
+};
+
+/**
+ * RespuestaRegistros
+ *
+ * Listado de solicitudes propias registradas (HU-37, AC3).
+ */
+export type RespuestaRegistros = {
+    /**
+     * Registros
+     */
+    registros: Array<RegistroResumen>;
 };
 
 /**
@@ -719,6 +762,40 @@ export type ReadyV1ReadyGetResponses = {
      */
     200: unknown;
 };
+
+export type ListarRegistrosV1RegistrosGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Resultado
+         */
+        resultado?: 'construida' | 'declinada' | 'error' | 'desconocida' | null;
+        /**
+         * Texto
+         */
+        texto?: string | null;
+    };
+    url: '/v1/registros';
+};
+
+export type ListarRegistrosV1RegistrosGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListarRegistrosV1RegistrosGetError = ListarRegistrosV1RegistrosGetErrors[keyof ListarRegistrosV1RegistrosGetErrors];
+
+export type ListarRegistrosV1RegistrosGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: RespuestaRegistros;
+};
+
+export type ListarRegistrosV1RegistrosGetResponse = ListarRegistrosV1RegistrosGetResponses[keyof ListarRegistrosV1RegistrosGetResponses];
 
 export type ConsultarRegistroV1RegistrosIdentificadorGetData = {
     body?: never;
