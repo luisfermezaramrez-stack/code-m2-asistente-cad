@@ -86,6 +86,12 @@ node_modules/
 frontend/coverage/
 *.tsbuildinfo
 
+# ===== HU-41: artefactos de Playwright (captura, traza y reporte) =====
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/.playwright/
+
 # ===== HU-16: seguimiento de experimentos con MLflow =====
 # Base de datos y artefactos locales del seguimiento; nunca se versionan.
 mlruns/
