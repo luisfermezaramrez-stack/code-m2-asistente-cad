@@ -44,8 +44,9 @@ Sólo se listan nombres; los valores se inyectan desde el entorno del proveedor.
 | `MLFLOW_TRACKING_ENABLED` | Seguimiento opcional | por defecto `0` en la nube |
 
 La API fuerza `M2_AUTH_ENABLED=1`, `M2_AUTH_COOKIE_SECURE=1`, `M2_COLA_HABILITADA=1`,
-`M2_CORS_ORIGINS=https://$M2_DOMAIN` y `FORWARDED_ALLOW_IPS=*`: sólo Caddy alcanza la
-API, y su `X-Forwarded-For` da la IP real que usa el límite de intentos de login.
+`M2_CORS_ORIGINS=https://$M2_DOMAIN` y `FORWARDED_ALLOW_IPS=*`: la API no publica
+puertos de host, así que sólo la alcanzan Caddy y el worker de la red interna; el
+`X-Forwarded-For` de Caddy da la IP real que usa el límite de intentos de login.
 El worker comparte la cola y los artefactos
 mediante los volúmenes `m2-cad-data` y `m2-cad-outputs`. Caddy escucha en `80/443`,
 termina TLS y no publica el puerto `8000` de la API.
