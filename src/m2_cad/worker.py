@@ -64,6 +64,7 @@ def registrar_terminal(
         ruta=ruta_registro,
         identificador=trabajo["id"],
         usuario=trabajo.get("usuario") or ANONIMO,
+        causa=medido.get("causa"),
     )
     corrida = seguimiento.iniciar_corrida(
         configuracion.experimento_generacion,

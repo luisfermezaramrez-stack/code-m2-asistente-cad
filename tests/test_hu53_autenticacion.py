@@ -262,11 +262,12 @@ def test_usuario_invalido_y_login_desactivado(entorno, monkeypatch):
 
 
 def test_csv_anterior_se_migra_sin_perder_filas(tmp_path):
+    # El CSV anterior a HU-53 tiene los 8 campos originales, sin `usuario`.
     ruta = tmp_path / "registro.csv"
     with ruta.open("w", newline="", encoding="utf-8") as archivo:
-        escritor = csv.DictWriter(archivo, fieldnames=CAMPOS[:-1])
+        escritor = csv.DictWriter(archivo, fieldnames=CAMPOS[:8])
         escritor.writeheader()
-        escritor.writerow({campo: "valor" for campo in CAMPOS[:-1]} | {"id": "anterior"})
+        escritor.writerow({campo: "valor" for campo in CAMPOS[:8]} | {"id": "anterior"})
 
     registrar(
         texto="Placa",
@@ -497,9 +498,9 @@ def test_migracion_del_registro_se_comprueba_una_vez_por_archivo(tmp_path, monke
     """S8: la cabecera no se relee en cada escritura."""
     # Arrange
     llamadas: list = []
-    real = registro._asegurar_columna_usuario
+    real = registro._asegurar_columnas
     monkeypatch.setattr(
-        registro, "_asegurar_columna_usuario", lambda ruta: (llamadas.append(ruta), real(ruta))
+        registro, "_asegurar_columnas", lambda ruta: (llamadas.append(ruta), real(ruta))
     )
     ruta = tmp_path / "registro.csv"
 

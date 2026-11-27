@@ -176,15 +176,21 @@ class Corrida:
         *,
         estado: str | None = None,
         motivo_declinacion: str | None = None,
+        causa_declinacion: str | None = None,
         error: str | None = None,
     ) -> None:
-        """Cierra la corrida; nunca queda en RUNNING (AC3)."""
+        """Cierra la corrida; nunca queda en RUNNING (AC3).
+
+        HU-26: `causa_declinacion` es la etiqueta estructurada del catálogo de causas,
+        separada del texto libre de `motivo_declinacion` para poder agregarla.
+        """
         if not self.activa:
             return
         try:
             self.registrar_tags(
                 estado=estado,
                 motivo_declinacion=motivo_declinacion,
+                causa_declinacion=causa_declinacion,
                 error=error,
             )
             self._cerrar("FINISHED")
