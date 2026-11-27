@@ -1,4 +1,7 @@
-import type { ConsultarGeneracionV1GeneracionesSolicitudIdGetResponse } from './generated/api'
+import type {
+  ConsultarGeneracionV1GeneracionesSolicitudIdGetResponse,
+  PanoramaMetricas,
+} from './generated/api'
 
 export type Job = ConsultarGeneracionV1GeneracionesSolicitudIdGetResponse
 export type Stage = Job['estado']
@@ -87,4 +90,18 @@ export async function downloadArtifact(artifact: Artifact, token: string): Promi
     // Retraso para que el navegador pueda comenzar a guardar el archivo.
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
   }
+}
+
+export type { PanoramaMetricas }
+
+export async function cargarMetricas(horas?: number, signal?: AbortSignal): Promise<PanoramaMetricas> {
+  // `horas` sólo se envía si la vista lo pide: el servidor aplica su ventana por defecto.
+  const consulta = horas === undefined ? '' : `?horas=${encodeURIComponent(String(horas))}`
+  const response = await fetch(`/v1/metricas${consulta}`, {
+    method: 'GET',
+    signal,
+    headers: { Accept: 'application/json' },
+  })
+  if (!response.ok) throw new Error('No se pudieron leer las métricas. Vuelve a intentarlo.')
+  return (await response.json()) as PanoramaMetricas
 }

@@ -177,13 +177,14 @@ describe('AC4 · Navegación sólo con teclado', () => {
     vi.unstubAllGlobals()
   })
 
-  it('alcanza las tres entradas con Tab y Shift+Tab desde el propio nav', async () => {
+  it('alcanza todas las entradas con Tab y Shift+Tab desde el propio nav', async () => {
     const enlaces = wrapper.findAll('nav a')
-    expect(enlaces).toHaveLength(3)
+    // HU-51 añadió «Métricas»: la navegación por teclado tiene que seguir cubriéndolas todas.
+    expect(enlaces).toHaveLength(4)
 
     const [primero, segundo, tercero] = enlaces.map(
       (enlace) => enlace.element as HTMLAnchorElement,
-    ) as [HTMLAnchorElement, HTMLAnchorElement, HTMLAnchorElement]
+    ) as [HTMLAnchorElement, HTMLAnchorElement, HTMLAnchorElement, HTMLAnchorElement]
     primero.focus()
     expect(document.activeElement).toBe(primero)
 
@@ -203,7 +204,7 @@ describe('AC4 · Navegación sólo con teclado', () => {
     ;(skip.element as HTMLAnchorElement).focus()
     expect(document.activeElement).toBe(skip.element)
 
-    const ajustes = wrapper.findAll('nav a')[2]!.element as HTMLAnchorElement
+    const ajustes = wrapper.findAll('nav a')[3]!.element as HTMLAnchorElement
     ajustes.focus()
     await wrapper.get('nav').trigger('keydown', { key: 'Enter' })
     await flushPromises()
