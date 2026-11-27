@@ -26,3 +26,11 @@ archivo = "editor-v1.txt"
 sha256 = "3d092432e16850c1a7550b863b8154b2fbc31c821bcc6edbaf40dc80af19015d"
 descripcion = "Prompt de edición: aplica la instrucción sobre el programa DSL vigente y respeta la regla de honestidad."
 vigente = true
+
+[[prompts]]
+id = "planner"
+version = 2
+archivo = "planner-v2.txt"
+sha256 = "0824e516c34daf4361fd9bcba417c2b1dad46848c37f98ae63f80fea3b38550a"
+descripcion = "Variante A/B: prefiere la geometría más simple ante lecturas ambiguas (no vigente)."
+vigente = false

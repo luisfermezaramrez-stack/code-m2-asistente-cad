@@ -7,7 +7,7 @@
 - **Depende de**: [SPEC-034](../034-hu-33-prompts-versionados/spec.md),
   [SPEC-045](../045-hu-44-banco-ci-replay/spec.md)
 - **Rama**: `feature/hu-52-ab-prompts-modelos`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: Implementado en `feature/hu-52-ab-prompts-modelos`; evidencia en [evidence.md](./evidence.md)
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
 
 ## Problema y contexto

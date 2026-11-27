@@ -80,7 +80,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Kernel CAD** | `constraint-kit` (vendoreado en `vendor/`) con CadQuery 2.7.0, build123d 0.10.0, bd_warehouse 0.2.0, Z3, python-solvespace, OpenCascade (LGPL 2.1) |
 | **LLM** | DeepSeek `deepseek-v4-pro` por API (`https://api.deepseek.com`), requiere `DEEPSEEK_API_KEY` (HU-14) |
 | **LLM heredado** | `gemma-4-12b-constraintkit` GGUF Q6_K (~9,8 GB) por llama.cpp (`:8080`, CUDA); solo línea base HU-01 (`docker-compose.gemma.yml`) |
-| **Seguimiento** | [MLflow](https://mlflow.org/) 3.18 (`mlflow-skinny`): experimentos `m2-cad-generacion` y `m2-cad-banco`; servidor con backend SQLite (`mlflow.db`) y artefactos en volumen, UI en `127.0.0.1:5000` sin autenticación (HU-16) |
+| **Seguimiento** | [MLflow](https://mlflow.org/) 3.18 (`mlflow-skinny`): experimentos `m2-cad-generacion`, `m2-cad-banco` y `m2-cad-ab`; servidor con backend SQLite (`mlflow.db`) y artefactos en volumen, UI en `127.0.0.1:5000` sin autenticación (HU-16) |
 | **Testing** | `pytest` + cobertura **≥ 70 %** de `src/m2_cad` (umbral en `pyproject.toml`) |
 | **Lint / Formato** | [Ruff](https://docs.astral.sh/ruff/) — reglas `E, F, I, B`, `line-length = 100` |
 | **Pre-commit** | Ruff + higiene de archivos + bloqueo de pesos (`.gguf`, `.safetensors`, …) |
@@ -112,6 +112,7 @@ code-m2-asistente-cad/
 │   ├── llm_resiliente.py       # reintentos, plazo total y caché del LLM (HU-25)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
 │   ├── banco_replay.py         # respuestas grabadas/versionadas del banco, sin red (HU-44)
+│   ├── ab.py                   # comparación A/B de prompts y modelos sobre el banco (HU-52)
 │   ├── evaluacion.py           # evaluador HTTP HU-07: reporte por familia y enlaces CSV/STEP
 │   ├── registro.py             # registro CSV con exclusión de PII (HU-06)
 │   ├── trabajos.py             # SSE, registro en memoria y cancelación cooperativa
@@ -134,7 +135,7 @@ code-m2-asistente-cad/
 ├── outputs/                    # entregables por solicitud (uuid/; ignorado en git)
 ├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
 ├── specs/                      # specs SDD 001–023 (Spec Kit, Retroactiva, Spec-first); índice en specs/README.md
-├── scripts/                    # fetch-model, verify-serve, vendor, cloud y verify_banco_replay.py (HU-44)
+├── scripts/                    # fetch-model, verify-serve, vendor, cloud, verify_banco_replay.py (HU-44) y comparar_ab.py (HU-52)
 ├── docs/                       # documentación, sistema de diseño, runbook operativo, política de versionado y diagrama
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
 ├── .github/                    # CI, banco real programado (HU-44), labels, Dependabot, plantillas
@@ -204,6 +205,7 @@ code-m2-asistente-cad/
 | Baseline real del banco | Corrida pagada semanal con registro en MLflow y artefactos | `.github/workflows/banco-baseline.yml` | SPEC-045 |
 | Seguridad | gitleaks y pip-audit en cada PR | `make security` | SPEC-029 |
 | Prompts versionados | id, versión y hash del prompt; CI falla si el texto cambia sin subir versión | `make prompts-check` | SPEC-034 |
+| Comparación A/B | dos variantes prompt/modelo sobre el mismo banco, con corridas en MLflow y reporte por familia | `make ab` / `make ab-replay` | SPEC-053 |
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
 | E2E del frontend | Playwright (un solo Chromium) sobre el build real con backend simulado | `make e2e` |
 | Servicio | Vue/FastAPI + DeepSeek externo | `make up` / `make down` |
@@ -234,6 +236,14 @@ texto de una versión publicada no se edita. `make prompts-check` entra en `make
 y en el job `lint` del espejo, así que un cambio de contenido sin subir `version`
 hace fallar las dos puertas (AC2); cada fila del registro y cada corrida de MLflow
 llevan `prompt` y `prompt_hash` del texto realmente enviado al modelo.
+
+HU-52 añade `src/m2_cad/ab.py` y `scripts/comparar_ab.py`: una variante es un prompt
+cargado por id y versión (`prompts.cargar_version`, aditivo a SPEC-034) más un modelo
+explícito, con su versión. Las dos variantes corren el mismo banco y temperatura, se
+registran como dos corridas en `m2-cad-ab` con `comparacion_id` común y se comparan por
+familia y por caso en `outputs/ab/`. La comparación real gasta tokens y queda fuera de CI;
+`make ab-replay` usa respuestas grabadas por variante y no abre red. Promover una variante
+no es automático: el reporte sólo entrega evidencia.
 
 El escaneo de seguridad es un paso propio más, también fuera de `make check`: descarga
 el gitleaks fijado y consulta los advisories en OSV, así que necesita red. `make security`
@@ -393,6 +403,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-25 | HU-53 × HU-31/32/45: `/v1/auth/*`; la cola guarda el dueño y el worker lo registra; topes e idempotencia por usuario; login con límite de intentos; firma ligada al hash vigente; configuración validada al arrancar | Integrar la autenticación con la API versionada, la cola y el control de uso sin fugas entre usuarios; endurecer la sesión según la revisión del PR #133 |
 | 2026-11-27 | HU-26: `declinacion.py` concentra el catálogo cerrado de causas, el mensaje legible y la tabla que traduce los códigos del verificador; el registro gana la columna `causa` y MLflow la etiqueta `causa_declinacion`; la causa no viaja en el cuerpo de `/v1` | Un motivo en texto libre no explica la declinación al usuario ni sirve como dimensión de métricas; asignar la causa en el origen evita heurísticas sobre texto y conserva el contrato HTTP y los tipos del frontend |
 | 2026-11-27 | HU-44: `banco_replay.py` y `data/banco_replay.json` fijan 40 respuestas con versión de prompt; `llm_resiliente.clave_cuerpo()` comparte la clave canónica sin credenciales y `pipeline.cuerpo_planificador()` evita definir dos veces la petición; CI corre `make bench-replay` y un workflow programado registra el baseline real en MLflow | Detectar caídas de aceptación en cada PR sin pagar tokens ni abrir red; separar la puerta barata de la corrida real, y hacer explícita cualquier divergencia de prompt/modelo en vez de buscar el proveedor como fallback |
+| 2026-11-27 | HU-52: `ab.py` y `comparar_ab.py` comparan dos variantes de prompt/modelo sobre el mismo banco, con dos corridas en `m2-cad-ab` y reporte por familia/caso; `planner-v2` se registra sin desplazar a la v1 | Separar la decisión de promover de la evidencia: la comparación real gasta tokens y vive fuera de CI, el replay por variante no usa red y las pruebas no dependen de MLflow ni del proveedor |
 | 2026-11-26 | HU-38: `vue-router` da URL propia a nueva solicitud, historial y ajustes; `App.vue` es el shell, `useGeneration.ts` recupera borrador y timeout, y `web.py` sirve esas vistas sin relajar el 404 JSON de API y `/assets` | Compartir o reabrir una vista concreta sin perder su estado, conservando el flujo SSE y la navegación por teclado; los estados nuevos del shell se distinguen con componentes presentacionales y la ruta comodín |
 
 ## 10. Notas y tareas pendientes

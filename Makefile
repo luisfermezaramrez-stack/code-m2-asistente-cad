@@ -41,6 +41,12 @@ corpus-dorado: ## HU-23: compara el núcleo determinista con el corpus dorado (s
 prompts-check: ## HU-33: verifica que ningún prompt cambió sin subir su versión
 	uv run --no-project python -B scripts/verify_prompts.py
 
+ab: ## HU-52: compara dos prompts/modelos con el proveedor real (gasta tokens)
+	uv run --no-sync python -B scripts/comparar_ab.py $(AB_ARGS)
+
+ab-replay: ## HU-52: compara variantes grabadas (sin red, API key ni tokens)
+	uv run --no-sync python -B scripts/comparar_ab.py $(AB_ARGS)
+
 security: security-excepciones-validar security-secretos security-dependencias ## HU-28: escaneo de secretos y dependencias (necesita red; fuera de `make check`)
 
 security-secretos: security-excepciones-validar ## HU-28: gitleaks 8.30.1 sobre el historial del repositorio
@@ -67,6 +73,7 @@ cov: frontend-build ## Corre pytest con reporte de cobertura
 lint: ## Ruff con reglas E, F, I, B
 	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py \
 		scripts/generate_api_contract.py scripts/verify_corpus_dorado.py scripts/verify_prompts.py \
+		scripts/comparar_ab.py \
 		scripts/verify_banco_replay.py
 
 format: ## Aplica ruff format
