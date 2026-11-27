@@ -30,11 +30,12 @@ textarea { min-height: var(--input-height); resize: vertical; }
 textarea::placeholder { color: var(--color-muted); opacity: 1; }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-block: var(--space-4); }
 button { min-height: var(--control-min); padding: var(--space-2) var(--space-4); border: var(--border-width) solid var(--color-accent); border-radius: var(--radius-small); color: var(--color-accent); background: var(--color-surface); font: inherit; font-weight: var(--weight-strong); cursor: pointer; }
-button:disabled { cursor: not-allowed; background: var(--color-surface-subtle); color: var(--color-muted); border-color: var(--color-border); }
-.primary:not(:disabled) { background: var(--color-accent); color: var(--color-on-accent); }
+button:disabled, button[aria-disabled='true'] { cursor: not-allowed; background: var(--color-surface-subtle); color: var(--color-muted); border-color: var(--color-border); }
+.primary:not(:disabled):not([aria-disabled='true']) { background: var(--color-accent); color: var(--color-on-accent); }
 .settings { margin-block: var(--space-4); }
 summary { cursor: pointer; min-height: var(--control-min); padding-block: var(--space-2); }
 .steps { padding-inline-start: var(--space-5); margin: 0; }
+.steps--vacio { padding-inline-start: 0; }
 .steps li { border-bottom: var(--border-width) solid var(--color-border); padding-block: var(--space-2); }
 .state { padding: var(--space-4); border-inline-start: var(--focus-width) solid currentColor; border-radius: var(--radius-small); margin-bottom: var(--space-4); }
 .state p:last-child { margin-bottom: 0; }
@@ -58,6 +59,13 @@ summary { cursor: pointer; min-height: var(--control-min); padding-block: var(--
 .model-canvas { width: 100%; min-width: 0; background: var(--color-viewer-background); border-radius: var(--radius-small); }
 .model-canvas canvas { display: block; width: 100%; height: var(--preview-height); }
 .viewer-actions button { font-size: var(--text-small); }
+button[aria-pressed='true'] { background: var(--color-accent); color: var(--color-on-accent); }
+.medidas { margin-top: var(--space-4); }
+.medidas select { width: auto; min-width: 12ch; margin-bottom: var(--space-3); }
+.medidas dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; }
+.medidas dl > div { padding: var(--space-3); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-small); background: var(--color-surface-subtle); }
+.medidas dt { color: var(--color-muted); font-size: var(--text-small); }
+.medidas dd { margin: var(--space-1) 0 0; font: var(--weight-strong) var(--text-body)/var(--line-body) var(--font-technical); }
 @media (max-width: 900px) {
   .shell { padding: var(--space-5); }
   .workspace { grid-template-columns: minmax(0, 1fr); }
