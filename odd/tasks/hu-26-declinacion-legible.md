@@ -101,3 +101,22 @@ se mapea con una tabla en un único módulo; (b) el cuerpo de la respuesta `/v1`
 tipos del frontend (verificado con `make api-types-check` y `make api-contract-check`);
 (c) la columna `causa` del registro es aditiva y se migra con el mismo mecanismo que la
 columna `usuario` de HU-53, para no migrar dos veces cuando llegue SPEC-031.
+
+L5 — Evidencia de la implementación: `make check` local en verde con
+`M2_DOWNLOAD_SECRET` exportado — 544 pruebas pasadas, cobertura 92,43 % (el módulo nuevo
+`declinacion.py` al 100 %) y `api-types-check`/`api-contract-check` sin cambios, lo que
+confirma que el contrato `/v1` y los tipos del frontend no se movieron. `make check` sin
+esa variable falla con 44 pruebas de HU-36 por entorno, igual que en `origin/main`, no por
+este cambio.
+
+L6 — Verificación de regresión en código compartido: `registro.registrar` y
+`seguimiento.Corrida.finalizar` también los usan el banco y el worker. Un chequeo
+diferencial contra `origin/main` (misma llamada, sin declinación) muestra sólo las
+adiciones pedidas —columna `causa` con `«ninguna»`— y etiquetas y métricas idénticas
+(`estado`, `solicitud_id`, `verificacion_ok`, `latencia_ms`), sin cambios no solicitados.
+
+L7 — Corte de entrega: dos commits (`ee6a0d0` comportamiento y pruebas, `8b578fe`
+documentación). El work unit de comportamiento pasa de las ~400 líneas autoradas (~670):
+catálogo, mensajes, columna del registro, etiqueta de MLflow y sus pruebas son una sola
+unidad de comportamiento, así que se entrega como una única PR de la HU, sin PR
+encadenadas. Push y PR quedan a decisión del humano.
