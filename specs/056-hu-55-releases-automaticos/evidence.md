@@ -4,6 +4,7 @@ Fecha: 2026-11-27
 Issue: https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/115
 Rama: `feature/hu-55-releases-automaticos` (worktree aislado desde `origin/main` `267964e`)
 PR: https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/153
+Revisión solicitada a: `luisfermezaramrez-stack`
 
 ## Spec-first y dependencias
 
@@ -26,9 +27,10 @@ PR: https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/153
 - `scripts/generar_release.py`: CLI con `--dry-run`, `--verificar`, `--preparar`,
   `--version` y `--titulo`. El modo seco no crea etiquetas ni publica releases.
 - `tests/test_releases_automaticos.py`: pruebas de AC1, AC2, AC3 y RNF-3.
-- `CHANGELOG.md` inicial con `v1.0.1`; `pyproject.toml` sincronizado en `1.0.1`.
-- `.github/workflows/ci.yml`: permisos mínimos, validación del título de PR y job `release`
-  condicionado a `push` en `main` del repositorio oficial, con `gh release create "v$VERSION"`.
+- `CHANGELOG.md` inicial con `v1.0.1`; `pyproject.toml` y `uv.lock` sincronizados en `1.0.1`.
+- `.github/workflows/ci.yml`: permisos mínimos, validación del título de PR, `workflow_dispatch`
+  y job `release` condicionado a `push` en `main` del repositorio oficial, con
+  `gh release create "v$VERSION"`.
 - `Makefile`: `release-dry-run`, `release-check`, `release-version`; `release-check`
   incluido en `check` y `scripts/generar_release.py` incluido en `lint`.
 - Documentación: `README.md`, `CONSTITUTION.md` y este índice.
@@ -41,8 +43,11 @@ PR: https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/153
 | `make release-check` | `Coherencia verificada: pyproject y CHANGELOG en v1.0.1.` |
 | `make release-dry-run` | Base `v1.0.1`; `73` commits convencionales; propuesta `1.1.0`; `Etiquetas creadas: ninguna; releases publicadas: ninguna.` |
 | `make check` | Lint, API types/contract, prompts, Vitest `94/94`, typecheck y build OK; pytest `739 passed`, `6 failed`, cobertura `92.23%` (≥ 70 %) |
+| `uv lock --check` | `Resolved 172 packages` — lockfile coherente con `pyproject.toml` |
 | `git tag --list` | Solo `v1.0`, `v1.0.1` — no se crearon etiquetas |
 | Auditoría `jan-project-standard` | `OK 4 · DIFIERE 21 · FALTA 0` |
+| `--titulo "feat(hu-55): ..."` local | `Título convencional: feat(hu-55)` |
+| CI manual (PR #153) | https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46022344146 — `test` ✓, `e2e` ✓, `titulo-pr`/`release` omitidos por ser `workflow_dispatch` |
 
 Las 6 fallas de `make check` son preexistentes y ajenas a HU-55:
 
@@ -67,11 +72,15 @@ Ninguna falla proviene de `src/m2_cad/releases.py`, `scripts/generar_release.py`
   sigue sin etiquetas nuevas.
 - **AC3** — Integración CI/CD: workflow con `permissions` explícitos, título validado,
   job `release` limitado a `push main`, tag `v$VERSION` y notas desde `.release-notes.md`;
-  la publicación real se dejó para el job de CI, sin ejecutarla localmente.
+  ejecución manual de CI en verde (`test` y `e2e`). La publicación real se dejó para el
+  job de CI, sin ejecutarla localmente.
 
 ## Limitaciones
 
 - No se creó tag ni release real, por instrucción de validar solo en seco.
-- CI del PR queda por verificar; el job `release` solo se ejecutará tras merge en `main`.
-- El job real requiere que `GITHUB_TOKEN` pueda escribir en `main`; con protección de rama
-  activa puede necesitar un token con permisos de push.
+- GitHub no mostró ejecución automática de `CI` al abrir/reabrir el PR; se añadió
+  `workflow_dispatch` y la verificación se hizo con el run manual enlazado arriba.
+- `titulo-pr` se validó localmente con el título exacto del PR porque el dispatch manual
+  no expone `github.event.pull_request.title`.
+- El job `release` solo se ejecutará tras merge en `main` y requiere que `GITHUB_TOKEN`
+  pueda escribir en esa rama; con protección activa puede necesitar un token con push.

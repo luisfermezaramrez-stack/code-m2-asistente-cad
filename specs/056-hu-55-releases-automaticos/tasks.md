@@ -15,5 +15,5 @@ Orden de ejecución; la evidencia final vive en [evidence.md](./evidence.md).
 - [x] T7 · Exponer `make release-dry-run`, `release-check` y `release-version`; incluir
   `release-check` en `make check`.
 - [x] T8 · Documentar `README.md`, `CONSTITUTION.md` y `specs/README.md` en la misma rama.
-- [ ] T9 · Ejecutar el flujo en seco, `make check`, pre-commit y auditoría; abrir PR con
-  `Closes #115`, solicitar revisión y escribir `evidence.md`.
+- [x] T9 · Ejecutar el flujo en seco, `make check`, pre-commit y auditoría; abrir PR #153
+  con `Closes #115`, solicitar revisión, verificar CI manual y escribir `evidence.md`.
