@@ -3,7 +3,7 @@
 - **Fecha**: 2026-11-26
 - **Rama**: `feature/hu-38-app-shell`, creada desde `origin/main` en `a2a9dd7`
 - **Issue**: [#98](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/98)
-- **PR**: se abre desde esta rama; enlace registrado en el índice de specs tras la publicación
+- **PR**: [#142](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/142)
 - **Especificación**: [spec.md](./spec.md) · [plan.md](./plan.md) · [tasks.md](./tasks.md)
 
 ## Alcance entregado
