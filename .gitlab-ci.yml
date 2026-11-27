@@ -109,7 +109,43 @@ lint:
     - uv run --no-sync ruff format --check src tests
 
 # -----------------------------------------------------------------------------
-# Job 2: pruebas. Necesita el entorno completo, el kernel vendoreado y Node,
+# Job 2: escaneo de secretos (SPEC-029, HU-28). Mismo comando que en GitHub
+# Actions; la herramienta y su sha256 viven fijadas en src/m2_cad/seguridad_ci.py
+# (gitleaks 8.30.1 y pip-audit==2.10.1). Sin secretos del repositorio.
+# -----------------------------------------------------------------------------
+secretos:
+  stage: quality
+  # Historial completo: se escanean todos los commits, no solo el último.
+  variables:
+    GIT_DEPTH: "0"
+  before_script:
+    # La imagen de uv no trae make; el Makefile es la fuente de verdad de los comandos.
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends make
+    - rm -rf /var/lib/apt/lists/*
+  script:
+    # Descarga el gitleaks fijado, verifica su sha256 y escanea el historial.
+    - make security-secretos
+
+# -----------------------------------------------------------------------------
+# Job 3: auditoría de dependencias. Exporta uv.lock con `uv export` y audita con
+# `uvx --from pip-audit==2.10.1`; nunca instala nada con pip.
+# -----------------------------------------------------------------------------
+dependencias:
+  stage: quality
+  before_script:
+    # La imagen de uv no trae make ni git; el Makefile es la fuente de verdad.
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends make git
+    - rm -rf /var/lib/apt/lists/*
+  script:
+    # `uv export --locked` necesita la fuente local del kernel para generar sus
+    # metadatos: sin el vendor la auditoría falla antes de empezar.
+    - bash scripts/vendor-constraint-kit.sh
+    - make security-dependencias
+
+# -----------------------------------------------------------------------------
+# Job 4: pruebas. Necesita el entorno completo, el kernel vendoreado y Node,
 # porque `make test` construye el frontend antes de correr pytest.
 # Corre los mismos comandos que un integrante en su máquina.
 # -----------------------------------------------------------------------------
@@ -163,7 +199,7 @@ run_test:
       junit: report.xml
 
 # -----------------------------------------------------------------------------
-# Job 3: imagen Docker de la entrega, publicada en el registro elegido.
+# Job 5: imagen Docker de la entrega, publicada en el registro elegido.
 # -----------------------------------------------------------------------------
 build_image:
   stage: build

@@ -8,11 +8,14 @@ integración. Se lee el YAML como texto a propósito: no hace falta un parser pa
 comprobar estas invariantes y evita sumar una dependencia solo para la prueba.
 """
 
+import tomllib
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
 GITLAB = RAIZ / ".gitlab-ci.yml"
 GITHUB = RAIZ / ".github" / "workflows" / "ci.yml"
+SEGURIDAD = RAIZ / ".github" / "workflows" / "seguridad.yml"
+MODULO_SEGURIDAD = RAIZ / "src" / "m2_cad" / "seguridad_ci.py"
 DOCKERFILE = RAIZ / "Dockerfile"
 
 
@@ -84,3 +87,38 @@ def test_los_dos_pipelines_generan_la_clave_efimera_de_descargas():
     """HU-36: 44 pruebas de descargas exigen M2_DOWNLOAD_SECRET en cada corrida."""
     assert "M2_DOWNLOAD_SECRET" in _texto(GITHUB)
     assert "M2_DOWNLOAD_SECRET" in _texto(GITLAB)
+
+
+def test_los_dos_pipelines_corren_el_mismo_escaneo_de_seguridad():
+    """HU-28 (S1, S2, S7): un solo comando por escáner, igual en GitHub y GitLab."""
+    github = _texto(SEGURIDAD)
+    gitlab = _texto(GITLAB)
+
+    for texto in (github, gitlab):
+        assert "make security-secretos" in texto
+        assert "make security-dependencias" in texto
+
+
+def test_las_herramientas_de_seguridad_estan_fijadas_en_los_tres_lados():
+    """HU-28 (S6, RNF-2): gitleaks y pip-audit no se resuelven en cada corrida."""
+    for ruta in (SEGURIDAD, GITLAB, MODULO_SEGURIDAD):
+        texto = _texto(ruta)
+
+        assert "8.30.1" in texto, f"{ruta} no fija gitleaks 8.30.1"
+        assert "pip-audit==2.10.1" in texto, f"{ruta} no fija pip-audit 2.10.1"
+
+
+def test_ningun_pipeline_de_seguridad_instala_con_pip():
+    """HU-28 (S7, RNF-3): la gestión de Python pasa por uv, nunca por pip."""
+    for ruta in (SEGURIDAD, GITLAB):
+        assert "pip install" not in _texto(ruta), f"{ruta} usa pip"
+
+
+def test_los_archivos_de_excepciones_existen_y_estan_vacios():
+    """HU-28 (S4, S10): el esquema viaja documentado; nadie aprueba en este cambio."""
+    for nombre in ("excepciones-secretos.toml", "excepciones-dependencias.toml"):
+        ruta = RAIZ / "security" / nombre
+
+        assert ruta.is_file(), f"falta {ruta}"
+        datos = tomllib.loads(ruta.read_text(encoding="utf-8"))
+        assert datos.get("excepciones", []) == [], f"{ruta} tiene excepciones aprobadas"

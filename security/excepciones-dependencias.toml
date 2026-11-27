@@ -1,0 +1,28 @@
+# Excepciones de dependencias — SPEC-029 (HU-28)
+#
+# Política completa: security/politica-excepciones.md
+#
+# Este archivo es la ÚNICA forma de aceptar un advisory de `pip-audit`. Mientras
+# esté vacío, todo hallazgo bloqueante (con corrección publicada, severidad alta
+# o crítica, o severidad no clasificable) hace fallar el job `dependencias`.
+#
+# Esquema de cada entrada (todas las claves son obligatorias):
+#
+#   [[excepciones]]
+#   advisory = "PYSEC-2026-1475"           # id del advisory o su CVE
+#   paquete = "jinja2"                     # paquete instalado que lo arrastra
+#   justificacion = "Por qué no se puede actualizar el paquete ahora."
+#   aprobado_por = "Nombre Apellido"       # quien aprueba; nadie aprueba lo suyo
+#   revision = "2026-12-31"                # fecha ISO: hoy o después, máximo 180 días
+#
+# `justificacion` explica por qué el hallazgo no se puede corregir y tiene 20
+# caracteres como mínimo. Una `revision` vencida hace fallar el job: la excepción
+# deja de valer y el hallazgo vuelve a bloquear. La entrada se conserva en el
+# repositorio y aparece siempre en el log del job, nunca se borra en silencio.
+#
+# ESTADO ACTUAL: no hay excepciones aprobadas. Los hallazgos reales que el
+# escaneo encuentra hoy en `main` (por ejemplo `pillow` y `vtk`, que sí tienen
+# corrección publicada) quedan pendientes de una decisión humana: o se actualiza
+# el paquete o se aprueba aquí una excepción justificada y con fecha.
+
+# (sin entradas)

@@ -5,6 +5,7 @@
         precommit-install precommit build up down clean bench bench-report worker \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup \
         corpus-dorado \
+        security security-secretos security-dependencias security-excepciones-validar \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
         mlflow api-types api-types-check api-contract api-contract-check hash-clave
 
@@ -35,6 +36,17 @@ kernel-test: kernel-image ## Corre las 113 pruebas del kernel en el contenedor d
 
 corpus-dorado: ## HU-23: compara el núcleo determinista con el corpus dorado (sin GPU ni red)
 	uv run --no-sync python -B scripts/verify_corpus_dorado.py
+
+security: security-excepciones-validar security-secretos security-dependencias ## HU-28: escaneo de secretos y dependencias (necesita red; fuera de `make check`)
+
+security-secretos: ## HU-28: gitleaks 8.30.1 sobre el historial del repositorio
+	uv run --no-project python -B scripts/security_secretos.py
+
+security-dependencias: ## HU-28: pip-audit 2.10.1 sobre el export de uv.lock
+	uv run --no-project python -B scripts/security_dependencias.py
+
+security-excepciones-validar: ## HU-28: valida security/excepciones-*.toml (sin red)
+	uv run --no-project python -B scripts/security_excepciones.py validar
 
 bench: ## HU-14 AC7: corre el banco HU-02 contra el modelo (gasta tokens; IDS=...)
 	uv run python -m m2_cad.banco $(if $(IDS),--ids $(IDS))
