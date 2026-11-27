@@ -1,0 +1,7 @@
+# Fixture de AC2: requisitos con una dependencia fijada que tiene un CVE grave.
+# Verificado el 2026-11-27 con:
+#   uvx --from pip-audit==2.10.1 pip-audit -r <este archivo> --no-deps --disable-pip --format json
+# Resultado: jinja2 2.11.2 → PYSEC-2026-1475 (CVE-2024-56326, CVSS v3.1 = 7.8 "alta")
+#            con corrección publicada 3.1.5; además 5 advisories de severidad media.
+# Ninguna credencial ni paquete real del proyecto: es solo una fixture de prueba.
+jinja2==2.11.2
