@@ -102,6 +102,152 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "PanoramaMetricas": {
+        "description": "Panorama de uso, calidad y costo en una ventana (HU-51, SPEC-052, AC1).\n\n`disponible: false` es un estado degradado explícito: la fuente (MLflow) no\nestá accesible, así que los agregados vienen vacíos y `motivo` lo explica.",
+        "properties": {
+          "costo_usd": {
+            "title": "Costo Usd",
+            "type": "number"
+          },
+          "declinaciones_por_causa": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Declinaciones Por Causa",
+            "type": "object"
+          },
+          "declinadas": {
+            "title": "Declinadas",
+            "type": "integer"
+          },
+          "desde": {
+            "format": "date-time",
+            "title": "Desde",
+            "type": "string"
+          },
+          "disponible": {
+            "title": "Disponible",
+            "type": "boolean"
+          },
+          "entregadas": {
+            "title": "Entregadas",
+            "type": "integer"
+          },
+          "entregadas_por_familia": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Entregadas Por Familia",
+            "type": "object"
+          },
+          "errores": {
+            "title": "Errores",
+            "type": "integer"
+          },
+          "generado_en": {
+            "format": "date-time",
+            "title": "Generado En",
+            "type": "string"
+          },
+          "hasta": {
+            "format": "date-time",
+            "title": "Hasta",
+            "type": "string"
+          },
+          "latencia_media_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latencia Media Ms"
+          },
+          "mlflow_ui": {
+            "title": "Mlflow Ui",
+            "type": "string"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          },
+          "solicitudes": {
+            "title": "Solicitudes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "disponible",
+          "desde",
+          "hasta",
+          "solicitudes",
+          "entregadas",
+          "entregadas_por_familia",
+          "declinadas",
+          "errores",
+          "declinaciones_por_causa",
+          "costo_usd",
+          "mlflow_ui",
+          "generado_en"
+        ],
+        "title": "PanoramaMetricas",
+        "type": "object"
+      },
+      "RegistroResumen": {
+        "description": "Solicitud registrada tal como la muestra el historial (HU-37, RF-1/RF-2).\n\nSólo los campos que la vista necesita: ni prompt, ni usuario, ni rutas de\nartefactos ni datos de la fila completa (S6).",
+        "properties": {
+          "estado": {
+            "enum": [
+              "construida",
+              "declinada",
+              "error",
+              "desconocida"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "hora": {
+            "title": "Hora",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "hora",
+          "texto",
+          "estado"
+        ],
+        "title": "RegistroResumen",
+        "type": "object"
+      },
       "RespuestaEdicion": {
         "description": "Nueva versión verificada de la pieza, con el diff del programa (HU-35, AC1).",
         "properties": {
@@ -179,6 +325,23 @@
           "tiempo_construccion_s"
         ],
         "title": "RespuestaEdicion",
+        "type": "object"
+      },
+      "RespuestaRegistros": {
+        "description": "Listado de solicitudes propias registradas (HU-37, AC3).",
+        "properties": {
+          "registros": {
+            "items": {
+              "$ref": "#/components/schemas/RegistroResumen"
+            },
+            "title": "Registros",
+            "type": "array"
+          }
+        },
+        "required": [
+          "registros"
+        ],
+        "title": "RespuestaRegistros",
         "type": "object"
       },
       "RespuestaUso": {
@@ -838,6 +1001,49 @@
         "summary": "Health"
       }
     },
+    "/v1/metricas": {
+      "get": {
+        "description": "Agregados de uso, calidad y costo de las últimas `horas` (HU-51, RF-1).\n\nSi el seguimiento está desactivado o MLflow no responde, responde **200** con\n`disponible: false` y el motivo: nunca un 500 (RNF-2).",
+        "operationId": "panorama_metricas_v1_metricas_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "horas",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 720,
+              "minimum": 1,
+              "title": "Horas",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PanoramaMetricas"
+                }
+              }
+            },
+            "description": "Panorama o estado degradado explícito."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Panorama Metricas"
+      }
+    },
     "/v1/ready": {
       "get": {
         "description": "Disponibilidad operativa local; /health conserva el contrato de vida.",
@@ -855,9 +1061,80 @@
         "summary": "Ready"
       }
     },
+    "/v1/registros": {
+      "get": {
+        "description": "Lista las solicitudes propias del registro persistente (HU-37, AC3/RF-2).\n\nConserva la protección del resto de `/v1`: la sesión la exige\n`usuario_actual` y sólo se devuelven filas propias (HU-53), sin que el\ncliente recorra identificadores conocidos.",
+        "operationId": "listar_registros_v1_registros_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "resultado",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "construida",
+                    "declinada",
+                    "error",
+                    "desconocida"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Resultado"
+            }
+          },
+          {
+            "in": "query",
+            "name": "texto",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Texto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaRegistros"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Listar Registros"
+      }
+    },
     "/v1/registros/{identificador}": {
       "get": {
-        "description": "Consulta una fila propia, sin revelar la de otros usuarios (HU-53, AC2).",
+        "description": "Consulta una fila propia, sin revelar la de otros usuarios (HU-53, AC2).\n\nDevuelve además el token de descarga de una solicitud anterior (HU-37,\nRF-4/AC4): sin él su STEP no se puede descargar pasado el reinicio, porque\nel token sólo se emitía al crear la solicitud. Si las descargas están\ndeshabilitadas por configuración, la consulta sigue funcionando sin él.",
         "operationId": "consultar_registro_v1_registros__identificador__get",
         "parameters": [
           {
@@ -883,7 +1160,15 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "X-Download-Token": {
+                "description": "Autorización temporal para descargar el STEP de esta solicitud (HU-37, RF-4). Se emite sólo con sesión y propiedad comprobadas.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {

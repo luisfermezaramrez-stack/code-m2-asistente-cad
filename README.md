@@ -101,7 +101,10 @@ licencia.
    trazable (texto, resultado, latencia y versión del modelo).
 4. **Navegación** por URLs propias (`/nueva-solicitud`, `/historial` y `/ajustes`),
    con borrador y tema recuperables al abrir la vista en otra pestaña (HU-38).
-5. **Revisión** de la pieza en el navegador con vistas frontal, superior y lateral,
+5. **Historial** de solicitudes reales desde el registro persistente: listado con
+   filtros por resultado y por descripción, y reapertura que descarga el STEP de una
+   solicitud anterior aunque el servidor se haya reiniciado (HU-37).
+6. **Revisión** de la pieza en el navegador con vistas frontal, superior y lateral,
    cotas tomadas de `caja_mm`, unidades mm/pulgadas y captura PNG (HU-39).
 
 ## Estructura

@@ -65,7 +65,7 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [035](035-hu-34-sistema-diseno-v2/) | HU-34 · Sistema de diseño v2: tokens, tipografía y modo oscuro | 1 | Carlos | #94 | #137 | Spec-first | En revisión |
 | [036](036-hu-35-edicion-iterativa/) | HU-35 · Edición iterativa de la pieza | 1 | Luis Meza | #95 | — | Spec-first | Propuesta |
 | [037](037-hu-36-endurecimiento-descargas/) | HU-36 · Endurecimiento de artefactos y descargas | 1 | Juan Camilo | #96 | — | Spec-first | Propuesta |
-| [038](038-hu-37-historial-ui/) | HU-37 · Historial de solicitudes en la UI | 2 | Carlos | #97 | — | Spec-first | Propuesta |
+| [038](038-hu-37-historial-ui/) | HU-37 · Historial de solicitudes en la UI | 2 | Carlos | #97 | #145 | Spec-first | En revisión |
 | [039](039-hu-38-app-shell/) | HU-38 · App shell y navegación por vistas | 2 | Carlos | #98 | #142 | Spec-first | En revisión |
 | [040](040-hu-39-visor-ortogonal-medidas/) | HU-39 · Visor 3D: vistas ortogonales, medidas y captura | 2 | Carlos | #99 | #148 | Spec-first | En revisión |
 | [041](041-hu-40-wcag-aa/) | HU-40 · Cierre de brechas WCAG 2.1 AA | 2 | Carlos | #100 | — | Spec-first | Propuesta |
