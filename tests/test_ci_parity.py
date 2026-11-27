@@ -114,11 +114,30 @@ def test_ningun_pipeline_de_seguridad_instala_con_pip():
         assert "pip install" not in _texto(ruta), f"{ruta} usa pip"
 
 
-def test_los_archivos_de_excepciones_existen_y_estan_vacios():
-    """HU-28 (S4, S10): el esquema viaja documentado; nadie aprueba en este cambio."""
+def test_los_archivos_de_excepciones_existen_y_son_listas_de_tablas():
+    """HU-28 (S4, S10): el esquema viaja documentado; la política la valida el job."""
     for nombre in ("excepciones-secretos.toml", "excepciones-dependencias.toml"):
         ruta = RAIZ / "security" / nombre
 
         assert ruta.is_file(), f"falta {ruta}"
         datos = tomllib.loads(ruta.read_text(encoding="utf-8"))
-        assert datos.get("excepciones", []) == [], f"{ruta} tiene excepciones aprobadas"
+        assert isinstance(datos.get("excepciones", []), list), f"{ruta} no usa [[excepciones]]"
+
+
+def test_cada_escaneo_valida_la_politica_de_excepciones_antes_de_correr():
+    """HU-28 (S12): una excepción incompleta no puede desbloquear un hallazgo en CI."""
+    makefile = _texto(RAIZ / "Makefile").splitlines()
+    for objetivo in ("security-secretos", "security-dependencias"):
+        linea = next(linea for linea in makefile if linea.startswith(f"{objetivo}:"))
+
+        prerequisitos = linea.split("##")[0]
+        assert "security-excepciones-validar" in prerequisitos, f"{objetivo} no valida"
+
+
+def test_el_job_de_secretos_de_gitlab_instala_git():
+    """HU-28 (S2): `gitleaks git` necesita git; la imagen de uv no lo trae."""
+    bloque = _texto(GITLAB).split("\nsecretos:")[1].split("\ndependencias:")[0]
+
+    instalaciones = [linea for linea in bloque.splitlines() if "apt-get install" in linea]
+    assert instalaciones, "el job de secretos no instala sus herramientas"
+    assert any(" git" in linea.split("--no-install-recommends")[-1] for linea in instalaciones)

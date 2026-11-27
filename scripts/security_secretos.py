@@ -178,16 +178,19 @@ def main(argv: list[str] | None = None) -> int:
     except ErrorHerramienta as error:
         print(f"ERROR: el escaneo de secretos no pudo ejecutarse: {error}", file=sys.stderr)
         return 2
-    print(seguridad_ci.mensaje_secretos(hallazgos, excepciones=excepciones, hoy=date.today()))
-    if seguridad_ci.secretos_bloqueantes(hallazgos, excepciones, date.today()):
-        return 1
-    if codigo != 0:
+    # gitleaks sale con 1 cuando reporta hallazgos, aunque una excepción vigente
+    # los cubra; cualquier otro código, o un 1 sin reporte, es un fallo de la
+    # herramienta y nunca se presenta como escaneo superado.
+    if codigo not in (0, 1) or (codigo == 1 and not hallazgos):
         print(
             f"ERROR: gitleaks terminó con código {codigo} sin hallazgos legibles; "
             "el escaneo no puede considerarse superado.",
             file=sys.stderr,
         )
         return 2
+    print(seguridad_ci.mensaje_secretos(hallazgos, excepciones=excepciones, hoy=date.today()))
+    if seguridad_ci.secretos_bloqueantes(hallazgos, excepciones, date.today()):
+        return 1
     return 0
 
 

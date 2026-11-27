@@ -39,10 +39,10 @@ corpus-dorado: ## HU-23: compara el núcleo determinista con el corpus dorado (s
 
 security: security-excepciones-validar security-secretos security-dependencias ## HU-28: escaneo de secretos y dependencias (necesita red; fuera de `make check`)
 
-security-secretos: ## HU-28: gitleaks 8.30.1 sobre el historial del repositorio
+security-secretos: security-excepciones-validar ## HU-28: gitleaks 8.30.1 sobre el historial del repositorio
 	uv run --no-project python -B scripts/security_secretos.py
 
-security-dependencias: ## HU-28: pip-audit 2.10.1 sobre el export de uv.lock
+security-dependencias: security-excepciones-validar ## HU-28: pip-audit 2.10.1 sobre el export de uv.lock
 	uv run --no-project python -B scripts/security_dependencias.py
 
 security-excepciones-validar: ## HU-28: valida security/excepciones-*.toml (sin red)

@@ -5,6 +5,7 @@ leen de `tests/fixtures/seguridad/` con la forma real de cada herramienta. El
 patrón es AAA (Arrange · Act · Assert) y nunca se aprueba una excepción real.
 """
 
+import importlib.util
 import json
 import tomllib
 from datetime import date, timedelta
@@ -351,7 +352,8 @@ def _herramienta(ruta: Path) -> str:
     return "secretos" if "secretos" in ruta.name else "dependencias"
 
 
-def test_los_archivos_de_excepciones_del_repositorio_no_tienen_entradas_aprobadas():
+def test_los_archivos_de_excepciones_del_repositorio_cumplen_la_politica():
+    """S12: toda excepción aprobada tiene justificación, aprobador y revisión vigente."""
     for ruta in (
         seguridad_ci.RUTA_EXCEPCIONES_SECRETOS,
         seguridad_ci.RUTA_EXCEPCIONES_DEPENDENCIAS,
@@ -359,8 +361,6 @@ def test_los_archivos_de_excepciones_del_repositorio_no_tienen_entradas_aprobada
         datos = tomllib.loads((RAIZ / ruta).read_text(encoding="utf-8"))
 
         assert seguridad_ci.validar_excepciones(datos, _herramienta(ruta), HOY) == []
-        assert seguridad_ci.cargar_excepciones(RAIZ / ruta) == []
-        assert "excepciones" not in datos, f"{ruta} no debe tener excepciones aprobadas todavía"
 
 
 def test_cargar_excepciones_devuelve_lista_vacia_sin_entradas(tmp_path):
@@ -460,3 +460,71 @@ def test_las_herramientas_estan_fijadas_con_su_huella():
     assert seguridad_ci.SHA256_GITLEAKS_LINUX_X64 == (
         "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
     )
+
+
+# ---------------------------------------------------------------------------
+# Script de secretos de punta a punta (AC1, AC3): gitleaks sale con código 1
+# siempre que reporta un hallazgo, aunque una excepción vigente lo cubra.
+# ---------------------------------------------------------------------------
+
+
+def _script_secretos():
+    ruta = RAIZ / "scripts" / "security_secretos.py"
+    especificacion = importlib.util.spec_from_file_location("security_secretos", ruta)
+    modulo = importlib.util.module_from_spec(especificacion)
+    especificacion.loader.exec_module(modulo)
+    return modulo
+
+
+def _toml_excepcion_secreto(revision: date) -> str:
+    return (
+        "[[excepciones]]\n"
+        'archivo = "tests/fixtures/seguridad/secreto-falso.env"\n'
+        "linea = 2\n"
+        'regla = "generic-api-key"\n'
+        'justificacion = "El valor es una credencial falsa usada por la suite de pruebas."\n'
+        'aprobado_por = "Responsable de la entrega"\n'
+        f'revision = "{revision.isoformat()}"\n'
+    )
+
+
+def _correr_secretos(monkeypatch, tmp_path, codigo, hallazgos, excepciones_toml=""):
+    modulo = _script_secretos()
+    archivo = tmp_path / "excepciones-secretos.toml"
+    archivo.write_text(excepciones_toml, encoding="utf-8")
+    monkeypatch.setattr(modulo.seguridad_ci, "RUTA_EXCEPCIONES_SECRETOS", archivo)
+    monkeypatch.setattr(modulo, "resolver_gitleaks", lambda: tmp_path / "gitleaks")
+
+    def gitleaks_simulado(binario, informe):
+        informe.write_text(json.dumps(hallazgos), encoding="utf-8")
+        return codigo
+
+    monkeypatch.setattr(modulo, "ejecutar_gitleaks", gitleaks_simulado)
+    return modulo.main([])
+
+
+def test_ac3_excepcion_vigente_de_secreto_deja_pasar_el_job(monkeypatch, tmp_path, capsys):
+    hallazgos = _json("gitleaks-hallazgo.json")
+    vigente = _toml_excepcion_secreto(date.today() + timedelta(days=30))
+
+    codigo = _correr_secretos(monkeypatch, tmp_path, 1, hallazgos, vigente)
+
+    assert codigo == 0
+    assert "superado" in capsys.readouterr().out
+
+
+def test_ac1_secreto_sin_excepcion_bloquea_el_job(monkeypatch, tmp_path):
+    hallazgos = _json("gitleaks-hallazgo.json")
+
+    codigo = _correr_secretos(monkeypatch, tmp_path, 1, hallazgos)
+
+    assert codigo == 1
+
+
+def test_gitleaks_que_falla_sin_reporte_no_se_declara_superado(monkeypatch, tmp_path, capsys):
+    codigo = _correr_secretos(monkeypatch, tmp_path, 1, [])
+
+    salida = capsys.readouterr()
+    assert codigo == 2
+    assert "superado" not in salida.out
+    assert "ERROR" in salida.err

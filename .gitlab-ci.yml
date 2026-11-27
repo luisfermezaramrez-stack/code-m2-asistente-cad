@@ -119,9 +119,10 @@ secretos:
   variables:
     GIT_DEPTH: "0"
   before_script:
-    # La imagen de uv no trae make; el Makefile es la fuente de verdad de los comandos.
+    # La imagen de uv no trae make ni git, y `gitleaks git` necesita git para leer
+    # el historial; el Makefile es la fuente de verdad de los comandos.
     - apt-get update -qq
-    - apt-get install -y -qq --no-install-recommends make
+    - apt-get install -y -qq --no-install-recommends make git
     - rm -rf /var/lib/apt/lists/*
   script:
     # Descarga el gitleaks fijado, verifica su sha256 y escanea el historial.
