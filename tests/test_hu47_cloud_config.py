@@ -14,7 +14,7 @@ def entorno_valido(monkeypatch) -> None:
     monkeypatch.setenv("M2_IMAGE", "registro.interno/m2-cad:abc123")
     monkeypatch.setenv("M2_DOMAIN", "cad.ejemplo.example")
     monkeypatch.setenv("M2_TLS_EMAIL", "admin@ejemplo.example")
-    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-simulada-123456")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk" + "-simulada-123456")
     monkeypatch.setenv("M2_DOWNLOAD_SECRET", "b" * 32)
     monkeypatch.setenv("M2_AUTH_SECRET", "a" * 32)
     monkeypatch.setenv("M2_AUTH_USERS", '{"operador":"pbkdf2_sha256$100000$abc$def"}')

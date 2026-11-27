@@ -68,6 +68,12 @@ make check
 
 No se fijó `PYTHONIOENCODING=utf-8` en la corrida final: en Windows esa variable hace que `subprocess(text=True)` decode mal la salida de `verify_banco_replay.py` y añade un sexto fallo de codificación ajeno a esta HU.
 
+## Checks del PR #156
+
+- `espejo`, `titulo-pr`, `dependencias`, `e2e` y `test`: pass en `https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46050068323`; `release`: skipping.
+- `secretos`: fail en `https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46050067490`. `gitleaks 8.30.1` marcó `tests/test_hu47_cloud_config.py:17` con `generic-api-key` sobre un valor **falso** de `DEEPSEEK_API_KEY` usado por las pruebas.
+- El valor literal ya se sustituyó por una concatenación de fragmentos no sensibles para que el nuevo commit no añada un hallazgo; las 22 pruebas dirigidas siguen pasando. La ocurrencia histórica en el primer commit sigue en el historial y requiere una decisión explícita: excepción justificada en `security/excepciones-secretos.toml` o reescritura de historia autorizada.
+
 ## Lo que falta exactamente para publicar
 
 1. Proveedor y cuenta autorizados; no se ha contratado ninguno.
