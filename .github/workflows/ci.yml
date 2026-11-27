@@ -5,12 +5,36 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
+  titulo-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.5"
+
+      - name: Validar título convencional HU-55
+        env:
+          PYTHONPATH: src
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: uv run --no-project python scripts/generar_release.py --titulo
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -117,3 +141,66 @@ jobs:
             frontend/playwright-report/
           if-no-files-found: warn
           retention-days: 7
+
+  release:
+    needs: [test, e2e]
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      github.repository == 'luisfermezaramrez-stack/code-m2-asistente-cad'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.5"
+
+      - name: Preparar changelog y versión
+        id: preparar
+        run: |
+          set -e
+          if uv run --no-project python scripts/generar_release.py \
+            --preparar --notas "$RUNNER_TEMP/release-notes.md"; then
+            echo "sin_cambios=false" >> "$GITHUB_OUTPUT"
+          else
+            codigo=$?
+            if [ "$codigo" -eq 2 ]; then
+              echo "sin_cambios=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            exit "$codigo"
+          fi
+          version=$(uv run --no-project python scripts/generar_release.py --version)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar etiqueta y release
+        if: steps.preparar.outputs.sin_cambios != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.preparar.outputs.version }}
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md pyproject.toml
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): v$VERSION"
+            git push origin HEAD:main
+          fi
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"

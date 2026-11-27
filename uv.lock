@@ -2065,7 +2065,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/ec/e9/e7de2b0463ea3ffbf
 
 [[package]]
 name = "m2-cad"
-version = "0.1.0"
+version = "1.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "constraint-kit", extra = ["kernel", "service", "solver"] },

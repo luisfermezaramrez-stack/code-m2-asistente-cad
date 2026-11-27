@@ -85,7 +85,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Testing** | `pytest` + cobertura **≥ 70 %** de `src/m2_cad` (umbral en `pyproject.toml`) |
 | **Lint / Formato** | [Ruff](https://docs.astral.sh/ruff/) — reglas `E, F, I, B`, `line-length = 100` |
 | **Pre-commit** | Ruff + higiene de archivos + bloqueo de pesos (`.gguf`, `.safetensors`, …) |
-| **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `main` |
+| **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `main`; valida títulos convencionales y publica releases desde `main` tras `test`/`e2e` (HU-55) |
 | **Espejo GitLab** | GitHub es la fuente de verdad; `.github/workflows/espejo-gitlab.yml` replica ramas y etiquetas en GitLab (solo lectura) vía deploy key SSH (`vars.GITLAB_MIRROR_URL`, `secrets.GITLAB_MIRROR_SSH_KEY`) |
 | **Pipeline GitLab** | `.gitlab-ci.yml` deja evidencia sobre el espejo en seis jobs: `lint` (imagen de uv 0.13.5 con el Python de `.python-version` y `make lint`), `secretos` (gitleaks sobre el historial completo), `dependencias` (pip-audit sobre el export de `uv.lock`), `run_test` (`vendor` + `uv sync --locked` + `make frontend-install` + `make test` sobre `node:24-bookworm`), `e2e` (Playwright/Chromium sobre el build real con backend simulado, HU-41) y `build_image` (imagen Docker). Corre con push a la rama por defecto del espejo, lanzamiento manual o pipeline programado: no abre una segunda puerta de integración, que la puerta es el PR en GitHub |
 | **Dependencias automáticas** | [Dependabot](.github/dependabot.yml) (target `main`) |
@@ -121,6 +121,7 @@ code-m2-asistente-cad/
 │   ├── seguimiento.py          # MLflow: una corrida por solicitud y por caso del banco (HU-16)
 │   ├── observabilidad.py       # logs JSON, request_id/job_id y redacción de secretos (HU-24)
 │   ├── contrato_api.py         # carga y compara el OpenAPI v1 congelado (HU-31)
+│   ├── releases.py             # versión semántica y changelog desde commits (HU-55)
 │   └── web.py                  # Vue/estáticos, CORS restringido y errores JSON
 ├── frontend/src/design/        # tokens.css y resolución de tema del frontend
 ├── frontend/e2e/               # E2E de Playwright con backend simulado (HU-41)
@@ -149,6 +150,7 @@ code-m2-asistente-cad/
 ├── README.md                   # puerta de entrada pública
 ├── CONTRIBUTING.md             # guía de contribución
 ├── CODE_OF_CONDUCT.md          # código de conducta
+├── CHANGELOG.md                # entradas de release generadas desde commits (HU-55)
 ├── Makefile                    # interfaz de comandos (`make help`)
 ├── pyproject.toml              # metadatos y dependencias (uv)
 ├── uv.lock                     # lockfile determinista (versionado)
@@ -366,6 +368,12 @@ rechazar con 403 al cliente de la API aunque `/health` responda correctamente.
 - **Estrategia:** `main` es la única rama de integración; **toda rama de trabajo sale
   de `main`** y vuelve por pull request. Las entregas son etiquetas anotadas sobre
   `main`. Un `Closes #N` en la PR cierra la issue al fusionar.
+- **Releases:** el job `release` corre sólo en `push` a `main` después de `test`/`e2e`.
+  Calcula la versión con Conventional Commits (`feat` → menor, `fix`/`perf` → parche,
+  `BREAKING CHANGE`/`!:` → mayor; cambio incompatible de `/v1` → mayor), actualiza
+  `CHANGELOG.md` y `pyproject.toml`, crea la etiqueta anotada `vX.Y.Z` y publica el
+  GitHub Release con esas notas. `make release-dry-run` y `make release-check` permiten
+  validar el flujo sin publicar (HU-55).
 - **Nombres de rama:** `feature/hu-XX-tema` (una rama por historia de usuario);
   utilidades con `fix/...`, `docs/...`, `chore/...`.
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) —
@@ -434,6 +442,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-27 | HU-39: `viewerMedidas.ts` separa `caja_mm`, unidades y direcciones de vista; `GlbViewer.vue` usa `OrthographicCamera`, cotas y PNG reproducible con `preserveDrawingBuffer` + re-render | Revisar la pieza desde tres vistas canónicas con el mismo encuadre, medir contra la caja verificada y exportar la vista sin GPU real; las cotas nunca se leen del CSV y los controles/atajos de HU-16 permanecen |
 | 2026-11-27 | HU-54: sitio MkDocs sobre staging generado desde los Markdown versionados, navegación con el runbook y workflow de GitHub Pages desde `main` | MkDocs exige `docs_dir` hijo de la config, así que el staging conserva las rutas y enlaces originales sin duplicar documentos; `--strict` convierte enlaces rotos en fallo de CI |
 | 2026-11-27 | HU-44: `banco_replay.py` y `data/banco_replay.json` fijan 40 respuestas con versión de prompt; `llm_resiliente.clave_cuerpo()` comparte la clave canónica sin credenciales y `pipeline.cuerpo_planificador()` evita definir dos veces la petición; CI corre `make bench-replay` y un workflow programado registra el baseline real en MLflow | Detectar caídas de aceptación en cada PR sin pagar tokens ni abrir red; separar la puerta barata de la corrida real, y hacer explícita cualquier divergencia de prompt/modelo en vez de buscar el proveedor como fallback |
+| 2026-11-27 | HU-55: releases automáticos desde `main` con versión semántica y `CHANGELOG.md` generados por `releases.py`; el job `release` de CI publica sólo tras `test`/`e2e`, con modo seco y verificación en `make check` | Cumplir SPEC-056 sin redactar notas a mano ni publicar desde PRs/forks, manteniendo `pyproject.toml`, etiqueta y changelog coherentes y respetando la decisión de `main` de SPEC-058 |
 
 ## 10. Notas y tareas pendientes
 

@@ -9,8 +9,8 @@
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
         e2e e2e-install \
         mlflow api-types api-types-check api-contract api-contract-check hash-clave \
-        docs-stage docs-build docs-serve
-
+        docs-stage docs-build docs-serve \
+        release-dry-run release-check release-version
 
 help: ## Lista los objetivos disponibles
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -82,12 +82,12 @@ lint: ## Ruff con reglas E, F, I, B
 	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py \
 		scripts/generate_api_contract.py scripts/verify_corpus_dorado.py scripts/verify_prompts.py \
 		scripts/verify_banco_replay.py scripts/verificar_alertas.py \
-		scripts/build_docs_site.py
+		scripts/build_docs_site.py scripts/generar_release.py
 
 format: ## Aplica ruff format
 	uv run ruff format src tests
 
-check: lint prompts-check api-contract-check api-types-check frontend-check docs-build cov ## Ruff, contratos, SPA, sitio y cobertura (CI)
+check: lint prompts-check api-contract-check api-types-check frontend-check docs-build cov release-check ## Ruff, contratos, SPA, sitio, cobertura y release (CI)
 
 worker: ## HU-45: consume la cola persistente en un proceso separado de la API
 	uv run --no-sync python -m m2_cad.worker
@@ -106,6 +106,15 @@ api-contract: ## HU-31: genera el contrato OpenAPI v1 congelado
 
 api-contract-check: ## HU-31: falla si el contrato congelado está desactualizado
 	uv run --locked python scripts/generate_api_contract.py --check
+
+release-dry-run: ## HU-55: calcula versión y changelog sin crear etiquetas ni releases
+	uv run --locked python scripts/generar_release.py --dry-run
+
+release-check: ## HU-55: verifica etiqueta, pyproject.toml y CHANGELOG.md
+	uv run --locked python scripts/generar_release.py --verificar
+
+release-version: ## HU-55: imprime la versión propuesta sin escribir archivos
+	uv run --locked python scripts/generar_release.py --version
 
 frontend-install: ## Instala dependencias Node exactamente desde el lockfile
 	npm --prefix frontend ci

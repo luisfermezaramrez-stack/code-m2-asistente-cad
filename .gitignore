@@ -20,6 +20,9 @@ ENV/
 .uv/
 uv.lock.local.backup
 
+# ===== HU-55: notas temporales del release =====
+.release-notes.md
+
 # ===== Cachés de herramientas =====
 .pytest_cache/
 .coverage
