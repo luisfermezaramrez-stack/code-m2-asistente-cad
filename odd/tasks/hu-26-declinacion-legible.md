@@ -61,7 +61,7 @@ registro se coordina con la persistencia de
       etiqueta `causa_declinacion` en la corrida de MLflow.
 - [x] T4 — S8, S9, S12 · corpus de declinaciones en pruebas (una por causa y por camino) y
       aserción de mensaje sin términos técnicos.
-- [ ] T5 — S6, S7, S11 · no regresión de `make check`, 422 intacto, `plan.md`/`tasks.md` y
+- [x] T5 — S6, S7, S11 · no regresión de `make check`, 422 intacto, `plan.md`/`tasks.md` y
       estado en el índice de specs.
 
 ## Log
@@ -120,3 +120,18 @@ documentación). El work unit de comportamiento pasa de las ~400 líneas autorad
 catálogo, mensajes, columna del registro, etiqueta de MLflow y sus pruebas son una sola
 unidad de comportamiento, así que se entrega como una única PR de la HU, sin PR
 encadenadas. Push y PR quedan a decisión del humano.
+
+L8 — Verificación independiente (agente verificador, copia temporal y offline). Cumple S1,
+S2, S3, S4, S6, S7, S8, S9, S11, S12. Encontró dos defectos reales, ambos corregidos en un
+commit posterior: (a) `persistencia_registro.restore` validaba con `CAMPOS`, así que un
+snapshot anterior a la columna `causa` ya no se podía restaurar — ahora valida cabeceras
+anteriores y deja que la siguiente escritura migre, conservando el byte a byte de HU-30;
+(b) el detalle técnico dejó de persistirse en ningún sitio al pasar el mensaje legible al
+422 — ahora se registra en el log estructurado (redactado por HU-24), sin volver al mensaje
+ni al registro consultable. Además se endureció lo señalado como advertencia: un
+`registro.csv` vacío no rompe el alta, `causa` se valida contra el catálogo (nunca texto
+libre), el banco y la corrida hija por caso llevan `causa`, y se retiró un alias sin uso.
+Queda fuera, por ser de SPEC-024, añadir `causa` al JSON congelado del corpus.
+
+L9 — Cifras finales de `make check`: ver L5 más el commit de correcciones; el chequeo se
+repitió después de cada corrección y cierra en verde con las mismas coberturas.

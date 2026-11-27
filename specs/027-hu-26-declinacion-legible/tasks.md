@@ -9,16 +9,16 @@
 
 ## Fase 2 — Implementación
 
-- [ ] T1 — Catálogo `Causa` y `causa_de_informe` en `src/m2_cad/declinacion.py`.
-- [ ] T2 — `PiezaDeclinada`, `ErrorVerificacion` y `ErrorGeneracion` con causa, mensaje y detalle técnico.
-- [ ] T3 — API: 422 con mensaje legible, causa propagada por `medido`.
-- [ ] T4 — Registro: columna `causa` y migración generalizada de columnas.
-- [ ] T5 — Seguimiento: etiqueta `causa_declinacion` en `Corrida.finalizar` y `medir_solicitud`.
+- [x] T1 — Catálogo `Causa` y `causa_de_informe` en `src/m2_cad/declinacion.py`.
+- [x] T2 — `PiezaDeclinada`, `ErrorVerificacion` y `ErrorGeneracion` con causa, mensaje y detalle técnico.
+- [x] T3 — API: 422 con mensaje legible, causa propagada por `medido`.
+- [x] T4 — Registro: columna `causa` y migración generalizada de columnas.
+- [x] T5 — Seguimiento: etiqueta `causa_declinacion` en `Corrida.finalizar` y `medir_solicitud`.
 
 ## Fase 3 — Calidad
 
-- [ ] AC1: cada caso del corpus de declinaciones tiene una causa del catálogo.
-- [ ] AC2: mensaje en español, sin identificadores del DSL ni texto crudo del verificador, con «qué haría falta».
-- [ ] AC3: causa en el registro y en la etiqueta de MLflow, utilizable como dimensión.
-- [ ] No regresión: 422 intacto, contrato y tipos del frontend sin cambios, `make check` en verde con cobertura ≥ 70 %.
-- [ ] `plan.md`, `tasks.md`, estado en `specs/README.md` y `CONSTITUTION.md` actualizados.
+- [x] AC1: cada caso del corpus de declinaciones tiene una causa del catálogo.
+- [x] AC2: mensaje en español, sin identificadores del DSL ni texto crudo del verificador, con «qué haría falta».
+- [x] AC3: causa en el registro y en la etiqueta de MLflow, utilizable como dimensión.
+- [x] No regresión: 422 intacto, contrato y tipos del frontend sin cambios, `make check` en verde con cobertura ≥ 70 %.
+- [x] `plan.md`, `tasks.md`, estado en `specs/README.md` y `CONSTITUTION.md` actualizados.

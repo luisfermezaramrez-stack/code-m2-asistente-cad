@@ -65,20 +65,22 @@ que hoy están mezcladas:
 
 ## Integración con SPEC-024 (AC1)
 
-El corpus dorado no está en `main` (vive en `feature/hu-23-corpus-dorado-nucleo`); sus
-casos de declinación son programas `{"unsupported": "<motivo>"}` con `resultado:
-"declina"`. AC1 se verifica en dos niveles, ambos sin depender de esa rama:
+El corpus dorado (`data/corpus_dorado.json`, HU-23) ya está en `main` con tres casos
+`resultado: "declina"`, todos programas `{"unsupported": "<motivo>"}`. AC1 se verifica en
+dos niveles, sin tocar el corpus congelado:
 
-1. **Forma del corpus**: un programa `{"unsupported": …}` recibe exactamente una causa del
-   catálogo (`familia_no_soportada`) a través del mismo `verificar_programa` que usará el
-   runner.
-2. **Cobertura de caminos**: una tabla de casos de declinación en las pruebas recorre cada
-   camino que puede declinar (rechazo del modelo, ensamblaje, tipo ajeno, medidas
-   incoherentes, error de verificación, salida ambigua) y afirma la causa esperada. Una
-   causa del catálogo sin productor haría fallar la tabla de cobertura, no pasar inadvertida.
+1. **Corpus real**: una prueba recorre los casos `declina` del corpus versionado y afirma
+   que cada uno recibe una causa del catálogo a través del mismo `verificar_programa` que
+   ejecuta `scripts/verify_corpus_dorado.py`.
+2. **Cobertura de caminos**: una tabla de casos de declinación recorre cada camino que puede
+   declinar (rechazo del modelo, ensamblaje, tipo ajeno, medidas incoherentes, error de
+   verificación, salida ambigua) y afirma la causa esperada. Una causa del catálogo sin
+   productor haría fallar la tabla de cobertura, no pasar inadvertida.
 
-Cuando SPEC-024 integre su corpus, cada caso `declina` ya obtiene causa sin cambios de
-esquema; añadir `causa` al JSON del corpus es trabajo de esa HU y no se adelanta aquí.
+El artefacto del corpus no gana campos: añadir `causa` al JSON congelado cambiaría el
+esquema de HU-23 y su comparación (`observado == esperado`), así que es trabajo de esa
+especificación. La dimensión de métricas ya existe en el registro y en la corrida de MLflow
+(API) y en la corrida hija de cada caso del banco.
 
 ## Pruebas (S6, S9, S12)
 
