@@ -19,7 +19,8 @@ def leer_registro(ruta):
 
 
 def test_campos_definidos():
-    """El registro define los 8 campos originales más usuario (HU-53) y causa (HU-26)."""
+    """El registro define los 8 campos originales más usuario (HU-53), causa (HU-26)
+    y el prompt usado con su hash (HU-33)."""
     assert CAMPOS == [
         "id",
         "hora",
@@ -31,6 +32,8 @@ def test_campos_definidos():
         "version",
         "usuario",
         "causa",
+        "prompt",
+        "prompt_hash",
     ]
 
 
@@ -233,12 +236,13 @@ _HISTORICA = {
     "error": "ninguno",
     "version": "desconocida",
     "usuario": "anónimo",
+    "causa": "ninguna",
 }
 
 
-@pytest.mark.parametrize("columnas", [8, 9], ids=["pre-HU-53", "pre-HU-26"])
+@pytest.mark.parametrize("columnas", [8, 9, 10], ids=["pre-HU-53", "pre-HU-26", "pre-HU-33"])
 def test_migra_un_registro_anterior_sin_perder_filas(tmp_path, columnas):
-    """HU-26: un CSV de 8 o 9 columnas se migra añadiendo las que faltan."""
+    """HU-33: un CSV de 8, 9 o 10 columnas se migra añadiendo las que faltan."""
     ruta = tmp_path / "registro.csv"
     cabecera = CAMPOS[:columnas]
     fila = {clave: _HISTORICA[clave] for clave in cabecera}
@@ -253,6 +257,10 @@ def test_migra_un_registro_anterior_sin_perder_filas(tmp_path, columnas):
     assert filas[0]["texto"] == "Placa de 40 mm"
     assert filas[0]["usuario"] == "anónimo"
     assert filas[0]["causa"] == "ninguna"
+    assert filas[0]["prompt"] == "no aplica"
+    assert filas[0]["prompt_hash"] == "no aplica"
+    assert filas[1]["prompt"] == "no aplica"
+    assert filas[1]["prompt_hash"] == "no aplica"
 
 
 def test_un_registro_vacio_se_reconstruye(tmp_path):

@@ -1,0 +1,286 @@
+"""Carga y verificación de los prompts versionados como artefactos (HU-33).
+
+Especificación: specs/034-hu-33-prompts-versionados/spec.md
+- RF-1: los prompts se guardan como archivos versionados con id y hash de contenido.
+- RF-2: el pipeline carga el prompt desde esos archivos, no desde una cadena inline.
+- RF-5: CI falla si el contenido de un prompt cambia sin cambiar su versión.
+
+`prompts/manifest.toml` es la única fuente de verdad de las versiones: una entrada
+por versión con `id`, `version`, `archivo`, `sha256`, `descripcion` y `vigente`.
+Este módulo es el único cargador: nada más lee archivos de `prompts/`. El contrato
+`Prompt` está congelado en `specs/034-hu-33-prompts-versionados/plan.md` porque
+HU-35 (edición iterativa) y SPEC-053 (A/B) lo consumen.
+
+Solo biblioteca estándar (`hashlib`, `tomllib`, `dataclasses`, `pathlib`): sin red,
+sin GPU y sin dependencias nuevas.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import tomllib
+from dataclasses import dataclass
+from pathlib import Path
+
+#: Id del prompt que usa el pipeline hoy; HU-35 pedirá el mismo id con otra versión.
+PROMPT_VIGENTE = "planner"
+#: Raíz por defecto de los artefactos de prompt (`prompts/` en la raíz del repo).
+RUTA_PROMPTS = Path(__file__).resolve().parents[2] / "prompts"
+MANIFIESTO = "manifest.toml"
+LONGITUD_SHA256 = 64
+
+#: Claves obligatorias de cada entrada del manifiesto.
+_CLAVES = ("id", "version", "archivo", "sha256", "descripcion", "vigente")
+_HEXADECIMAL = frozenset("0123456789abcdef")
+
+
+class ErrorPrompt(ValueError):
+    """El prompt no existe, está mal declarado o su hash no coincide con el archivo."""
+
+
+@dataclass(frozen=True)
+class Prompt:
+    """Versión cargada de un prompt: identidad, procedencia y texto exacto."""
+
+    id: str
+    version: int
+    archivo: str
+    sha256: str
+    texto: str
+
+    @property
+    def etiqueta(self) -> str:
+        """Versión de prompt en un solo token (`planner-v1`), la que viaja al registro."""
+        return f"{self.id}-v{self.version}"
+
+
+def sha256_texto(texto: str) -> str:
+    """SHA-256 hexadecimal del texto cargado (archivo menos su salto final)."""
+    return hashlib.sha256(texto.encode("utf-8")).hexdigest()
+
+
+def _raiz(raiz: Path | None) -> Path:
+    return Path(raiz) if raiz is not None else RUTA_PROMPTS
+
+
+def cargar_manifiesto(*, raiz: Path | None = None) -> dict:
+    """Lee y decodifica `manifest.toml`; `ErrorPrompt` si falta o no es TOML válido."""
+    ruta = _raiz(raiz) / MANIFIESTO
+    try:
+        return tomllib.loads(ruta.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ErrorPrompt(f"No se encontró el manifiesto de prompts: {ruta}.") from exc
+    except tomllib.TOMLDecodeError as exc:
+        raise ErrorPrompt(f"El manifiesto de prompts no es TOML válido ({ruta}): {exc}.") from exc
+
+
+def _entradas(manifiesto: dict, raiz: Path) -> list[dict]:
+    """Lista de entradas `[[prompts]]` del manifiesto; tolera un manifiesto vacío."""
+    entradas = manifiesto.get("prompts", [])
+    if not isinstance(entradas, list) or any(not isinstance(e, dict) for e in entradas):
+        raise ErrorPrompt(
+            f"El manifiesto de prompts no declara una lista [[prompts]] válida en {raiz}."
+        )
+    return entradas
+
+
+def _texto_cargado(ruta: Path) -> str:
+    """Contenido del archivo menos exactamente un salto de línea final."""
+    contenido = ruta.read_text(encoding="utf-8")
+    return contenido[:-1] if contenido.endswith("\n") else contenido
+
+
+def _leer_prompt(ruta: Path, version: object) -> str:
+    """Texto del prompt o `ErrorPrompt` si la ruta no es un archivo UTF-8 legible.
+
+    Un archivo ausente, un directorio en su lugar y un contenido que no es UTF-8
+    válido son el mismo tipo de problema del manifiesto: se informan con el
+    mensaje estructurado en español, nunca con el traceback de la biblioteca
+    (R3-io-leak-01).
+    """
+    try:
+        return _texto_cargado(ruta)
+    except FileNotFoundError as exc:
+        raise ErrorPrompt(
+            f"{ruta}: la versión {version} apunta a un archivo que no existe."
+        ) from exc
+    except IsADirectoryError as exc:
+        raise ErrorPrompt(
+            f"{ruta}: la versión {version} apunta a un directorio, no a un archivo de prompt."
+        ) from exc
+    except UnicodeDecodeError as exc:
+        raise ErrorPrompt(
+            f"{ruta}: la versión {version} apunta a un archivo que no está en UTF-8 válido."
+        ) from exc
+    except OSError as exc:
+        raise ErrorPrompt(
+            f"{ruta}: la versión {version} apunta a un archivo que no se pudo leer ({exc})."
+        ) from exc
+
+
+def _version_entera(entrada: dict, raiz: Path) -> int:
+    """Regla ÚNICA de `version`: un entero estricto, fuera booleanos y decimales.
+
+    La usan el cargador y la puerta de CI, así que un manifiesto aceptado o
+    rechazado lo es por la misma razón y con el mismo mensaje (R2-002,
+    R3-bool-version-03).
+    """
+    version = entrada.get("version")
+    if isinstance(version, bool) or not isinstance(version, int):
+        raise ErrorPrompt(
+            f"{raiz / MANIFIESTO}: la entrada «{entrada.get('id')}» declara `version` = "
+            f"{version!r}; tiene que ser un número entero."
+        )
+    return version
+
+
+def _sha256_valido(valor: object) -> bool:
+    if not isinstance(valor, str):
+        return False
+    return len(valor) == LONGITUD_SHA256 and set(valor) <= _HEXADECIMAL
+
+
+def _mensaje_hash(entrada: dict, calculado: str) -> str:
+    """Error de integridad: archivo, versión declarada y los dos hashes (AC2)."""
+    return (
+        f"{entrada['archivo']}: la versión {entrada['version']} declara sha256 "
+        f"{entrada['sha256']} pero el contenido da {calculado}; si cambiaste el texto, "
+        "crea un archivo nuevo y sube `version`."
+    )
+
+
+def _validar_entrada(entrada: dict, raiz: Path) -> None:
+    """Una entrada del manifiesto tiene que declarar todas sus claves."""
+    faltan = [clave for clave in _CLAVES if clave not in entrada]
+    if faltan:
+        raise ErrorPrompt(
+            f"Entrada del manifiesto incompleta en {raiz / MANIFIESTO}: falta «{faltan[0]}»."
+        )
+
+
+def _prompt_de(entrada: dict, raiz: Path) -> Prompt:
+    """Carga una entrada concreta y verifica su hash contra el archivo declarado."""
+    _validar_entrada(entrada, raiz)
+    version = _version_entera(entrada, raiz)
+    archivo = str(entrada["archivo"])
+    texto = _leer_prompt(raiz / archivo, version)
+    calculado = sha256_texto(texto)
+    if calculado != str(entrada["sha256"]):
+        raise ErrorPrompt(_mensaje_hash(entrada, calculado))
+    return Prompt(
+        id=str(entrada["id"]),
+        version=version,
+        archivo=archivo,
+        sha256=str(entrada["sha256"]),
+        texto=texto,
+    )
+
+
+def cargar(id_prompt: str = PROMPT_VIGENTE, *, raiz: Path | None = None) -> Prompt:
+    """Carga la versión vigente del prompt `id_prompt` y valida su hash (RF-1, RF-2).
+
+    Lanza `ErrorPrompt` si el manifiesto falta, si el id no existe, si no hay
+    exactamente una versión vigente o si el contenido no coincide con el `sha256`
+    declarado.
+    """
+    base = _raiz(raiz)
+    entradas = _entradas(cargar_manifiesto(raiz=base), base)
+    vigentes = [
+        entrada
+        for entrada in entradas
+        if entrada.get("id") == id_prompt and entrada.get("vigente") is True
+    ]
+    if not vigentes:
+        raise ErrorPrompt(
+            f"El manifiesto de prompts no declara una versión vigente para «{id_prompt}» "
+            f"({base / MANIFIESTO})."
+        )
+    if len(vigentes) > 1:
+        versiones = ", ".join(str(entrada.get("version")) for entrada in vigentes)
+        raise ErrorPrompt(
+            f"El manifiesto de prompts declara más de una versión vigente para "
+            f"«{id_prompt}»: {versiones}."
+        )
+    return _prompt_de(vigentes[0], base)
+
+
+def listar(*, raiz: Path | None = None) -> list[Prompt]:
+    """Carga todas las entradas del manifiesto, vigentes o no, con su hash validado."""
+    base = _raiz(raiz)
+    entradas = _entradas(cargar_manifiesto(raiz=base), base)
+    return [_prompt_de(entrada, base) for entrada in entradas]
+
+
+def verificar(*, raiz: Path | None = None) -> list[str]:
+    """Errores de integridad del manifiesto; lista vacía significa consistente (RF-5).
+
+    Nunca lanza por un problema del manifiesto: los acumula como mensajes en
+    español para que el chequeo de CI los imprima todos de una vez.
+    """
+    base = _raiz(raiz)
+    try:
+        entradas = _entradas(cargar_manifiesto(raiz=base), base)
+    except ErrorPrompt as exc:
+        return [str(exc)]
+
+    if not entradas:
+        return [
+            f"El manifiesto de prompts no declara ninguna entrada "
+            f"({base / MANIFIESTO}): el pipeline necesita la versión vigente de "
+            f"«{PROMPT_VIGENTE}»."
+        ]
+
+    errores: list[str] = []
+    vistas: set[tuple[str, object]] = set()
+    vigentes: dict[str, int] = {}
+    for entrada in entradas:
+        faltan = [clave for clave in _CLAVES if clave not in entrada]
+        if faltan:
+            errores.append(
+                f"Entrada del manifiesto incompleta en {base / MANIFIESTO}: falta «{faltan[0]}»."
+            )
+            continue
+        id_prompt = str(entrada["id"])
+        try:
+            version = _version_entera(entrada, base)
+        except ErrorPrompt as exc:
+            errores.append(str(exc))
+            continue
+        archivo = str(entrada["archivo"])
+        declarado = entrada["sha256"]
+        vigentes.setdefault(id_prompt, 0)
+        if (id_prompt, version) in vistas:
+            errores.append(
+                f"El prompt {id_prompt} declara la versión {version} duplicada ({archivo})."
+            )
+        vistas.add((id_prompt, version))
+        if entrada["vigente"] is True:
+            vigentes[id_prompt] = vigentes.get(id_prompt, 0) + 1
+        if not _sha256_valido(declarado):
+            errores.append(
+                f"{archivo}: la versión {version} declara un sha256 con formato inválido "
+                f"({declarado}); se esperan {LONGITUD_SHA256} caracteres hexadecimales "
+                "en minúscula."
+            )
+        ruta = base / archivo
+        if not _sha256_valido(declarado):
+            continue
+        try:
+            calculado = sha256_texto(_leer_prompt(ruta, version))
+        except ErrorPrompt as exc:
+            errores.append(str(exc))
+            continue
+        if calculado != declarado:
+            errores.append(_mensaje_hash(entrada, calculado))
+    for id_prompt, cuenta in sorted(vigentes.items()):
+        if cuenta != 1:
+            errores.append(
+                f"El prompt {id_prompt} declara {cuenta} versiones vigentes; debe declarar "
+                "exactamente una."
+            )
+    if PROMPT_VIGENTE not in vigentes:
+        errores.append(
+            f"El manifiesto no declara la versión vigente del prompt «{PROMPT_VIGENTE}» que "
+            f"usa el pipeline ({base / MANIFIESTO})."
+        )
+    return errores

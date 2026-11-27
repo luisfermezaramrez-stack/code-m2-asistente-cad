@@ -90,6 +90,9 @@ def test_solicitud_entregada_registra_params_metricas_tags_y_artefactos(tmp_path
     assert corrida.data.params["modelo"] == pipeline.llm.planner_model()
     assert corrida.data.params["version_modelo"] == seguimiento.version_modelo()
     assert corrida.data.params["familia"] == "spacer"
+    # HU-33/AC1: el prompt usado viaja como versión y hash también a MLflow.
+    assert corrida.data.params["prompt"] == pipeline.PROMPT_VIGENTE.etiqueta
+    assert corrida.data.params["prompt_hash"] == pipeline.PROMPT_VIGENTE.sha256
     assert float(corrida.data.params["temperatura"]) == pytest.approx(pipeline.TEMPERATURA_LLM)
     assert corrida.data.metrics["tokens_entrada"] == pytest.approx(120.0)
     assert corrida.data.metrics["tokens_salida"] == pytest.approx(40.0)
@@ -104,6 +107,9 @@ def test_solicitud_entregada_registra_params_metricas_tags_y_artefactos(tmp_path
     assert len(filas) == 1
     assert filas[0]["id"] == respuesta.headers["X-Registro-ID"]
     assert filas[0]["id"] == corrida.data.tags["solicitud_id"]
+    # HU-33/AC1: el registro guarda el mismo id y hash que la corrida.
+    assert filas[0]["prompt"] == pipeline.PROMPT_VIGENTE.etiqueta
+    assert filas[0]["prompt_hash"] == pipeline.PROMPT_VIGENTE.sha256
 
     from mlflow.tracking import MlflowClient
 

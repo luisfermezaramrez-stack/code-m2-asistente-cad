@@ -33,7 +33,7 @@ from pathlib import Path
 import httpx
 from constraint_kit import bom, builder, dsl, llm
 
-from m2_cad import MARCA_PRELIMINAR, declinacion, llm_resiliente
+from m2_cad import MARCA_PRELIMINAR, declinacion, llm_resiliente, prompts
 from m2_cad.control import ControlGeneracion
 from m2_cad.observabilidad import redactar
 from m2_cad.registro import _sanitizar
@@ -59,43 +59,15 @@ CATALOGO = {
 }
 # HU-26: el prefijo y el catálogo de causas viven en `declinacion` (una sola fuente).
 
-# Prompt de sistema para DeepSeek (HU-14): el modelo no está afinado para el DSL
-# de constraint-kit, así que el prompt describe los parámetros de cada tipo del
-# catálogo (firmas de constraint_kit/parts.py y parts_bd.py, ejemplos del banco
-# HU-02) y recibe la solicitud en español, sin traducción previa.
-PROMPT_SISTEMA = (
-    "You are a CAD planner. Convert a mechanical-part description, usually written in "
-    "Spanish (sometimes English), into a constraint-kit DSL program for ONE single part. "
-    'Output ONLY a JSON object: {"parts":[{"id":"p","type":"<type>","material":"steel",'
-    '"params":{...}}],"mates":[]}. '
-    "Copy every number from the description exactly; all lengths are in mm; a Spanish "
-    "decimal comma (12,5) means 12.5. Use 0 for optional features the description does "
-    "not ask for. material is one of steel, stainless, aluminum, brass, copper, abs, pla, "
-    "nylon (default steel). "
-    "PART TYPES + params: "
-    "plate{width,depth,thick,boss_d,boss_h,bolt_d,bolt_circle,bolt_count}: rectangular "
-    "plate centered on the origin, width along X, depth along Y, thick along Z, optional "
-    "centered top boss and a circle of bolt_count through holes of diameter bolt_d. "
-    "sheet_bracket{thickness,base_length,flange_length,width,bend_radius}: constant-"
-    "thickness 90-degree L bracket, base along X, flange rising along Z, width along Y. "
-    "adapter{bottom_w,bottom_d,top_d,height}: solid loft from a bottom_w x bottom_d "
-    "rectangle at z=0 to a circle of diameter top_d at z=height. "
-    'flange{nps,flange_class,kind}: ASME B16.5 pipe flange, nps is a string ("1","2"), '
-    "flange_class an integer (150, 300, ...), kind one of weld_neck, slip_on, blind. "
-    "spacer{outer_d,bore_d,height}: cylindrical spacer with a coaxial through bore "
-    "(bore_d 0 means solid). "
-    'screw{size,length,simple,fastener_type}: ISO 4762 socket-head cap screw, size "M<d>-'
-    '<pitch>" (e.g. "M5-0.8"), length in mm, simple true, fastener_type "iso4762". '
-    'extrusion{rail_size,length}: aluminum V-slot profile along Z, rail_size one of "20x20",'
-    '"20x40","20x60","20x80","40x40". '
-    "pipe{nps,length,material,identifier}: straight standard pipe along Z, nps a string, "
-    'material "steel", identifier the schedule (e.g. "40"). '
-    "HONESTY RULE: if the description needs several parts (an assembly) or a part type or "
-    "feature not listed above (gears, bearings, springs, threads-as-feature, ...), do NOT "
-    'substitute a different part; output exactly {"unsupported":"<what you cannot '
-    'express>"}. '
-    "Output json only, no prose."
-)
+# Prompt de sistema para DeepSeek (HU-14): el texto vive como artefacto versionado
+# en `prompts/planner-v1.txt` (id, versión y sha256 en `prompts/manifest.toml`) y
+# se carga por id con `prompts.cargar()` (HU-33, SPEC-034). El prompt describe los
+# parámetros de cada tipo del catálogo (firmas de constraint_kit/parts.py y
+# parts_bd.py, ejemplos del banco HU-02) y recibe la solicitud en español, sin
+# traducción previa. `PROMPT_SISTEMA` se conserva para `_respuesta_modelo` y las
+# pruebas de no regresión de HU-14.
+PROMPT_VIGENTE = prompts.cargar()
+PROMPT_SISTEMA = PROMPT_VIGENTE.texto
 
 # Mensajes en español para los estados HTTP más comunes de DeepSeek (HU-14, AC3).
 MENSAJES_HTTP = {
