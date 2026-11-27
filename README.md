@@ -106,6 +106,8 @@ licencia.
    solicitud anterior aunque el servidor se haya reiniciado (HU-37).
 6. **Revisión** de la pieza en el navegador con vistas frontal, superior y lateral,
    cotas tomadas de `caja_mm`, unidades mm/pulgadas y captura PNG (HU-39).
+7. **Sección** de la pieza con cortes por X/Y/Z, posición ajustable, inversión del lado
+   visible, cara de corte rellena y controles por teclado (HU-50).
 
 ## Estructura
 
