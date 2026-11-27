@@ -90,6 +90,50 @@ def _texto_cargado(ruta: Path) -> str:
     return contenido[:-1] if contenido.endswith("\n") else contenido
 
 
+def _leer_prompt(ruta: Path, version: object) -> str:
+    """Texto del prompt o `ErrorPrompt` si la ruta no es un archivo UTF-8 legible.
+
+    Un archivo ausente, un directorio en su lugar y un contenido que no es UTF-8
+    válido son el mismo tipo de problema del manifiesto: se informan con el
+    mensaje estructurado en español, nunca con el traceback de la biblioteca
+    (R3-io-leak-01).
+    """
+    try:
+        return _texto_cargado(ruta)
+    except FileNotFoundError as exc:
+        raise ErrorPrompt(
+            f"{ruta}: la versión {version} apunta a un archivo que no existe."
+        ) from exc
+    except IsADirectoryError as exc:
+        raise ErrorPrompt(
+            f"{ruta}: la versión {version} apunta a un directorio, no a un archivo de prompt."
+        ) from exc
+    except UnicodeDecodeError as exc:
+        raise ErrorPrompt(
+            f"{ruta}: la versión {version} apunta a un archivo que no está en UTF-8 válido."
+        ) from exc
+    except OSError as exc:
+        raise ErrorPrompt(
+            f"{ruta}: la versión {version} apunta a un archivo que no se pudo leer ({exc})."
+        ) from exc
+
+
+def _version_entera(entrada: dict, raiz: Path) -> int:
+    """Regla ÚNICA de `version`: un entero estricto, fuera booleanos y decimales.
+
+    La usan el cargador y la puerta de CI, así que un manifiesto aceptado o
+    rechazado lo es por la misma razón y con el mismo mensaje (R2-002,
+    R3-bool-version-03).
+    """
+    version = entrada.get("version")
+    if isinstance(version, bool) or not isinstance(version, int):
+        raise ErrorPrompt(
+            f"{raiz / MANIFIESTO}: la entrada «{entrada.get('id')}» declara `version` = "
+            f"{version!r}; tiene que ser un número entero."
+        )
+    return version
+
+
 def _sha256_valido(valor: object) -> bool:
     if not isinstance(valor, str):
         return False
@@ -117,24 +161,12 @@ def _validar_entrada(entrada: dict, raiz: Path) -> None:
 def _prompt_de(entrada: dict, raiz: Path) -> Prompt:
     """Carga una entrada concreta y verifica su hash contra el archivo declarado."""
     _validar_entrada(entrada, raiz)
+    version = _version_entera(entrada, raiz)
     archivo = str(entrada["archivo"])
-    ruta = raiz / archivo
-    try:
-        texto = _texto_cargado(ruta)
-    except FileNotFoundError as exc:
-        raise ErrorPrompt(
-            f"{ruta}: la versión {entrada['version']} apunta a un archivo que no existe."
-        ) from exc
+    texto = _leer_prompt(raiz / archivo, version)
     calculado = sha256_texto(texto)
     if calculado != str(entrada["sha256"]):
         raise ErrorPrompt(_mensaje_hash(entrada, calculado))
-    try:
-        version = int(entrada["version"])
-    except (TypeError, ValueError) as exc:
-        raise ErrorPrompt(
-            f"{raiz / MANIFIESTO}: la entrada «{entrada.get('id')}» declara `version` = "
-            f"{entrada['version']!r}; tiene que ser un entero."
-        ) from exc
     return Prompt(
         id=str(entrada["id"]),
         version=version,
@@ -209,12 +241,10 @@ def verificar(*, raiz: Path | None = None) -> list[str]:
             )
             continue
         id_prompt = str(entrada["id"])
-        version = entrada["version"]
-        if not isinstance(version, int) or isinstance(version, bool):
-            errores.append(
-                f"{base / MANIFIESTO}: la entrada «{id_prompt}» declara `version` = "
-                f"{version!r}; tiene que ser un entero."
-            )
+        try:
+            version = _version_entera(entrada, base)
+        except ErrorPrompt as exc:
+            errores.append(str(exc))
             continue
         archivo = str(entrada["archivo"])
         declarado = entrada["sha256"]
@@ -233,13 +263,15 @@ def verificar(*, raiz: Path | None = None) -> list[str]:
                 "en minúscula."
             )
         ruta = base / archivo
-        if not ruta.is_file():
-            errores.append(f"{ruta}: la versión {version} apunta a un archivo que no existe.")
+        if not _sha256_valido(declarado):
             continue
-        if _sha256_valido(declarado):
-            calculado = sha256_texto(_texto_cargado(ruta))
-            if calculado != declarado:
-                errores.append(_mensaje_hash(entrada, calculado))
+        try:
+            calculado = sha256_texto(_leer_prompt(ruta, version))
+        except ErrorPrompt as exc:
+            errores.append(str(exc))
+            continue
+        if calculado != declarado:
+            errores.append(_mensaje_hash(entrada, calculado))
     for id_prompt, cuenta in sorted(vigentes.items()):
         if cuenta != 1:
             errores.append(

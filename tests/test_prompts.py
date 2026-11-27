@@ -485,3 +485,114 @@ def test_el_manifiesto_debe_declarar_el_prompt_que_usa_el_pipeline(tmp_path):
 
     assert errores
     assert prompts.PROMPT_VIGENTE in " ".join(errores)
+
+
+# --- Endurecimiento pedido por la revisión nativa (R2-002, R3-bool-version-03,
+# --- R3-io-leak-01, R3-worker-cov-04) ---------------------------------------
+
+
+def _copia_con_version(tmp_path, valor: str):
+    """Copia real de prompts/ con la `version` de la entrada sustituida por `valor`."""
+    real = (RAIZ / "prompts" / prompts.MANIFIESTO).read_text(encoding="utf-8")
+    return _copia_con_manifiesto(
+        tmp_path, real.replace("version = 1\narchivo", f"version = {valor}\narchivo", 1)
+    )
+
+
+@pytest.mark.parametrize("valor", ["true", '"1"', "1.5"], ids=["bool", "texto", "decimal"])
+def test_el_cargador_y_la_puerta_comparten_la_regla_de_version(tmp_path, valor):
+    """R2-002/R3-bool-version-03: una sola regla; el cargador no admite lo que la puerta rechaza."""
+    copia = _copia_con_version(tmp_path, valor)
+
+    with pytest.raises(prompts.ErrorPrompt) as excinfo:
+        prompts.cargar(raiz=copia)
+
+    errores = prompts.verificar(raiz=copia)
+    assert errores, "la puerta tiene que rechazar el mismo manifiesto"
+    assert str(excinfo.value) in errores, "cargador y puerta deben dar el mismo error"
+
+
+def test_una_ruta_que_es_directorio_se_informa_sin_traceback(tmp_path):
+    """R3-io-leak-01: `verificar()` no escapa con IsADirectoryError."""
+    copia = tmp_path / "prompts"
+    shutil.copytree(RAIZ / "prompts", copia)
+    archivo = copia / "planner-v1.txt"
+    archivo.unlink()
+    archivo.mkdir()
+
+    errores = prompts.verificar(raiz=copia)
+
+    assert len(errores) == 1
+    assert "planner-v1.txt" in errores[0]
+
+
+def test_un_contenido_que_no_es_utf8_se_informa_sin_traceback(tmp_path):
+    """R3-io-leak-01: `verificar()` no escapa con UnicodeDecodeError."""
+    copia = tmp_path / "prompts"
+    shutil.copytree(RAIZ / "prompts", copia)
+    (copia / "planner-v1.txt").write_bytes(b"\xff\xfe texto que no es utf-8\n")
+
+    errores = prompts.verificar(raiz=copia)
+
+    assert len(errores) == 1
+    assert "planner-v1.txt" in errores[0]
+
+
+@pytest.mark.parametrize("danio", ["directorio", "utf8"], ids=["directorio", "utf8"])
+def test_la_puerta_sale_con_error_ante_un_archivo_ilegible(tmp_path, danio, capsys):
+    """R3-io-leak-01: el CLI falla con código distinto de 0 y un mensaje en español."""
+    import importlib.util
+
+    ruta_script = RAIZ / "scripts" / "verify_prompts.py"
+    especificacion = importlib.util.spec_from_file_location("verify_prompts", ruta_script)
+    modulo = importlib.util.module_from_spec(especificacion)
+    especificacion.loader.exec_module(modulo)
+    puerta = modulo.main
+
+    copia = tmp_path / "prompts"
+    shutil.copytree(RAIZ / "prompts", copia)
+    archivo = copia / "planner-v1.txt"
+    if danio == "directorio":
+        archivo.unlink()
+        archivo.mkdir()
+    else:
+        archivo.write_bytes(b"\xff\xfe no es utf-8\n")
+
+    assert puerta(["--raiz", str(copia)]) == 1
+    assert "planner-v1.txt" in capsys.readouterr().err
+
+
+def test_el_worker_registra_el_prompt_y_su_hash(tmp_path):
+    """R3-worker-cov-04: la fila del camino del worker lleva prompt y prompt_hash."""
+    import csv
+    from datetime import UTC, datetime
+
+    from m2_cad import seguimiento, worker
+
+    ruta = tmp_path / "registro.csv"
+    cargado = prompts.cargar()
+    trabajo = {
+        "id": "trabajo-hu33",
+        "texto": "Espaciador de 14 mm",
+        "creado_en": datetime.now(UTC).isoformat(),
+        "usuario": "ana",
+        "request_id": "req-hu33",
+    }
+    terminal = {
+        "solicitud_id": "trabajo-hu33",
+        "estado": "verificado",
+        "resultado": {"step": "pieza.step"},
+    }
+
+    worker.registrar_terminal(
+        trabajo,
+        terminal,
+        {"prompt": cargado.etiqueta, "prompt_hash": cargado.sha256},
+        seguimiento.Configuracion(activo=False),
+        ruta,
+    )
+
+    with ruta.open(newline="", encoding="utf-8") as archivo:
+        fila = next(csv.DictReader(archivo))
+    assert fila["prompt"] == cargado.etiqueta
+    assert fila["prompt_hash"] == cargado.sha256

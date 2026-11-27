@@ -149,3 +149,24 @@ La corrección vive en `verificar`/`_prompt_de` con pruebas para cada hueco.
 L12 — Cierre: `make check` en verde con 577 pruebas y cobertura 92,49 %. La imagen Docker
 copia `prompts/` y una prueba compara el `Dockerfile` con los directorios que el paquete lee
 al importar. Push y PR quedan a decisión del humano.
+
+L13 — Endurecimiento pedido a raíz de la revisión nativa (R2-002, R3-bool-version-03,
+R3-io-leak-01, R3-worker-cov-04), en una sola tanda y sin tocar nada más.
+
+- `version`: regla única en `prompts._version_entera`, usada por `cargar` y por `verificar`,
+  con el mismo mensaje. RED observado con `version = true`, `version = "1"` y
+  `version = 1.5`: el cargador los aceptaba (`int()` coercionaba) mientras la puerta los
+  rechazaba; ahora las tres formas salen como `ErrorPrompt` y el error del cargador es
+  exactamente el que reporta la puerta (`test_el_cargador_y_la_puerta_comparten_la_regla_de_version`).
+- Lectura de archivos: `_leer_prompt` traduce ausente, directorio, UTF-8 inválido y otros
+  `OSError` a `ErrorPrompt` en español; `verificar` los acumula en vez de escapar con
+  traceback. RED observado: `UnicodeDecodeError` salía por `verificar()` y por el CLI
+  (`test_un_contenido_que_no_es_utf8_se_informa_sin_traceback`,
+  `test_la_puerta_sale_con_error_ante_un_archivo_ilegible[utf8]`); el caso «directorio» ya
+  estaba cubierto por el `is_file()` previo y su prueba se conserva.
+- Worker: `test_el_worker_registra_el_prompt_y_su_hash` afirma que la fila registrada por
+  el camino del worker lleva `planner-v1` y su hash. El comportamiento ya era correcto, así
+  que la prueba nace en verde; se comprobó su sensibilidad quitando `prompt=`/`prompt_hash=`
+  de `worker.py` (falla con `'no aplica' != 'planner-v1'`) y restaurando el archivo.
+- `make prompts-check` en verde y `make check` en verde después de la tanda. No se tocó
+  R3-layout-root-02 ni el formato previo de `main`.
