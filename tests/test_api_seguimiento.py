@@ -113,16 +113,18 @@ def test_solicitud_entregada_registra_params_metricas_tags_y_artefactos(tmp_path
 
 
 def test_declinacion_cierra_la_corrida_con_motivo(tmp_path, monkeypatch):
-    """AC3: estado=declinada con motivo_declinacion y verificacion_ok=0."""
+    """AC3: estado=declinada con motivo_declinacion, causa y verificacion_ok=0."""
     pytest.importorskip("cadquery")
     from fastapi.testclient import TestClient
 
-    from m2_cad import api, pipeline
+    from m2_cad import api, declinacion, pipeline
 
     motivo = "los ensamblajes de varias piezas están fuera del alcance."
 
     def declinar(texto, medir_uso=None):
-        exc = pipeline.PiezaDeclinada(motivo)
+        exc = pipeline.PiezaDeclinada(
+            motivo, causa=declinacion.Causa.DIMENSION_INCOHERENTE
+        )
         exc.programa_json = tmp_path / "programa.json"
         raise exc
 
@@ -138,7 +140,30 @@ def test_declinacion_cierra_la_corrida_con_motivo(tmp_path, monkeypatch):
     assert corrida.info.status == "FINISHED"
     assert corrida.data.tags["estado"] == "declinada"
     assert motivo in corrida.data.tags["motivo_declinacion"]
+    # HU-26/AC3: la causa es una etiqueta estructurada, separada del texto libre.
+    assert corrida.data.tags["causa_declinacion"] == "dimension_incoherente"
     assert corrida.data.metrics["verificacion_ok"] == pytest.approx(0.0)
+
+
+def test_una_pieza_entregada_no_etiqueta_causa(tmp_path, monkeypatch):
+    """HU-26/AC3: la etiqueta de causa existe siempre y vale «ninguna» sin declinación."""
+    pytest.importorskip("cadquery")
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api, pipeline
+
+    def generar_falso(texto, medir_uso=None):
+        return _pieza(tmp_path)
+
+    monkeypatch.setenv("LLM_BASE_URL", "http://llama:8080")
+    monkeypatch.setattr(pipeline, "generar_pieza", generar_falso)
+
+    with TestClient(api.app) as client:
+        respuesta = client.post("/generar", json={"texto": "Placa de 40 mm"})
+
+    assert respuesta.status_code == 200
+    corrida = _corridas(tmp_path)[0]
+    assert corrida.data.tags["causa_declinacion"] == "ninguna"
 
 
 def test_fallo_tecnico_cierra_la_corrida_con_la_clase_del_error(tmp_path, monkeypatch):

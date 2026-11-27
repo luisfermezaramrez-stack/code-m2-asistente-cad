@@ -107,6 +107,7 @@ code-m2-asistente-cad/
 ├── src/m2_cad/                 # paquete propio (src-layout)
 │   ├── api.py                  # FastAPI: rutas `/v1`, redirecciones planas y SSE (HU-06/HU-31)
 │   ├── pipeline.py             # orquesta solicitud→DSL→verificación→B-rep (HU-04)
+│   ├── declinacion.py          # catálogo de causas legibles de declinación (HU-26)
 │   ├── llm_resiliente.py       # reintentos, plazo total y caché del LLM (HU-25)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
 │   ├── evaluacion.py           # evaluador HTTP HU-07: reporte por familia y enlaces CSV/STEP
@@ -338,7 +339,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-25 | HU-45 × HU-32: el costo medido por el worker se guarda en la cola y la API lo suma una vez al presupuesto (`tomar_gastos_pendientes`); la idempotencia se vincula al id real del trabajo | El worker corre en otro proceso y no ve el `ControlUso` en memoria de la API; sin esto el presupuesto diario y `/v1/uso` ignoraban las generaciones SSE |
 | 2026-11-25 | HU-53: sesión local con cookie firmada y usuarios PBKDF2 por entorno; activa por defecto, modo local explícito | Controlar acceso y costo en despliegue público sin red, OIDC ni dependencias nuevas; dueño en trabajos y registro con respuestas 404 ajenas |
 | 2026-11-25 | HU-53 × HU-31/32/45: `/v1/auth/*`; la cola guarda el dueño y el worker lo registra; topes e idempotencia por usuario; login con límite de intentos; firma ligada al hash vigente; configuración validada al arrancar | Integrar la autenticación con la API versionada, la cola y el control de uso sin fugas entre usuarios; endurecer la sesión según la revisión del PR #133 |
->>>>>>> origin/main
+| 2026-11-27 | HU-26: `declinacion.py` concentra el catálogo cerrado de causas, el mensaje legible y la tabla que traduce los códigos del verificador; el registro gana la columna `causa` y MLflow la etiqueta `causa_declinacion`; la causa no viaja en el cuerpo de `/v1` | Un motivo en texto libre no explica la declinación al usuario ni sirve como dimensión de métricas; asignar la causa en el origen evita heurísticas sobre texto y conserva el contrato HTTP y los tipos del frontend |
 
 ## 10. Notas y tareas pendientes
 

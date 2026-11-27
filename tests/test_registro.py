@@ -19,7 +19,7 @@ def leer_registro(ruta):
 
 
 def test_campos_definidos():
-    """El registro define los 8 campos originales más el usuario (HU-53)."""
+    """El registro define los 8 campos originales más usuario (HU-53) y causa (HU-26)."""
     assert CAMPOS == [
         "id",
         "hora",
@@ -30,11 +30,12 @@ def test_campos_definidos():
         "error",
         "version",
         "usuario",
+        "causa",
     ]
 
 
 def test_registrar_fila_completa(tmp_path):
-    """Cada solicitud se registra con los 9 campos (AC3, escenario 1)."""
+    """Cada solicitud se registra con los 10 campos (AC3, escenario 1)."""
     ruta = tmp_path / "registro.csv"
 
     fila = registrar(
@@ -54,6 +55,7 @@ def test_registrar_fila_completa(tmp_path):
     assert fila["error"]  # sin error queda con valor conocido, no vacío
     assert fila["id"]
     assert fila["hora"]
+    assert fila["causa"] == "ninguna"  # HU-26: sin declinación no hay causa
 
 
 def test_id_y_hora_unicos(tmp_path):
@@ -192,3 +194,102 @@ def test_la_sanitizacion_llega_a_todos_los_campos(tmp_path):
 def test_ruta_default_apunta_a_data():
     """El registro por defecto vive en data/registro.csv (plan de HU-06)."""
     assert RUTA_DEFAULT.as_posix() == "data/registro.csv"
+
+
+def test_la_causa_se_persiste_separada_del_mensaje(tmp_path):
+    """HU-26/AC3: la causa es un campo estructurado, no parte del texto libre."""
+    ruta = tmp_path / "registro.csv"
+
+    fila = registrar(
+        texto="Ensamble de dos bridas",
+        traduccion="no aplica",
+        resultado=None,
+        latencia_ms=12.0,
+        error="Pieza declinada: la solicitud está fuera del catálogo del asistente.",
+        causa="familia_no_soportada",
+        ruta=ruta,
+    )
+
+    assert fila["causa"] == "familia_no_soportada"
+    assert "familia_no_soportada" not in fila["error"]
+    assert leer_registro(ruta)[0]["causa"] == "familia_no_soportada"
+
+
+def _escribir_csv(ruta, cabecera, filas):
+    """Deja un registro con la cabecera de una versión anterior (HU-53, HU-26)."""
+    with open(ruta, "w", newline="", encoding="utf-8") as archivo:
+        escritor = csv.DictWriter(archivo, fieldnames=cabecera)
+        escritor.writeheader()
+        escritor.writerows(filas)
+
+
+_HISTORICA = {
+    "id": "a1b2c3",
+    "hora": "2025-01-01T00:00:00+00:00",
+    "texto": "Placa de 40 mm",
+    "traduccion": "no aplica",
+    "resultado": "{}",
+    "latencia_ms": "10.0",
+    "error": "ninguno",
+    "version": "desconocida",
+    "usuario": "anónimo",
+}
+
+
+@pytest.mark.parametrize("columnas", [8, 9], ids=["pre-HU-53", "pre-HU-26"])
+def test_migra_un_registro_anterior_sin_perder_filas(tmp_path, columnas):
+    """HU-26: un CSV de 8 o 9 columnas se migra añadiendo las que faltan."""
+    ruta = tmp_path / "registro.csv"
+    cabecera = CAMPOS[:columnas]
+    fila = {clave: _HISTORICA[clave] for clave in cabecera}
+    _escribir_csv(ruta, cabecera, [fila])
+
+    registrar(texto="Brida", traduccion="no aplica", resultado=None, latencia_ms=1, ruta=ruta)
+
+    filas = leer_registro(ruta)
+    assert list(filas[0]) == CAMPOS
+    assert len(filas) == 2
+    assert filas[0]["id"] == "a1b2c3"
+    assert filas[0]["texto"] == "Placa de 40 mm"
+    assert filas[0]["usuario"] == "anónimo"
+    assert filas[0]["causa"] == "ninguna"
+
+
+def test_un_registro_vacio_se_reconstruye(tmp_path):
+    """Un CSV de 0 bytes no rompe el alta: se reescribe la cabecera."""
+    ruta = tmp_path / "registro.csv"
+    ruta.write_bytes(b"")
+
+    fila = registrar(
+        texto="Placa", traduccion="no aplica", resultado=None, latencia_ms=1, ruta=ruta
+    )
+
+    assert fila["causa"] == "ninguna"
+    assert len(leer_registro(ruta)) == 1
+
+
+def test_una_causa_fuera_del_catalogo_se_rechaza(tmp_path):
+    """S13: una causa nueva entra al catálogo, nunca como texto libre."""
+    ruta = tmp_path / "registro.csv"
+
+    with pytest.raises(ValueError, match="no es una causa del catálogo"):
+        registrar(
+            texto="Brida",
+            traduccion="no aplica",
+            resultado=None,
+            latencia_ms=1,
+            causa="porque sí",
+            ruta=ruta,
+        )
+
+
+def test_una_cabecera_desconocida_no_se_migra(tmp_path):
+    """La migración sólo añade columnas al final; no reordena ni inventa."""
+    from m2_cad.registro import _asegurar_columnas
+
+    ruta = tmp_path / "registro.csv"
+    ajena = ["id", "hora", "texto", "traduccion", "resultado", "latencia_ms", "sobrante"]
+    _escribir_csv(ruta, ajena, [{clave: _HISTORICA.get(clave, "x") for clave in ajena}])
+
+    with pytest.raises(ValueError, match="no coincide con CAMPOS"):
+        _asegurar_columnas(ruta)

@@ -379,6 +379,37 @@ def test_generar_traduce_errores_del_pipeline(tmp_path, monkeypatch, error, codi
     )
 
 
+def test_el_422_de_verificacion_explica_sin_jerga_y_registra_la_causa(tmp_path, monkeypatch):
+    """HU-26/AC2 y AC3: el 422 explica qué hacer y la causa queda en el registro."""
+    pytest.importorskip("cadquery")
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api, declinacion, pipeline
+
+    detalle_tecnico = "part-build-error at parts[0].params: bore 20 > outer_d 10"
+
+    def fallar(texto, **kwargs):
+        raise pipeline.ErrorVerificacion(
+            detalle_tecnico, causa=declinacion.Causa.DIMENSION_INCOHERENTE
+        )
+
+    ruta = _preparar_registro(monkeypatch, tmp_path)
+    monkeypatch.setenv("LLM_BASE_URL", "http://llama:8080")
+    monkeypatch.setattr(pipeline, "generar_pieza", fallar)
+
+    with TestClient(api.app) as client:
+        respuesta = client.post("/generar", json={"texto": "Espaciador de 10 mm con agujero de 20"})
+
+    assert respuesta.status_code == 422
+    mensaje = respuesta.json()["detail"]
+    assert declinacion.QUE_HARIA_FALTA[declinacion.Causa.DIMENSION_INCOHERENTE] in mensaje
+    assert detalle_tecnico not in mensaje
+    assert respuesta.headers.get("X-Resultado-Tipo") is None
+    fila = leer_registro_csv(ruta)[0]
+    assert fila["causa"] == "dimension_incoherente"
+    assert detalle_tecnico not in fila["error"]
+
+
 def test_correlacion_version_consulta_y_step(tmp_path, monkeypatch):
     """La correlación enlaza una fila concreta y conserva el cuerpo anterior."""
     import uuid

@@ -6,7 +6,7 @@
 - **Responsable**: Luis Fernando Meza
 - **Depende de**: —
 - **Rama**: `feature/hu-26-declinacion-legible`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: Spec-first · implementada; `plan.md` y `tasks.md` en esta carpeta
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §3
 
 ## Problema y contexto

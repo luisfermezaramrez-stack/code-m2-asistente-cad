@@ -85,6 +85,29 @@ def test_ac2_backup_no_sobrescribe(tmp_path):
         backup(ruta, respaldo)
 
 
+def test_restore_acepta_un_snapshot_anterior_y_la_escritura_lo_migra(tmp_path):
+    """HU-26: un snapshot sin la columna `causa` se restaura y se migra al escribir."""
+    ruta = tmp_path / "registro.csv"
+    respaldo = tmp_path / "backup.csv"
+    anteriores = [campo for campo in CAMPOS if campo != "causa"]
+    with respaldo.open("w", newline="", encoding="utf-8") as archivo:
+        escritor = csv.DictWriter(archivo, fieldnames=anteriores)
+        escritor.writeheader()
+        escritor.writerow({campo: "x" for campo in anteriores} | {"id": "anterior"})
+    _registro(ruta, uuid.uuid4().hex)
+
+    assert restore(ruta, respaldo) == ruta
+    assert ruta.read_bytes() == respaldo.read_bytes()
+
+    _registro(ruta, uuid.uuid4().hex)
+    with ruta.open(newline="", encoding="utf-8") as archivo:
+        filas = list(csv.DictReader(archivo))
+    assert list(filas[0]) == CAMPOS
+    assert filas[0]["id"] == "anterior"
+    assert filas[0]["causa"] == "ninguna"
+    assert len(filas) == 2
+
+
 def test_ac2_restore_rechaza_csv_invalido(tmp_path):
     ruta = tmp_path / "registro.csv"
     respaldo = tmp_path / "backup.csv"

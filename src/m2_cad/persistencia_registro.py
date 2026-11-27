@@ -123,6 +123,23 @@ def backup(registro: Path, destino: Path) -> Path:
     return destino
 
 
+def _validar_snapshot(origen: Path) -> None:
+    """Valida un snapshot con cualquiera de las cabeceras conocidas (HU-26).
+
+    Un snapshot anterior a la última columna añadida se restaura byte a byte, como
+    exige HU-30: la cabecera la migra la siguiente escritura del registro.
+    """
+    from m2_cad.registro import CAMPOS
+
+    with origen.open("r", newline="", encoding="utf-8") as archivo:
+        lector = csv.DictReader(archivo)
+        cabecera = lector.fieldnames or []
+        if not cabecera or cabecera != CAMPOS[: len(cabecera)]:
+            raise ValueError("La cabecera del registro no coincide con CAMPOS.")
+        if any(None in fila or None in fila.values() for fila in lector):
+            raise ValueError("Registro CSV incompleto.")
+
+
 def restore(registro: Path, origen: Path) -> Path:
     """Valida y restaura un snapshot byte a byte con reemplazo atómico."""
     registro = Path(registro)
@@ -130,13 +147,16 @@ def restore(registro: Path, origen: Path) -> Path:
     if registro.resolve() == origen.resolve():
         raise ValueError("El origen no puede ser el propio registro.")
     # Importación local para mantener CAMPOS como fuente única de verdad.
-    from m2_cad.registro import CAMPOS
+    from m2_cad import registro as modulo_registro
 
     with _bloqueo(registro):
         if not origen.is_file():
             raise FileNotFoundError(origen)
-        _leer_filas(origen, CAMPOS)
+        _validar_snapshot(origen)
         _publicar_bytes(registro, origen.read_bytes())
+    # La cabecera restaurada puede ser anterior a CAMPOS: la próxima escritura la migra,
+    # así que se olvida la comprobación ya hecha para esta ruta.
+    modulo_registro._RUTAS_MIGRADAS.discard(registro.resolve())
     return registro
 
 

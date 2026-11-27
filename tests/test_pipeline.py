@@ -168,13 +168,23 @@ def test_verificar_programa_invalido_lanza_error():
 
 
 def test_verificar_programa_declinado_lanza_declinacion():
-    """Una declinación del modelo no se construye; el motivo va en español (HU-05)."""
+    """Una declinación del modelo no se construye; el motivo va en español (HU-05).
+
+    HU-26/AC2 y AC5: la razón cruda del modelo no aparece en el mensaje del usuario;
+    se conserva en el detalle técnico para diagnóstico.
+    """
+    from m2_cad import declinacion
+
     with pytest.raises(pipeline.PiezaDeclinada) as excinfo:
         pipeline.verificar_programa({"unsupported": "gear train"})
 
     assert excinfo.value.detalle == "gear train"
+    assert excinfo.value.causa is declinacion.Causa.FAMILIA_NO_SOPORTADA
     assert excinfo.value.motivo.startswith("El asistente no puede construir esta pieza:")
-    assert "«gear train»" in excinfo.value.motivo
+    assert "gear train" not in excinfo.value.motivo
+    assert declinacion.QUE_HARIA_FALTA[declinacion.Causa.FAMILIA_NO_SOPORTADA] in (
+        excinfo.value.motivo
+    )
 
 
 def test_extraer_programa_ignora_razonamiento_previo():
