@@ -4,7 +4,7 @@
 .PHONY: help install lock vendor test cov lint format check \
         precommit-install precommit build up down clean bench bench-report worker \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup \
-        corpus-dorado \
+        corpus-dorado prompts-check \
         security security-secretos security-dependencias security-excepciones-validar \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
         mlflow api-types api-types-check api-contract api-contract-check hash-clave
@@ -37,6 +37,9 @@ kernel-test: kernel-image ## Corre las 113 pruebas del kernel en el contenedor d
 corpus-dorado: ## HU-23: compara el núcleo determinista con el corpus dorado (sin GPU ni red)
 	uv run --no-sync python -B scripts/verify_corpus_dorado.py
 
+prompts-check: ## HU-33: verifica que ningún prompt cambió sin subir su versión
+	uv run --no-project python -B scripts/verify_prompts.py
+
 security: security-excepciones-validar security-secretos security-dependencias ## HU-28: escaneo de secretos y dependencias (necesita red; fuera de `make check`)
 
 security-secretos: security-excepciones-validar ## HU-28: gitleaks 8.30.1 sobre el historial del repositorio
@@ -59,12 +62,12 @@ cov: frontend-build ## Corre pytest con reporte de cobertura
 
 lint: ## Ruff con reglas E, F, I, B
 	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py \
-		scripts/generate_api_contract.py scripts/verify_corpus_dorado.py
+		scripts/generate_api_contract.py scripts/verify_corpus_dorado.py scripts/verify_prompts.py
 
 format: ## Aplica ruff format
 	uv run ruff format src tests
 
-check: lint api-contract-check api-types-check frontend-check cov ## Ruff, contratos, SPA y cobertura (CI)
+check: lint prompts-check api-contract-check api-types-check frontend-check cov ## Ruff, contratos, SPA y cobertura (CI)
 
 worker: ## HU-45: consume la cola persistente en un proceso separado de la API
 	uv run --no-sync python -m m2_cad.worker

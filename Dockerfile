@@ -36,6 +36,9 @@ WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 COPY data ./data
+# HU-33: el prompt del planificador es un artefacto versionado y el pipeline lo
+# carga al importar, así que la imagen lo necesita junto al paquete.
+COPY prompts ./prompts
 COPY --from=vendor-build /app/vendor/constraint-kit ./vendor/constraint-kit
 COPY --from=frontend-build /build/frontend/dist ./frontend/dist
 

@@ -281,11 +281,17 @@ def ready() -> JSONResponse:
 
 
 def _preparar_medicion(pipeline, medido: dict) -> Callable[[dict], None]:
-    """Anota modelo y versión, y devuelve el receptor del `usage` (HU-16, AC2)."""
+    """Anota modelo, versión y prompt vigente, y devuelve el receptor del `usage` (HU-16).
+
+    HU-33/AC1: la etiqueta y el hash del prompt cargado viajan con la medición para que
+    queden en el registro y en la corrida de MLflow de cada solicitud.
+    """
     medido.update(
         modelo=pipeline.llm.planner_model(),
         version_modelo=seguimiento.version_modelo(),
         temperatura=pipeline.TEMPERATURA_LLM,
+        prompt=pipeline.PROMPT_VIGENTE.etiqueta,
+        prompt_hash=pipeline.PROMPT_VIGENTE.sha256,
     )
 
     def medir_uso(uso: dict) -> None:
@@ -641,6 +647,8 @@ def medir_solicitud(
         version_modelo=medido.get("version_modelo"),
         familia=medido.get("familia"),
         temperatura=medido.get("temperatura"),
+        prompt=medido.get("prompt"),
+        prompt_hash=medido.get("prompt_hash"),
     )
     tokens_entrada = medido.get("tokens_entrada")
     tokens_salida = medido.get("tokens_salida")
@@ -737,6 +745,8 @@ def _generar_sse(
             identificador=terminal["solicitud_id"],
             usuario=usuario,
             causa=medido.get("causa"),
+            prompt=medido.get("prompt"),
+            prompt_hash=medido.get("prompt_hash"),
         )
         estado = _ESTADOS_CORRIDA_SSE.get(terminal["estado"], "error")
         solicitud_id = terminal["solicitud_id"]
@@ -825,6 +835,8 @@ def _generar_json(
             identificador=solicitud_id,
             usuario=usuario,
             causa=medido.get("causa"),
+            prompt=medido.get("prompt"),
+            prompt_hash=medido.get("prompt_hash"),
         )
         medir_solicitud(
             corrida,
@@ -853,6 +865,8 @@ def _generar_json(
             ruta=obtener_ruta_registro(),
             identificador=solicitud_id,
             usuario=usuario,
+            prompt=medido.get("prompt"),
+            prompt_hash=medido.get("prompt_hash"),
         )
         medir_solicitud(
             corrida,
@@ -878,6 +892,8 @@ def _generar_json(
         ruta=obtener_ruta_registro(),
         identificador=solicitud_id,
         usuario=usuario,
+        prompt=medido.get("prompt"),
+        prompt_hash=medido.get("prompt_hash"),
     )
     medir_solicitud(
         corrida,

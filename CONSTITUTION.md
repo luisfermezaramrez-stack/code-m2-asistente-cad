@@ -196,6 +196,7 @@ code-m2-asistente-cad/
 | Kernel del autor | 113 pruebas dentro del contenedor `cadkit:0.1` | `make kernel-image` + `make kernel-test` |
 | Corpus dorado | Divergencia geométrica del núcleo por huella de STEP, en cada PR | `make corpus-dorado` |
 | Seguridad | gitleaks y pip-audit en cada PR | `make security` | SPEC-029 |
+| Prompts versionados | id, versión y hash del prompt; CI falla si el texto cambia sin subir versión | `make prompts-check` | SPEC-034 |
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
 | Servicio | Vue/FastAPI + DeepSeek externo | `make up` / `make down` |
 
@@ -205,6 +206,16 @@ desde lockfiles. Las pruebas con dobles se identifican como simuladas y no prueb
 inferencia real. El corpus dorado es un paso propio fuera de `make check`: compara el
 núcleo determinista contra huellas congeladas de STEP (`make corpus-dorado`, SPEC-024) y
 falla nombrando el caso y las huellas esperada y obtenida.
+
+HU-33 versiona los prompts como artefactos: `prompts/planner-v1.txt` guarda el texto
+exacto del planificador y `prompts/manifest.toml` declara su id, versión y `sha256`;
+`src/m2_cad/prompts.py` es el único cargador (`cargar`, `listar`, `verificar`) y su
+contrato `Prompt` (id, versión, archivo, sha256, texto y `.etiqueta`) es estable para
+HU-35 y SPEC-053. Agregar una versión es un archivo nuevo más una entrada nueva: el
+texto de una versión publicada no se edita. `make prompts-check` entra en `make check`
+y en el job `lint` del espejo, así que un cambio de contenido sin subir `version`
+hace fallar las dos puertas (AC2); cada fila del registro y cada corrida de MLflow
+llevan `prompt` y `prompt_hash` del texto realmente enviado al modelo.
 
 El escaneo de seguridad es un paso propio más, también fuera de `make check`: descarga
 el gitleaks fijado y consulta los advisories en OSV, así que necesita red. `make security`
