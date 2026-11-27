@@ -1,10 +1,11 @@
 # Runbook operativo
 
 Este documento describe incidentes previsibles del servicio y su respuesta. Complementa la
-puesta en marcha de [HU-15/despliegue](hu15-despliegue.md) y el [README](../README.md). Cada
-escenario tiene síntoma, diagnóstico, acción, verificación de recuperación y escalado. Si un
-comando muestra una clave, una URL privada o un token, detén la ejecución y escala: el servicio
-está diseñado para no hacerlo.
+puesta en marcha de [HU-15/despliegue](hu15-despliegue.md), el
+[despliegue en la nube](runbook-cloud.md) y el [README](../README.md). Cada escenario tiene
+síntoma, diagnóstico, acción, verificación de recuperación y escalado. Si un comando muestra
+una clave, una URL privada o un token, detén la ejecución y escala: el servicio está diseñado
+para no hacerlo.
 
 Convenciones:
 

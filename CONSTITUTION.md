@@ -89,7 +89,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Espejo GitLab** | GitHub es la fuente de verdad; `.github/workflows/espejo-gitlab.yml` replica ramas y etiquetas en GitLab (solo lectura) vía deploy key SSH (`vars.GITLAB_MIRROR_URL`, `secrets.GITLAB_MIRROR_SSH_KEY`) |
 | **Pipeline GitLab** | `.gitlab-ci.yml` deja evidencia sobre el espejo en seis jobs: `lint` (imagen de uv 0.13.5 con el Python de `.python-version` y `make lint`), `secretos` (gitleaks sobre el historial completo), `dependencias` (pip-audit sobre el export de `uv.lock`), `run_test` (`vendor` + `uv sync --locked` + `make frontend-install` + `make test` sobre `node:24-bookworm`), `e2e` (Playwright/Chromium sobre el build real con backend simulado, HU-41) y `build_image` (imagen Docker). Corre con push a la rama por defecto del espejo, lanzamiento manual o pipeline programado: no abre una segunda puerta de integración, que la puerta es el PR en GitHub |
 | **Dependencias automáticas** | [Dependabot](.github/dependabot.yml) (target `main`) |
-| **Despliegue** | Docker multietapa Node/vendor/Python; Compose: `mlflow` (`:5000`) + `m2-cad` (Vue + FastAPI `:8000`), DeepSeek externo |
+| **Despliegue** | Docker multietapa Node/vendor/Python; Compose local: `mlflow` (`:5000`) + `m2-cad` (Vue + FastAPI `:8000`), DeepSeek externo; Compose cloud: `caddy` + `m2-cad` + `m2-cad-worker` con volúmenes persistentes y TLS parametrizado (HU-47) |
 
 > ⚠️ **Regla dura:** toda gestión de dependencias y entornos pasa por `uv`.
 > Dependencias nuevas con `uv add` / `uv add --dev`; `uv.lock` se versiona.
@@ -140,8 +140,10 @@ code-m2-asistente-cad/
 ├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
 ├── specs/                      # specs SDD 001–023 (Spec Kit, Retroactiva, Spec-first); índice en specs/README.md
 ├── scripts/                    # fetch-model, verify-serve, vendor, cloud, verify_banco_replay.py (HU-44),
-│                               # verificar_alertas.py (HU-46) y comparar_ab.py (HU-52)
-├── docs/                       # documentación, sistema de diseño, runbook operativo, política de versionado y diagrama
+│                               # verificar_alertas.py (HU-46), comparar_ab.py (HU-52) y
+│                               # verify_hu47_cloud_config.py (HU-47)
+├── deploy/                     # Caddyfile parametrizado para TLS en la nube (HU-47)
+├── docs/                       # documentación, sistema de diseño, runbooks operativo y cloud, política de versionado y diagrama
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
 ├── .github/                    # CI, banco real programado (HU-44), alertas (HU-46), labels,
 │                               # Dependabot y plantillas
@@ -159,7 +161,8 @@ code-m2-asistente-cad/
 ├── .editorconfig               # convenciones de estilo entre editores
 ├── .pre-commit-config.yaml     # hooks de calidad
 ├── Dockerfile                  # imagen base python:3.12-slim + uv
-└── docker-compose.yml          # mlflow + m2-cad (Vue/FastAPI) + DeepSeek externo (sin GPU)
+├── docker-compose.yml          # mlflow + m2-cad (Vue/FastAPI) + DeepSeek externo (sin GPU)
+└── docker-compose.cloud.yml    # caddy + m2-cad + worker con volúmenes persistentes (HU-47)
 ```
 
 ## 5. Convenciones de código
@@ -455,6 +458,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-27 | HU-55: releases automáticos desde `main` con versión semántica y `CHANGELOG.md` generados por `releases.py`; el job `release` de CI publica sólo tras `test`/`e2e`, con modo seco y verificación en `make check` | Cumplir SPEC-056 sin redactar notas a mano ni publicar desde PRs/forks, manteniendo `pyproject.toml`, etiqueta y changelog coherentes y respetando la decisión de `main` de SPEC-058 |
 | 2026-11-27 | HU-52: `ab.py` y `comparar_ab.py` comparan dos variantes de prompt/modelo sobre el mismo banco, con dos corridas en `m2-cad-ab` y reporte por familia/caso; `planner-v2` se registra sin desplazar a la v1 | Separar la decisión de promover de la evidencia: la comparación real gasta tokens y vive fuera de CI, el replay por variante no usa red y las pruebas no dependen de MLflow ni del proveedor |
 | 2026-11-27 | HU-50: `viewerCortes.ts` concentra ejes, límites, normal y constantes; `GlbViewer.vue` aplica `Plane` + stencil sobre la geometría cargada y expone corte por X/Y/Z, posición, inversión, desactivación y atajos accesibles | Inspeccionar el interior de la pieza sin backend ni GPU real; la tapa se calcula en el cliente y el corte convive con vistas, cotas y PNG de HU-39 |
+| 2026-11-27 | HU-47: `docker-compose.cloud.yml` y `deploy/Caddyfile` parametrizan API, worker, volúmenes y TLS sin tocar la imagen; `verify_hu47_cloud_config.py` valida la estructura y los secretos sin red ni impresión de valores | Dejar verificable el despliegue con dominio propio mientras faltan proveedor, DNS, imagen publicada y credenciales; conservar la cola compartida de HU-45 y la sesión segura de HU-53 sin contratar ni publicar |
 
 ## 10. Notas y tareas pendientes
 

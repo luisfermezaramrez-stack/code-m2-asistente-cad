@@ -9,21 +9,23 @@
   [SPEC-046](../046-hu-45-cola-persistente/spec.md); además
   [SPEC-054](../054-hu-53-autenticacion/spec.md) si el despliegue es público
 - **Rama**: `feature/hu-47-despliegue-nube`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: Implementación local completada; publicación pendiente de proveedor, dominio y credenciales. `plan.md`, `tasks.md` y `evidence.md` documentan el avance.
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
 
 ## Problema y contexto
 
 El empaquetado ya existe: el `Dockerfile` es multi-etapa (build del frontend en
-`Dockerfile:2`, vendoreo de constraint-kit en `Dockerfile:11`, imagen final en
-`Dockerfile:20`) con `HEALTHCHECK` contra `/health` (`Dockerfile:51-52`) y Uvicorn con
-`--workers 1` (`Dockerfile:55`). El despliegue documentado es sólo local con Docker
+`Dockerfile:2`, vendoreo de constraint-kit en `Dockerfile:10`, imagen final en
+`Dockerfile:19`) con `HEALTHCHECK` contra `/v1/health` (`Dockerfile:53-54`) y Uvicorn con
+`--workers 1` (`Dockerfile:57`). El despliegue documentado es sólo local con Docker
 Compose (HU-10, SPEC-010). Esta spec **no** rehace el empaquetado: cubre despliegue en un
-proveedor de nube, TLS, dominio y runbook (ítem 45 del borrador, reformulado).
+proveedor de nube, TLS, dominio y runbook (ítem 45 del borrador, reformulado). El
+[`plan.md`](./plan.md) elige un VPS en la nube con Docker Compose y Caddy para conservar
+el sistema de archivos compartido entre API y worker.
 
-El servicio no tiene autenticación ni topes de costo hoy; por eso depende de SPEC-033
-(costo y límites), SPEC-037 (endurecimiento de descargas) y SPEC-046 (cola persistente,
-para no perder trabajos en reinicios). Si el despliegue es público, requiere SPEC-054.
+SPEC-033 (costo y límites), SPEC-037 (endurecimiento de descargas), SPEC-046 (cola
+persistente) y SPEC-054 (sesión por usuario) ya están fusionadas en `main` y son
+requisito del despliegue público; la configuración cloud las exige activas.
 
 ## Historia de usuario
 
@@ -34,12 +36,13 @@ dominio propio, **para** que evaluadores y usuarios lo usen sin instalar nada lo
 
 ### Funcionales
 
-- **RF-1**: desplegar la imagen existente en un proveedor de nube. Supuesto: proveedor con
-  contenedores gestionados y nivel gratuito o de bajo costo; se elige en `plan.md`.
+- **RF-1**: desplegar la imagen existente en un proveedor de nube. Se elige un VPS en la
+  nube con Docker Compose y Caddy (`plan.md`); el proveedor concreto queda pendiente de
+  autorización y la configuración versionada no depende de una marca comercial.
 - **RF-2**: servir el frontend y la API por HTTPS con certificado válido y renovación
   automática, bajo un dominio o subdominio del proyecto.
 - **RF-3**: inyectar secretos (API key del LLM, precios, orígenes CORS `M2_CORS_ORIGINS`
-  de `src/m2_cad/web.py:14`) desde el gestor del proveedor, nunca desde la imagen.
+  de `src/m2_cad/web.py:16`) desde el gestor del proveedor, nunca desde la imagen.
 - **RF-4**: persistir el registro y los trabajos en almacenamiento que sobreviva a
   reinicios (apoyado en SPEC-031 y SPEC-046).
 - **RF-5**: runbook de despliegue, rollback y rotación de secretos, enlazado desde el
@@ -58,7 +61,7 @@ dominio propio, **para** que evaluadores y usuarios lo usen sin instalar nada lo
 
 - **Dado** la imagen publicada y los secretos configurados
 - **Cuando** se despliega con el procedimiento documentado
-- **Entonces** `https://<dominio>/health` responde 200 con certificado válido.
+- **Entonces** `https://<dominio>/v1/health` responde 200 con certificado válido.
 
 ### AC2 — Generación de punta a punta
 

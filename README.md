@@ -524,8 +524,10 @@ Contrato completo: [HU-15/SSE](docs/hu15-sse.md). Gobernanza arquitectónica:
 ### Operación e incidentes
 
 Ante una falla del proveedor, credenciales, rollback o restauración de datos, seguir el
-[runbook operativo](docs/runbook-operativo.md). No incluye secretos y sus comandos se ejecutan
-desde la raíz del repositorio.
+[runbook operativo](docs/runbook-operativo.md). Para publicar con HTTPS y dominio propio,
+seguir el [runbook en la nube](docs/runbook-cloud.md), que deja la configuración parametrizada
+y lista lo que falta sin contratar ni desplegar. Ninguno incluye secretos y sus comandos se
+ejecutan desde la raíz del repositorio.
 
 ### Variables de entorno
 
