@@ -41,6 +41,41 @@ def test_la_api_no_publica_puertos_y_el_worker_espera_salud(capsys):
     assert "m2-cad-outputs:/app/outputs" in worker
 
 
+def test_el_correo_acme_es_obligatorio_porque_caddy_no_arranca_sin_el(monkeypatch, tmp_path):
+    # `email {$M2_TLS_EMAIL}` vacío no es un Caddyfile válido: Compose debe exigirlo.
+    compose = validador.leer(validador.COMPOSE)
+    assert "M2_TLS_EMAIL: ${M2_TLS_EMAIL:?Defina M2_TLS_EMAIL}" in compose
+    assert "${M2_TLS_EMAIL:-" not in compose
+
+    copia = tmp_path / "docker-compose.cloud.yml"
+    copia.write_text(
+        compose.replace("${M2_TLS_EMAIL:?Defina M2_TLS_EMAIL}", "${M2_TLS_EMAIL:-}"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validador, "COMPOSE", copia)
+
+    errores = validador.revisar_estructura()
+
+    assert any("M2_TLS_EMAIL" in error for error in errores)
+
+
+def test_la_api_confia_en_la_ip_reenviada_por_caddy(monkeypatch, tmp_path):
+    # Sin esto uvicorn ve la IP de Caddy y el límite de login por cliente es global.
+    compose = validador.leer(validador.COMPOSE)
+    api = validador.bloque_servicio(compose, "m2-cad")
+    worker = validador.bloque_servicio(compose, "m2-cad-worker")
+    assert 'FORWARDED_ALLOW_IPS: "*"' in api
+    assert "FORWARDED_ALLOW_IPS" not in worker
+
+    copia = tmp_path / "docker-compose.cloud.yml"
+    copia.write_text(compose.replace('      FORWARDED_ALLOW_IPS: "*"\n', ""), encoding="utf-8")
+    monkeypatch.setattr(validador, "COMPOSE", copia)
+
+    errores = validador.revisar_estructura()
+
+    assert any("FORWARDED_ALLOW_IPS" in error for error in errores)
+
+
 def test_rechaza_dominio_con_esquema(monkeypatch, capsys):
     entorno_valido(monkeypatch)
     monkeypatch.setenv("M2_DOMAIN", "https://cad.ejemplo.example")

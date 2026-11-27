@@ -9,7 +9,7 @@ services:
       - "443:443"
     environment:
       M2_DOMAIN: ${M2_DOMAIN:?Defina M2_DOMAIN}
-      M2_TLS_EMAIL: ${M2_TLS_EMAIL:-}
+      M2_TLS_EMAIL: ${M2_TLS_EMAIL:?Defina M2_TLS_EMAIL}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
@@ -27,6 +27,9 @@ services:
       LLM_MODEL: ${LLM_MODEL:-deepseek-v4-pro}
       M2_AUTH_ENABLED: "1"
       M2_AUTH_COOKIE_SECURE: "1"
+      # Sólo Caddy alcanza la API (sin puerto de host): su X-Forwarded-For da la IP
+      # real del cliente, que usa el límite de intentos de login.
+      FORWARDED_ALLOW_IPS: "*"
       M2_AUTH_SECRET: ${M2_AUTH_SECRET:?Defina M2_AUTH_SECRET}
       M2_AUTH_USERS: ${M2_AUTH_USERS:?Defina M2_AUTH_USERS}
       M2_CORS_ORIGINS: https://${M2_DOMAIN:?Defina M2_DOMAIN}
