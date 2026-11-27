@@ -1,8 +1,9 @@
 # Evidencia · HU-46 (SPEC-047)
 
 Rama: `feature/hu-46-alertas-regresion` (creada desde `feature/hu-44-banco-ci-replay`).
-PR: pendiente de creación; apunta a `main` y depende de #151 (SPEC-045), que sigue en
-revisión. No se fusiona nada antes de la aprobación de esa dependencia.
+PR: [#152](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/152);
+apunta a `main` y depende de #151 (SPEC-045), que sigue en revisión. No se fusiona nada
+antes de la aprobación de esa dependencia.
 
 ## Implementación
 
