@@ -51,7 +51,7 @@ async function submit() {
           <p id="timeout-help" class="help">De 5 a 600 segundos. Interrumpir la espera desconecta y solicita cancelación local; consulta el estado para confirmar la detención. No se confirma la detención de servicios remotos.</p>
         </details>
         <div class="actions">
-          <button class="primary" type="submit" :disabled="busy || props.necesitaLogin">Generar pieza</button>
+          <button class="primary" type="submit" :disabled="props.necesitaLogin" :aria-disabled="busy || props.necesitaLogin">Generar pieza</button>
           <button type="button" :disabled="!canCancel" @click="flow.cancel">Cancelar solicitud</button>
         </div>
       </form>
@@ -68,7 +68,13 @@ async function submit() {
           <p v-if="job?.cancelacion_solicitada && !job.terminal">Esperando que el procesamiento alcance un punto seguro para detenerse.</p>
           <p v-if="message">{{ message }}</p>
         </div>
-        <ol v-if="stages.length" class="steps" aria-label="Etapas informadas">
+        <ol
+          class="steps"
+          :class="{ 'steps--vacio': !stages.length }"
+          aria-label="Etapas informadas"
+          aria-live="polite"
+          aria-relevant="additions text"
+        >
           <li v-for="stage in stages" :key="stage">{{ labels[stage] }}</li>
         </ol>
         <p v-if="!stages.length && (busy || disconnected)" class="help">El servicio aún no informa progreso. No se puede confirmar la etapa actual.</p>

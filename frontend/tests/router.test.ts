@@ -204,36 +204,30 @@ describe('AC4 · Navegación sólo con teclado', () => {
     vi.unstubAllGlobals()
   })
 
-  it('alcanza todas las entradas con Tab y Shift+Tab desde el propio nav', async () => {
+  it('no captura Tab en el nav: el foco queda libre para salir del menú', async () => {
     const enlaces = wrapper.findAll('nav a')
     // HU-51 añadió «Métricas»: la navegación por teclado tiene que seguir cubriéndolas todas.
     expect(enlaces).toHaveLength(4)
 
-    const [primero, segundo, tercero] = enlaces.map(
-      (enlace) => enlace.element as HTMLAnchorElement,
-    ) as [HTMLAnchorElement, HTMLAnchorElement, HTMLAnchorElement, HTMLAnchorElement]
+    const primero = enlaces[0]!.element as HTMLAnchorElement
     primero.focus()
     expect(document.activeElement).toBe(primero)
 
     await wrapper.get('nav').trigger('keydown', { key: 'Tab' })
-    expect(document.activeElement).toBe(segundo)
-
-    await wrapper.get('nav').trigger('keydown', { key: 'Tab' })
-    expect(document.activeElement).toBe(tercero)
+    expect(document.activeElement).toBe(primero)
 
     await wrapper.get('nav').trigger('keydown', { key: 'Tab', shiftKey: true })
-    expect(document.activeElement).toBe(segundo)
+    expect(document.activeElement).toBe(primero)
   })
 
-  it('activa la entrada enfocada con Enter y mantiene el skip link enfocable', async () => {
+  it('navega con el enlace enfocado y mantiene el skip link y su destino enfocables', async () => {
     const skip = wrapper.get('a.skip')
     expect(skip.attributes('href')).toBe('#contenido')
+    expect(wrapper.get('main').attributes('tabindex')).toBe('-1')
     ;(skip.element as HTMLAnchorElement).focus()
     expect(document.activeElement).toBe(skip.element)
 
-    const ajustes = wrapper.findAll('nav a')[3]!.element as HTMLAnchorElement
-    ajustes.focus()
-    await wrapper.get('nav').trigger('keydown', { key: 'Enter' })
+    await wrapper.get('nav a[href="/ajustes"]').trigger('click')
     await flushPromises()
 
     expect(router.currentRoute.value.path).toBe('/ajustes')

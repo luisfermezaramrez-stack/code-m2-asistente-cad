@@ -30,11 +30,12 @@ textarea { min-height: var(--input-height); resize: vertical; }
 textarea::placeholder { color: var(--color-muted); opacity: 1; }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-block: var(--space-4); }
 button { min-height: var(--control-min); padding: var(--space-2) var(--space-4); border: var(--border-width) solid var(--color-accent); border-radius: var(--radius-small); color: var(--color-accent); background: var(--color-surface); font: inherit; font-weight: var(--weight-strong); cursor: pointer; }
-button:disabled { cursor: not-allowed; background: var(--color-surface-subtle); color: var(--color-muted); border-color: var(--color-border); }
-.primary:not(:disabled) { background: var(--color-accent); color: var(--color-on-accent); }
+button:disabled, button[aria-disabled='true'] { cursor: not-allowed; background: var(--color-surface-subtle); color: var(--color-muted); border-color: var(--color-border); }
+.primary:not(:disabled):not([aria-disabled='true']) { background: var(--color-accent); color: var(--color-on-accent); }
 .settings { margin-block: var(--space-4); }
 summary { cursor: pointer; min-height: var(--control-min); padding-block: var(--space-2); }
 .steps { padding-inline-start: var(--space-5); margin: 0; }
+.steps--vacio { padding-inline-start: 0; }
 .steps li { border-bottom: var(--border-width) solid var(--color-border); padding-block: var(--space-2); }
 .state { padding: var(--space-4); border-inline-start: var(--focus-width) solid currentColor; border-radius: var(--radius-small); margin-bottom: var(--space-4); }
 .state p:last-child { margin-bottom: 0; }

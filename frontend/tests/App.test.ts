@@ -343,4 +343,34 @@ describe('SPA conectada a FastAPI simulado', () => {
     resolve(Response.json(event('verificado', 3, { resultado: result }))); await flushPromises()
     expect(wrapper.findAll('button.download')).toHaveLength(0)
   })
+
+  it('anuncia cada etapa nueva en una región viva sin mover el foco', async () => {
+    await start()
+    expect(wrapper.get('ol.steps').attributes('aria-live')).toBe('polite')
+    expect(wrapper.get('ol.steps').attributes('aria-relevant')).toBe('additions text')
+    expect(wrapper.get('main').attributes('tabindex')).toBe('-1')
+
+    const foco = document.activeElement
+    service.send(event('validando', 1), true)
+    await flushPromises()
+
+    expect(wrapper.findAll('.steps li').map((item) => item.text())).toEqual(['Validando solicitud'])
+    expect(document.activeElement).toBe(foco)
+  })
+
+  it('mantiene el foco en Generar pieza durante la espera sin permitir otro envío', async () => {
+    await wrapper.get('textarea').setValue('Espaciador de 14 mm')
+    const generar = wrapper.get('button[type="submit"]')
+    ;(generar.element as HTMLButtonElement).focus()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(document.activeElement).toBe(generar.element)
+    expect(generar.attributes('aria-disabled')).toBe('true')
+    expect(generar.attributes('disabled')).toBeUndefined()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(service.fetch.mock.calls.filter(([url]) => String(url) === '/v1/generar')).toHaveLength(1)
+  })
 })
