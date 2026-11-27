@@ -44,6 +44,22 @@ Vite ni otro servicio web en ejecución. Docker compila Vue en una etapa Node y
 copia solo el build a la imagen Python. Gradio ya se retiró tras migrar sus
 comportamientos útiles; véase `../docs/hu15-despliegue.md`.
 
+## E2E con Playwright (HU-41)
+
+```bash
+make e2e-install   # una vez: descarga el Chromium de Playwright
+make e2e           # build + suite E2E
+```
+
+`make e2e` construye la SPA, la sirve con `vite preview` en `127.0.0.1:4173` y corre
+`e2e/` con un solo Chromium. El backend se simula con `page.route` sobre `/v1` usando la
+misma forma de eventos SSE que `tests/fakeCadService.ts`: no hacen falta API, API key, GPU
+ni red externa. Hay tres escenarios — flujo feliz con progreso y pieza descargable,
+declinación con su motivo y error del modelo — y ninguno usa esperas fijas: todo espera
+por un locator o por un estado. Un fallo deja captura y traza en `test-results/`
+(ignorado por Git) y CI las publica como artefactos. No sustituye a Vitest: `npm test`
+sigue siendo la suite de componentes.
+
 ## Flujo y cancelación
 
 - `fetch` POST con `Accept: text/event-stream` y `AbortController`; parser de

@@ -187,3 +187,27 @@ def test_el_job_de_secretos_de_gitlab_instala_git():
     instalaciones = [linea for linea in bloque.splitlines() if "apt-get install" in linea]
     assert instalaciones, "el job de secretos no instala sus herramientas"
     assert any(" git" in linea.split("--no-install-recommends")[-1] for linea in instalaciones)
+
+
+def test_los_dos_pipelines_corren_los_e2e_con_un_solo_navegador():
+    """HU-41 (SPEC-042 RF-5, RNF-1): misma suite E2E y mismo artefacto de fallo.
+
+    Los E2E no necesitan kernel CAD, API key ni GPU: solo Node y Chromium, por eso
+    viven en un job propio y no dentro de `make check`. El job de GitHub publica
+    captura y traza cuando falla (AC2); el del espejo deja la misma evidencia.
+    """
+    github = _texto(GITHUB)
+    gitlab = _texto(GITLAB)
+
+    for texto in (github, gitlab):
+        assert "playwright install --with-deps chromium" in texto
+        assert "frontend/test-results/" in texto
+        assert "frontend/playwright-report/" in texto
+    # Cada puerta invoca la suite con su propio lenguaje: make en GitHub, npm en GitLab.
+    assert "make e2e" in github
+    assert "npm --prefix frontend run e2e" in gitlab
+    # AC2: en GitHub los artefactos salen solo cuando el job falla.
+    assert "actions/upload-artifact@" in github
+    assert "if: failure()" in github
+    # El objetivo nunca prueba un build viejo: la suite siempre parte de `frontend-build`.
+    assert "frontend-build" in _dependencias("e2e", _texto(MAKEFILE))

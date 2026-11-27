@@ -6,7 +6,7 @@
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: [SPEC-039](../039-hu-38-app-shell/spec.md)
 - **Rama**: `feature/hu-41-e2e-playwright`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: En revisión (PR [#144](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/144)); `plan.md`, `tasks.md` y `evidence.md` completos
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §5
 
 ## Problema y contexto
