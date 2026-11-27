@@ -87,7 +87,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Pre-commit** | Ruff + higiene de archivos + bloqueo de pesos (`.gguf`, `.safetensors`, …) |
 | **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `main` |
 | **Espejo GitLab** | GitHub es la fuente de verdad; `.github/workflows/espejo-gitlab.yml` replica ramas y etiquetas en GitLab (solo lectura) vía deploy key SSH (`vars.GITLAB_MIRROR_URL`, `secrets.GITLAB_MIRROR_SSH_KEY`) |
-| **Pipeline GitLab** | `.gitlab-ci.yml` deja evidencia sobre el espejo en cinco jobs: `lint` (imagen de uv 0.13.5 con el Python de `.python-version` y `make lint`), `secretos` (gitleaks sobre el historial completo), `dependencias` (pip-audit sobre el export de `uv.lock`), `run_test` (`vendor` + `uv sync --locked` + `make frontend-install` + `make test` sobre `node:24-bookworm`) y `build_image` (imagen Docker). Corre con push a la rama por defecto del espejo, lanzamiento manual o pipeline programado: no abre una segunda puerta de integración, que la puerta es el PR en GitHub |
+| **Pipeline GitLab** | `.gitlab-ci.yml` deja evidencia sobre el espejo en seis jobs: `lint` (imagen de uv 0.13.5 con el Python de `.python-version` y `make lint`), `secretos` (gitleaks sobre el historial completo), `dependencias` (pip-audit sobre el export de `uv.lock`), `run_test` (`vendor` + `uv sync --locked` + `make frontend-install` + `make test` sobre `node:24-bookworm`), `e2e` (Playwright/Chromium sobre el build real con backend simulado, HU-41) y `build_image` (imagen Docker). Corre con push a la rama por defecto del espejo, lanzamiento manual o pipeline programado: no abre una segunda puerta de integración, que la puerta es el PR en GitHub |
 | **Dependencias automáticas** | [Dependabot](.github/dependabot.yml) (target `main`) |
 | **Despliegue** | Docker multietapa Node/vendor/Python; Compose: `mlflow` (`:5000`) + `m2-cad` (Vue + FastAPI `:8000`), DeepSeek externo |
 
@@ -121,6 +121,7 @@ code-m2-asistente-cad/
 │   ├── contrato_api.py         # carga y compara el OpenAPI v1 congelado (HU-31)
 │   └── web.py                  # Vue/estáticos, CORS restringido y errores JSON
 ├── frontend/src/design/        # tokens.css y resolución de tema del frontend
+├── frontend/e2e/               # E2E de Playwright con backend simulado (HU-41)
 ├── frontend/                   # Vue, TypeScript, Vite y pruebas Vitest
 ├── design/                     # referencia histórica de HU-15 (no importada por la app)
 ├── tests/                      # pytest: dataset, banco, pipeline, API, registro, seguimiento, SSE, web
@@ -201,12 +202,17 @@ code-m2-asistente-cad/
 | Seguridad | gitleaks y pip-audit en cada PR | `make security` | SPEC-029 |
 | Prompts versionados | id, versión y hash del prompt; CI falla si el texto cambia sin subir versión | `make prompts-check` | SPEC-034 |
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
+| E2E del frontend | Playwright (un solo Chromium) sobre el build real con backend simulado | `make e2e` |
 | Servicio | Vue/FastAPI + DeepSeek externo | `make up` / `make down` |
 
 `make check` ejecuta Ruff, comprobación del contrato congelado, comprobación de tipos
 OpenAPI, Vitest, TypeScript, build y pytest con cobertura; CI reproduce estos controles
 desde lockfiles. Las pruebas con dobles se identifican como simuladas y no prueban
-inferencia real. El corpus dorado es un paso propio fuera de `make check`: compara el
+inferencia real. Los E2E (HU-41) son un paso propio, fuera de `make check` porque
+necesitan un navegador: `make e2e` construye la SPA, la sirve con `vite preview` y corre
+los escenarios de Playwright contra un backend simulado con `page.route` sobre `/v1`, sin
+red externa, API key ni GPU. CI los corre en el job `e2e` y, ante un fallo, publica la
+captura y la traza (AC2 de SPEC-042); Vitest sigue siendo la suite de componentes. El corpus dorado es un paso propio fuera de `make check`: compara el
 núcleo determinista contra huellas congeladas de STEP (`make corpus-dorado`, SPEC-024) y
 falla nombrando el caso y las huellas esperada y obtenida.
 

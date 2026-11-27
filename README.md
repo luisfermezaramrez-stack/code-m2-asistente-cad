@@ -163,6 +163,8 @@ bash scripts/vendor-constraint-kit.sh
 uv sync --locked --dev
 make frontend-install
 make check        # Ruff + contratos + Vitest + TypeScript + build + pytest/cobertura
+make e2e-install  # una vez: descarga el Chromium de Playwright
+make e2e          # E2E de la SPA sobre el build real (backend simulado, sin GPU)
 uv run --locked uvicorn m2_cad.api:app --app-dir src --host 127.0.0.1 --port 8000 --workers 1
 ```
 
@@ -545,6 +547,9 @@ Cada pull request a `main` dispara `.github/workflows/ci.yml`: Python 3.12
 (`.python-version`), Node 24, `uv sync --locked --dev`, `npm ci` y `make check`.
 Exige Ruff limpio, pruebas Vitest, TypeScript, build y pytest con cobertura ≥70 %
 de `src/`. El build se genera antes de probar las rutas estáticas integradas.
+El job `e2e` corre en paralelo la suite de Playwright sobre ese mismo build con un
+backend simulado (un solo Chromium, sin red externa, API key ni GPU) y, si falla,
+publica la captura y la traza como artefactos.
 Las pruebas útiles de la UI anterior se migraron a SPA/API; la trazabilidad de
 los 23 casos está en [HU-15/despliegue](docs/hu15-despliegue.md).
 

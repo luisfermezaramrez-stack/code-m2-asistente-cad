@@ -7,6 +7,7 @@
         corpus-dorado prompts-check \
         security security-secretos security-dependencias security-excepciones-validar \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
+        e2e e2e-install \
         mlflow api-types api-types-check api-contract api-contract-check hash-clave
 
 help: ## Lista los objetivos disponibles
@@ -100,6 +101,12 @@ frontend-build: ## Build Vue servido por FastAPI
 	npm --prefix frontend run build
 
 frontend-check: frontend-test frontend-typecheck frontend-build ## Verifica frontend completo
+
+e2e-install: ## HU-41: instala el Chromium de Playwright para los E2E
+	npm --prefix frontend exec -- playwright install chromium
+
+e2e: frontend-build ## HU-41: suite E2E de la SPA sobre el build real y backend simulado
+	npm --prefix frontend run e2e
 
 precommit-install: ## Instala los hooks de pre-commit
 	uv run pre-commit install
