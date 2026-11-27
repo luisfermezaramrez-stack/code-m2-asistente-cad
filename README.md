@@ -159,7 +159,8 @@ licencia.
 bash scripts/vendor-constraint-kit.sh
 uv sync --locked --dev
 make frontend-install
-make check        # Ruff + contratos + Vitest + TypeScript + build + pytest/cobertura
+make check        # Ruff + contratos + Vitest + TypeScript + build + sitio + pytest/cobertura
+make docs-build   # sitio MkDocs estricto; `make docs-serve` para vista previa
 make e2e-install  # una vez: descarga el Chromium de Playwright
 make e2e          # E2E de la SPA sobre el build real (backend simulado, sin GPU)
 uv run --locked uvicorn m2_cad.api:app --app-dir src --host 127.0.0.1 --port 8000 --workers 1
