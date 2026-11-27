@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { RouterLink, RouterView } from 'vue-router'
 import { cerrarSesion, estadoSesion, iniciarSesion, sinSesion, type EstadoSesion } from './auth'
 import { activeTheme, initTheme, setTheme, type Theme } from './design/theme'
 import { provideGeneration } from './useGeneration'
 
-const router = useRouter()
 // La generación pertenece al shell: sobrevive a la navegación entre vistas.
 provideGeneration()
-const nav = ref<HTMLElement | null>(null)
 const sesion = ref<EstadoSesion>(sinSesion)
 const cargandoSesion = ref(true)
 const usuarioSesion = ref('')
@@ -25,28 +23,6 @@ onBeforeUnmount(() => stopTheme?.())
 function toggleTheme() {
   const next: Theme = activeTheme.value === 'dark' ? 'light' : 'dark'
   setTheme(next)
-}
-
-function manejarTeclado(event: KeyboardEvent) {
-  const enlaces = Array.from(nav.value?.querySelectorAll<HTMLAnchorElement>('a[href]') ?? [])
-  const indice = enlaces.indexOf(document.activeElement as HTMLAnchorElement)
-  if (indice < 0) return
-
-  if (event.key === 'Enter') {
-    event.preventDefault()
-    const enlace = enlaces[indice]
-    if (!enlace) return
-    const destino = enlace.getAttribute('href')
-    if (destino) void router.push(destino)
-    return
-  }
-
-  if (event.key !== 'Tab') return
-  const siguiente = event.shiftKey ? indice - 1 : indice + 1
-  const destino = enlaces[siguiente]
-  if (!destino) return
-  event.preventDefault()
-  destino.focus()
 }
 
 onMounted(async () => {
@@ -93,7 +69,7 @@ async function salir() {
       <button class="theme-toggle" type="button" :aria-label="themeLabel" @click="toggleTheme">{{ themeLabel }}</button>
     </header>
     <aside class="notice" aria-label="Aviso profesional"><strong>Diseño preliminar: requiere revisión profesional</strong><br>La verificación geométrica no certifica resistencia ni cumplimiento normativo.</aside>
-    <nav ref="nav" class="nav" aria-label="Navegación principal" @keydown="manejarTeclado">
+    <nav class="nav" aria-label="Navegación principal">
       <RouterLink to="/nueva-solicitud">Nueva solicitud</RouterLink>
       <RouterLink to="/historial">Historial</RouterLink>
       <RouterLink to="/metricas">Métricas</RouterLink>
@@ -111,7 +87,7 @@ async function salir() {
       <p v-else>Generando como <strong>{{ sesion.usuario }}</strong>. <button type="button" @click="salir">Cerrar sesión</button></p>
       <p v-if="errorSesion" class="field-error" role="alert">{{ errorSesion }}</p>
     </section>
-    <main id="contenido" class="view">
+    <main id="contenido" class="view" tabindex="-1">
       <RouterView v-slot="{ Component, route }">
         <component :is="Component" v-bind="route.name === 'nueva-solicitud' ? { necesitaLogin } : {}" />
       </RouterView>

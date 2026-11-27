@@ -2,7 +2,6 @@
 
 import ast
 import asyncio
-import csv
 import logging
 import os
 import tempfile
@@ -13,7 +12,7 @@ from contextlib import asynccontextmanager, suppress
 from dataclasses import asdict
 from datetime import date, datetime
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import (
     APIRouter,
@@ -56,7 +55,7 @@ from m2_cad.observabilidad import (
     job_id_actual,
     request_id_actual,
 )
-from m2_cad.registro import RUTA_DEFAULT, SIN_TRADUCCION, registrar
+from m2_cad.registro import RUTA_DEFAULT, SIN_ERROR, SIN_TRADUCCION, leer, listar, registrar
 from m2_cad.retencion_salidas import depurar_outputs, leer_politica
 from m2_cad.seguridad_descargas import emitir_token, exigir_token, validar_uuid
 from m2_cad.trabajos import GestorTrabajos, RespuestaSSE, Trabajo
@@ -425,9 +424,7 @@ def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str,
     try:
         resultado = pipeline.generar_pieza(texto, medir_uso=medir_uso)
     except pipeline.PiezaDeclinada as exc:
-        medido.update(
-            familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa)
-        )
+        medido.update(familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa))
         _anotar_detalle(exc)
         raise DeclinacionSolicitud(exc.motivo, exc.programa_json, causa=exc.causa) from exc
     except (pipeline.ErrorGeneracion, pipeline.ErrorVerificacion) as exc:
@@ -474,9 +471,7 @@ def procesar_con_progreso(
     try:
         resultado = pipeline.generar_pieza(texto, control=control, medir_uso=medir_uso)
     except pipeline.PiezaDeclinada as exc:
-        medido.update(
-            familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa)
-        )
+        medido.update(familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa))
         _anotar_detalle(exc)
         raise SolicitudDeclinada(exc.motivo) from exc
     except (pipeline.ErrorGeneracion, pipeline.ErrorVerificacion) as exc:
@@ -601,25 +596,161 @@ def _cabeceras_registro(request: Request, identificador: str) -> dict[str, str]:
 
 def _leer_registro(identificador: str) -> dict[str, str]:
     """Devuelve la fila existente sin escribir ni duplicar el registro (HU-07 AC3)."""
-    identificador = validar_uuid(identificador)
-    ruta = obtener_ruta_registro()
-    if ruta.exists():
-        with ruta.open(encoding="utf-8", newline="") as archivo:
-            for fila in csv.DictReader(archivo):
-                if fila["id"] == identificador:
-                    return fila
-    raise HTTPException(404, "Registro no encontrado.")
+    try:
+        fila = leer(validar_uuid(identificador), obtener_ruta_registro())
+    except ValueError:
+        # Un registro ajeno o truncado no se interpreta: para la consulta puntual
+        # se conserva el 404 de siempre (HU-07) y no se revela el contenido.
+        fila = None
+    if fila is None:
+        raise HTTPException(404, "Registro no encontrado.")
+    return fila
 
 
-@router.get("/registros/{identificador}")
+# Estados visibles del historial (HU-37). No se persiste el estado terminal, así
+# que se deriva de las columnas del registro sin cambiar su esquema (SPEC-031).
+ESTADO_CONSTRUIDA = "construida"
+ESTADO_DECLINADA = "declinada"
+ESTADO_ERROR = "error"
+ESTADO_DESCONOCIDA = "desconocida"
+EstadoRegistro = Literal["construida", "declinada", "error", "desconocida"]
+
+# Motivo público de un fallo: nunca la excepción, la ruta ni el detalle interno.
+MOTIVO_FALLO = "No se pudo completar la solicitud."
+
+# Tope de filas devueltas por el historial: la vista no pagina (HU-37, RF-1).
+LIMITE_HISTORIAL = 200
+
+
+class RegistroResumen(BaseModel):
+    """Solicitud registrada tal como la muestra el historial (HU-37, RF-1/RF-2).
+
+    Sólo los campos que la vista necesita: ni prompt, ni usuario, ni rutas de
+    artefactos ni datos de la fila completa (S6).
+    """
+
+    id: str
+    hora: str
+    texto: str
+    estado: EstadoRegistro
+    motivo: str | None = None
+
+
+class RespuestaRegistros(BaseModel):
+    """Listado de solicitudes propias registradas (HU-37, AC3)."""
+
+    registros: list[RegistroResumen]
+
+
+def _estado_registro(fila: dict[str, str]) -> EstadoRegistro:
+    """Deriva el estado visible de una fila del registro (HU-37, RF-2).
+
+    Precedencia documentada, porque el registro no persiste el estado terminal:
+    un ``resultado`` con ``step`` es una pieza construida; una ``causa`` del
+    catálogo de SPEC-027 es una declinación; un ``error`` distinto de ``ninguno``
+    es un fallo; sin ninguna señal, el estado es desconocido.
+    """
+    try:
+        resultado = ast.literal_eval(fila.get("resultado") or "")
+    except (ValueError, SyntaxError):
+        resultado = None
+    if isinstance(resultado, dict) and resultado.get("step"):
+        return ESTADO_CONSTRUIDA
+    try:
+        causa = declinacion.normalizar(fila.get("causa"))
+    except ValueError:
+        causa = declinacion.NINGUNA
+    if causa != declinacion.NINGUNA:
+        return ESTADO_DECLINADA
+    if (fila.get("error") or SIN_ERROR) != SIN_ERROR:
+        return ESTADO_ERROR
+    return ESTADO_DESCONOCIDA
+
+
+def _motivo_registro(fila: dict[str, str], estado: EstadoRegistro) -> str | None:
+    """Motivo legible y público según el estado, sin detalles internos."""
+    if estado == ESTADO_DECLINADA:
+        error = fila.get("error") or SIN_ERROR
+        return None if error == SIN_ERROR else error
+    if estado == ESTADO_ERROR:
+        return MOTIVO_FALLO
+    return None
+
+
+@router.get("/registros")
+def listar_registros(
+    usuario: Annotated[str, Depends(usuario_actual)],
+    resultado: Annotated[EstadoRegistro | None, Query()] = None,
+    texto: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
+) -> RespuestaRegistros:
+    """Lista las solicitudes propias del registro persistente (HU-37, AC3/RF-2).
+
+    Conserva la protección del resto de `/v1`: la sesión la exige
+    `usuario_actual` y sólo se devuelven filas propias (HU-53), sin que el
+    cliente recorra identificadores conocidos.
+    """
+    resumenes = []
+    for fila in listar(obtener_ruta_registro()):
+        if fila.get("usuario") != usuario:
+            continue
+        estado = _estado_registro(fila)
+        if resultado is not None and estado != resultado:
+            continue
+        if texto is not None and texto.casefold() not in (fila.get("texto") or "").casefold():
+            continue
+        resumenes.append(
+            RegistroResumen(
+                id=fila.get("id", ""),
+                hora=fila.get("hora", ""),
+                texto=fila.get("texto", ""),
+                estado=estado,
+                motivo=_motivo_registro(fila, estado),
+            )
+        )
+    resumenes.sort(key=lambda solicitud: (solicitud.hora, solicitud.id), reverse=True)
+    return RespuestaRegistros(registros=resumenes[:LIMITE_HISTORIAL])
+
+
+@router.get(
+    "/registros/{identificador}",
+    responses={
+        200: {
+            "headers": {
+                "X-Download-Token": {
+                    "description": (
+                        "Autorización temporal para descargar el STEP de esta solicitud "
+                        "(HU-37, RF-4). Se emite sólo con sesión y propiedad comprobadas."
+                    ),
+                    "schema": {"type": "string"},
+                }
+            }
+        }
+    },
+)
 def consultar_registro(
     identificador: str,
+    response: Response,
     usuario: Annotated[str, Depends(usuario_actual)],
 ) -> dict[str, str]:
-    """Consulta una fila propia, sin revelar la de otros usuarios (HU-53, AC2)."""
+    """Consulta una fila propia, sin revelar la de otros usuarios (HU-53, AC2).
+
+    Devuelve además el token de descarga de una solicitud anterior (HU-37,
+    RF-4/AC4): sin él su STEP no se puede descargar pasado el reinicio, porque
+    el token sólo se emitía al crear la solicitud. Si las descargas están
+    deshabilitadas por configuración, la consulta sigue funcionando sin él.
+    """
     fila = _leer_registro(identificador)
     garantizar_propietario(usuario, fila.get("usuario"), "Registro no encontrado.")
-    return fila
+    # HU-37/RNF-1: la clasificación la deriva sólo el backend, también aquí.
+    # `estado` y `motivo` viajan con la fila para que el cliente no repita la
+    # precedencia; sin motivo, `motivo` es cadena vacía porque es un mapa de texto.
+    estado = _estado_registro(fila)
+    detalle = {**fila, "estado": estado, "motivo": _motivo_registro(fila, estado) or ""}
+    try:
+        response.headers["X-Download-Token"] = emitir_token(identificador)
+    except RuntimeError as exc:
+        logger.debug("descargas deshabilitadas: %s", exc)
+    return detalle
 
 
 @router.get("/registros/{identificador}/step")

@@ -55,6 +55,9 @@ _DEFECTOS_NUEVAS = {
 
 RUTA_DEFAULT = Path("data/registro.csv")
 
+# Marcadores explícitos de los campos sin valor conocido (AC3).
+SIN_ERROR = "ninguno"
+
 # Ley 1581 de 2012: el registro no puede contener correos ni nombres
 # declarados por el usuario. Se reemplazan por marcadores explícitos para
 # mantener la regla AC3 (ningún campo vacío) y la trazabilidad del texto.
@@ -121,6 +124,31 @@ def _a_valor_conocido(valor: object, reemplazo: str) -> str:
     return texto if texto.strip() else reemplazo
 
 
+def listar(ruta: Path = RUTA_DEFAULT) -> list[dict[str, str]]:
+    """Devuelve todas las filas del registro, o ``[]`` si el archivo no existe.
+
+    Valida la cabecera contra ``CAMPOS`` igual que la escritura: un archivo ajeno
+    o truncado no se interpreta como historial vacío, porque el backend es la
+    fuente de verdad del historial (HU-37, RNF-1).
+    """
+    destino = Path(ruta)
+    if not destino.exists():
+        return []
+    with destino.open(encoding="utf-8", newline="") as archivo:
+        lector = csv.DictReader(archivo)
+        if lector.fieldnames != CAMPOS:
+            raise ValueError("La cabecera del registro no coincide con CAMPOS.")
+        return [dict(fila) for fila in lector]
+
+
+def leer(identificador: str, ruta: Path = RUTA_DEFAULT) -> dict[str, str] | None:
+    """Devuelve la fila del identificador dado, o ``None`` si no existe (HU-07, HU-37)."""
+    for fila in listar(ruta):
+        if fila.get("id") == identificador:
+            return fila
+    return None
+
+
 def registrar(
     texto: str,
     traduccion: str,
@@ -148,7 +176,7 @@ def registrar(
         "traduccion": _sanitizar(_a_valor_conocido(traduccion, "sin traduccion")),
         "resultado": _sanitizar(_a_valor_conocido(resultado, "sin resultado")),
         "latencia_ms": _a_valor_conocido(latencia_ms, "0"),
-        "error": _a_valor_conocido(error, "ninguno"),
+        "error": _a_valor_conocido(error, SIN_ERROR),
         "version": _a_valor_conocido(version, "desconocida"),
         "usuario": _a_valor_conocido(usuario, ANONIMO),
         "causa": declinacion.normalizar(causa),

@@ -7,7 +7,8 @@
 - **Depende de**: [SPEC-035](../035-hu-34-sistema-diseno-v2/spec.md),
   [SPEC-039](../039-hu-38-app-shell/spec.md)
 - **Rama**: `feature/hu-40-wcag-aa`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: Spec-first · implementada; `plan.md`, `tasks.md` y `evidence.md` completos.
+  PR #149 abierto, sin fusionar.
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §5
 - **Auditoría**: corregida según
   [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
