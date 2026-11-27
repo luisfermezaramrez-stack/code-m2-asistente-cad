@@ -2,7 +2,7 @@
 # Uso: `make <objetivo>` — `make help` lista todo.
 
 .PHONY: help install lock vendor test cov lint format check \
-        precommit-install precommit build up down clean bench bench-report worker \
+        precommit-install precommit build up down clean bench bench-report bench-replay worker \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup \
         corpus-dorado prompts-check \
         security security-secretos security-dependencias security-excepciones-validar \
@@ -58,12 +58,16 @@ bench: ## HU-14 AC7: corre el banco HU-02 contra el modelo (gasta tokens; IDS=..
 bench-report: ## HU-07: evalúa 40 solicitudes HTTP y genera reporte por familia (gasta tokens)
 	uv run --locked python -m m2_cad.evaluacion
 
+bench-replay: ## HU-44: banco en replay (sin red, API key ni tokens; falla bajo el umbral)
+	uv run --no-sync python -B scripts/verify_banco_replay.py $(if $(UMBRAL),--umbral $(UMBRAL))
+
 cov: frontend-build ## Corre pytest con reporte de cobertura
 	uv run --locked pytest --cov=src/m2_cad --cov-report=term-missing
 
 lint: ## Ruff con reglas E, F, I, B
 	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py \
-		scripts/generate_api_contract.py scripts/verify_corpus_dorado.py scripts/verify_prompts.py
+		scripts/generate_api_contract.py scripts/verify_corpus_dorado.py scripts/verify_prompts.py \
+		scripts/verify_banco_replay.py
 
 format: ## Aplica ruff format
 	uv run ruff format src tests

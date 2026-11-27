@@ -69,19 +69,28 @@ def _huella_credencial() -> str:
     return hashlib.sha256(clave.encode("utf-8")).hexdigest()
 
 
+def _clave_normalizada(cuerpo: dict, url: str, credencial: str | None) -> str:
+    """Normaliza endpoint y cuerpo; la credencial entra sólo en la caché en memoria."""
+    datos: dict[str, object] = {"url": url, "cuerpo": cuerpo}
+    if credencial is not None:
+        datos["credencial"] = credencial
+    serializado = json.dumps(datos, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(serializado.encode("utf-8")).hexdigest()
+
+
+def clave_cuerpo(cuerpo: dict, url: str) -> str:
+    """Clave canónica de una petición, sin secretos (HU-44, SPEC-045).
+
+    Es la misma normalización que usa la caché de HU-25, pero sin la huella de la
+    credencial: así un artefacto grabado funciona igual en el host con API key y
+    en CI sin ella. Nunca incluye cabeceras ni el valor de la clave.
+    """
+    return _clave_normalizada(cuerpo, url, None)
+
+
 def _clave(cuerpo: dict, url: str) -> str:
-    """La clave incluye endpoint, prompt, parámetros y huella de la credencial."""
-    datos = json.dumps(
-        {
-            "url": url,
-            "cuerpo": cuerpo,
-            "credencial": _huella_credencial(),
-        },
-        sort_keys=True,
-        ensure_ascii=False,
-        separators=(",", ":"),
-    )
-    return hashlib.sha256(datos.encode("utf-8")).hexdigest()
+    """La clave de la caché incluye endpoint, prompt, parámetros y credencial."""
+    return _clave_normalizada(cuerpo, url, _huella_credencial())
 
 
 def _buscar(clave: str) -> dict | None:

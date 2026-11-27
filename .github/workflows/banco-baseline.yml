@@ -1,0 +1,60 @@
+name: Banco real (baseline MLOps)
+
+# HU-44 / SPEC-045, AC2: corrida real programada fuera de CI. Gasta tokens, por eso
+# no entra en `ci.yml` ni en `make check`. El resultado queda en MLflow
+# (`m2-cad-banco`, corrida padre y una hija por caso) y el CSV/JSON se publica como
+# artefacto para auditoría. Sin `vars.MLFLOW_TRACKING_URI`, MLflow usa el file store
+# local del runner y el artefacto es el único registro persistente.
+
+on:
+  schedule:
+    # Lunes 03:17 UTC, fuera del horario de PRs del equipo.
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: banco-baseline
+  cancel-in-progress: false
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # python-solvespace se compila desde sdist con mimalloc C17 (ver ci.yml).
+      CFLAGS: "-std=gnu17"
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.5"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Vendorear constraint-kit
+        run: bash scripts/vendor-constraint-kit.sh
+
+      - name: Instalar dependencias
+        run: uv sync --locked --dev
+
+      - name: Correr el banco real y registrar el baseline
+        run: uv run --no-sync python -m m2_cad.banco --salida outputs/banco-baseline
+
+      - name: Publicar resumen del baseline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: banco-baseline
+          path: outputs/banco-baseline/
+          if-no-files-found: warn
+          retention-days: 30
