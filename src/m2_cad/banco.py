@@ -9,6 +9,9 @@ pasan los precios, el costo estimado.
 Uso (gasta tokens del modelo real):
     uv run python -m m2_cad.banco --ids HU02-P01,HU02-P06,HU02-P11,HU02-P21,HU02-P26
     uv run python -m m2_cad.banco --precio-entrada <USD/1M> --precio-salida <USD/1M>
+
+HU-44 (SPEC-045): `--replay` sustituye el proveedor por respuestas grabadas y
+versionadas, sin red ni tokens, y aplica `--umbral` a la tasa de aceptación.
 """
 
 import argparse
@@ -22,7 +25,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from m2_cad import declinacion, pipeline, seguimiento
+from m2_cad import banco_replay, declinacion, pipeline, seguimiento
 from m2_cad.dataset import DEFAULT_PATH, read_dataset
 
 TOLERANCIA = 0.02
@@ -30,6 +33,7 @@ CAMPOS = (
     "id",
     "familia",
     "esperado",
+    "causa",  # HU-46: etiqueta cerrada de SPEC-027 para el desglose de regresiones.
     "estado",
     "correcto",
     "latencia_s",
@@ -179,6 +183,22 @@ def _argumentos(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--ids", default="", help="IDs separados por coma (por defecto, todos)")
     parser.add_argument("--precio-entrada", type=float, default=0.0, help="USD por 1M tokens")
     parser.add_argument("--precio-salida", type=float, default=0.0, help="USD por 1M tokens")
+    # HU-44: el replay es opt-in; `make bench` conserva su comportamiento (RNF-2).
+    parser.add_argument(
+        "--replay", action="store_true", help="usa respuestas grabadas, sin red ni tokens"
+    )
+    parser.add_argument(
+        "--respuestas",
+        type=Path,
+        default=banco_replay.DEFAULT_PATH,
+        help="artefacto de respuestas grabadas (HU-44)",
+    )
+    parser.add_argument(
+        "--umbral",
+        type=float,
+        default=1.0,
+        help="aceptación mínima en replay; por debajo el banco falla (HU-44)",
+    )
     return parser.parse_args(argv)
 
 
@@ -238,12 +258,27 @@ def main(argv: list[str] | None = None) -> int:
         elegidos = [i.strip() for i in args.ids.split(",") if i.strip()]
         filas = [fila for fila in filas if fila["id"] in elegidos]
 
+    preparado = None
+    if args.replay:
+        try:
+            preparado = banco_replay.preparar(filas, args.respuestas)
+        except banco_replay.ErrorReplay as exc:
+            print(f"Replay inválido: {exc}")
+            return 2
+
     configuracion = seguimiento.Configuracion.desde_entorno()
     padre = _abrir_corrida_padre(args, filas, configuracion)
     seguimiento_casos = configuracion if padre.activa else None
 
-    contador = ContadorUso(pipeline.llm.chat)
     original = pipeline.llm.chat
+    url_original = pipeline.llm.base_url
+    if preparado is not None:
+        # URL ficticia: ni key ni red; la clave del artefacto ya incluye esta URL.
+        pipeline.llm.base_url = lambda role=None: banco_replay.URL_REPLAY
+        proveedor = banco_replay.proveedor(preparado)
+    else:
+        proveedor = original
+    contador = ContadorUso(proveedor)
     pipeline.llm.chat = contador
     registros = []
     try:
@@ -267,11 +302,20 @@ def main(argv: list[str] | None = None) -> int:
         raise
     finally:
         pipeline.llm.chat = original
+        if preparado is not None:
+            pipeline.llm.base_url = url_original
 
     resumen = resumir(
         registros, precio_entrada=args.precio_entrada, precio_salida=args.precio_salida
     )
     resumen["modelo"] = pipeline.llm.planner_model()
+    if preparado is not None:
+        resumen.update(
+            modo="replay",
+            prompt_version=preparado["prompt"]["etiqueta"],
+            origen=preparado["origen"],
+            umbral=args.umbral,
+        )
     _registrar_resumen(padre, registros, resumen)
     padre.finalizar(estado="completado")
 
@@ -284,6 +328,9 @@ def main(argv: list[str] | None = None) -> int:
         escritor.writerows({campo: registro[campo] for campo in CAMPOS} for registro in registros)
     base.with_suffix(".json").write_text(json.dumps(resumen, indent=2), encoding="utf-8")
     print(json.dumps(resumen, indent=2))
+    if preparado is not None and resumen["acierto"] < args.umbral:
+        print(f"Umbral de aceptación no alcanzado: {resumen['acierto']:.3f} < {args.umbral:.3f}")
+        return 1
     return 0
 
 

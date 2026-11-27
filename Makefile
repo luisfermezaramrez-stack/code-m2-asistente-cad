@@ -2,13 +2,14 @@
 # Uso: `make <objetivo>` — `make help` lista todo.
 
 .PHONY: help install lock vendor test cov lint format check \
-        precommit-install precommit build up down clean bench bench-report worker \
+        precommit-install precommit build up down clean bench bench-report bench-replay worker \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup \
         corpus-dorado prompts-check \
         security security-secretos security-dependencias security-excepciones-validar \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
         e2e e2e-install \
         mlflow api-types api-types-check api-contract api-contract-check hash-clave \
+        docs-stage docs-build docs-serve \
         release-dry-run release-check release-version
 
 help: ## Lista los objetivos disponibles
@@ -17,6 +18,15 @@ help: ## Lista los objetivos disponibles
 
 install: ## Instala dependencias (dev incluidas) con uv
 	uv sync --locked --dev
+
+docs-stage: ## HU-54: genera el árbol temporal de documentación sin duplicar fuentes
+	uv run --locked python scripts/build_docs_site.py
+
+docs-build: docs-stage ## HU-54: construye el sitio con MkDocs en modo estricto
+	uv run --locked mkdocs build --strict
+
+docs-serve: docs-stage ## HU-54: sirve el sitio localmente
+	uv run --locked mkdocs serve --strict
 
 vendor: ## Vendea y parchea constraint-kit (necesario antes de uv sync/build)
 	bash scripts/vendor-constraint-kit.sh
@@ -59,18 +69,25 @@ bench: ## HU-14 AC7: corre el banco HU-02 contra el modelo (gasta tokens; IDS=..
 bench-report: ## HU-07: evalúa 40 solicitudes HTTP y genera reporte por familia (gasta tokens)
 	uv run --locked python -m m2_cad.evaluacion
 
+bench-replay: ## HU-44: banco en replay (sin red, API key ni tokens; falla bajo el umbral)
+	uv run --no-sync python -B scripts/verify_banco_replay.py $(if $(UMBRAL),--umbral $(UMBRAL))
+
+alertas: ## HU-46: compara la última corrida con el baseline versionado (sin red ni tokens)
+	uv run --no-sync python -B scripts/verificar_alertas.py $(if $(CORRIDA),--corrida $(CORRIDA)) $(if $(BASELINE),--baseline $(BASELINE))
+
 cov: frontend-build ## Corre pytest con reporte de cobertura
 	uv run --locked pytest --cov=src/m2_cad --cov-report=term-missing
 
 lint: ## Ruff con reglas E, F, I, B
 	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py \
 		scripts/generate_api_contract.py scripts/verify_corpus_dorado.py scripts/verify_prompts.py \
-		scripts/generar_release.py
+		scripts/verify_banco_replay.py scripts/verificar_alertas.py \
+		scripts/build_docs_site.py scripts/generar_release.py
 
 format: ## Aplica ruff format
 	uv run ruff format src tests
 
-check: lint prompts-check api-contract-check api-types-check frontend-check cov release-check ## Ruff, contratos, SPA, cobertura y release (CI)
+check: lint prompts-check api-contract-check api-types-check frontend-check docs-build cov release-check ## Ruff, contratos, SPA, sitio, cobertura y release (CI)
 
 worker: ## HU-45: consume la cola persistente en un proceso separado de la API
 	uv run --no-sync python -m m2_cad.worker

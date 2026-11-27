@@ -448,6 +448,24 @@ def _programa_de(respuesta: dict) -> dict:
     return programa
 
 
+def cuerpo_planificador(texto: str, *, sistema: str | None = None) -> dict:
+    """Cuerpo exacto de la petición del planificador (HU-44, SPEC-045).
+
+    Lo usan `_respuesta_modelo` y el replay del banco para derivar la misma clave
+    canónica de HU-25: prompt vigente, solicitud en español, modelo, temperatura y
+    formato de respuesta. Nunca incluye credenciales.
+    """
+    return {
+        "model": llm.planner_model(),
+        "messages": [
+            {"role": "system", "content": PROMPT_SISTEMA if sistema is None else sistema},
+            {"role": "user", "content": texto},
+        ],
+        "temperature": TEMPERATURA_LLM,
+        "response_format": {"type": "json_object"},
+    }
+
+
 def _respuesta_modelo(
     texto: str,
     *,
@@ -464,15 +482,7 @@ def _respuesta_modelo(
     if "api.deepseek.com" in url and not con_clave:
         raise ModeloNoDisponible("El modelo no está configurado: falta DEEPSEEK_API_KEY.")
 
-    cuerpo = {
-        "model": llm.planner_model(),
-        "messages": [
-            {"role": "system", "content": PROMPT_SISTEMA if sistema is None else sistema},
-            {"role": "user", "content": texto},
-        ],
-        "temperature": TEMPERATURA_LLM,
-        "response_format": {"type": "json_object"},
-    }
+    cuerpo = cuerpo_planificador(texto, sistema=sistema)
     try:
         return llm_resiliente.consultar(
             cuerpo,
