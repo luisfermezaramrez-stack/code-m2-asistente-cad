@@ -18,3 +18,11 @@ archivo = "planner-v1.txt"
 sha256 = "b64b187dd7b365c37ff7dad4150ecca69eccd3e4a12470c595f63d3b0a41b6d3"
 descripcion = "Prompt del planificador: DSL constraint-kit, familias del catálogo y regla de honestidad."
 vigente = true
+
+[[prompts]]
+id = "editor"
+version = 1
+archivo = "editor-v1.txt"
+sha256 = "3d092432e16850c1a7550b863b8154b2fbc31c821bcc6edbaf40dc80af19015d"
+descripcion = "Prompt de edición: aplica la instrucción sobre el programa DSL vigente y respeta la regla de honestidad."
+vigente = true
