@@ -21,4 +21,4 @@ Checklist completado en orden de ejecución; la evidencia está en [evidence.md]
   en la misma rama.
 - [x] T9 · Ejecutar Ruff, pytest (7 nuevas + 96 relacionadas + suite completa con cobertura
   91.67 %), contratos, prompts y frontend; registrar resultados y limitaciones en `evidence.md`.
-  Falta abrir el PR y añadir su número a la evidencia y al índice de specs.
+  PR [#151](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/151) abierto y registrado en la evidencia y en el índice de specs.

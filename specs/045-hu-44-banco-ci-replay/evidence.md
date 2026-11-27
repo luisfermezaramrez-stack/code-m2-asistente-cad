@@ -3,7 +3,7 @@
 - **Fecha**: 2026-11-27
 - **Rama**: `feature/hu-44-banco-ci-replay`, creada desde `origin/main` (`094fe9b`)
 - **Issue**: [#104](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/104)
-- **PR**: pendiente de apertura
+- **PR**: [#151](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/151)
 - **Especificación**: [spec.md](./spec.md) · [plan.md](./plan.md) · [tasks.md](./tasks.md)
 
 ## Alcance entregado
