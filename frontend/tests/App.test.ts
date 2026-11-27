@@ -1,7 +1,9 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryHistory } from 'vue-router'
 import App from '../src/App.vue'
 import { THEME_STORAGE_KEY } from '../src/design/theme'
+import { createAppRouter } from '../src/router'
 import { FakeCadService, event } from './fakeCadService'
 
 let service: FakeCadService
@@ -20,13 +22,19 @@ async function sendStages() {
 }
 function button(text: string) { return wrapper.findAll('button').find((item) => item.text() === text)! }
 
-beforeEach(() => {
+beforeEach(async () => {
   service = new FakeCadService()
   vi.stubGlobal('fetch', service.fetch)
+  const router = createAppRouter(createMemoryHistory())
+  await router.push('/nueva-solicitud')
+  await router.isReady()
   wrapper = mount(App, {
     attachTo: document.body,
     // Solo el renderer WebGL está sustituido; el flujo Vue y el parser SSE son reales.
-    global: { stubs: { GlbViewer: { props: ['url'], template: '<div data-testid="visor-simulado">Visor WebGL simulado: {{ url }}</div>' } } },
+    global: {
+      plugins: [router],
+      stubs: { GlbViewer: { props: ['url'], template: '<div data-testid="visor-simulado">Visor WebGL simulado: {{ url }}</div>' } },
+    },
   })
 })
 afterEach(() => { wrapper.unmount(); document.body.innerHTML = ''; vi.unstubAllGlobals(); vi.useRealTimers() })

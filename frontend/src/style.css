@@ -17,6 +17,10 @@ p { margin: 0 0 var(--space-4); overflow-wrap: anywhere; }
 .muted, .help { color: var(--color-muted); }
 .help { font-size: var(--text-small); }
 .notice { padding: var(--space-4); border-inline-start: var(--focus-width) solid var(--color-warning); background: var(--color-warning-bg); color: var(--color-warning); border-radius: var(--radius-small); margin-bottom: var(--space-5); }
+.nav { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-5); }
+.nav a { display: inline-flex; align-items: center; min-height: var(--control-min); padding: var(--space-2) var(--space-4); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-small); text-decoration: none; }
+.nav a.router-link-active { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-surface); font-weight: var(--weight-strong); }
+.view { min-width: 0; }
 .workspace { display: grid; grid-template-columns: var(--request-column) minmax(0, 1fr); gap: var(--space-5); align-items: start; }
 .panel { padding: var(--space-5); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); min-width: 0; }
 .stack { display: grid; gap: var(--space-5); min-width: 0; }
@@ -34,6 +38,10 @@ summary { cursor: pointer; min-height: var(--control-min); padding-block: var(--
 .steps li { border-bottom: var(--border-width) solid var(--color-border); padding-block: var(--space-2); }
 .state { padding: var(--space-4); border-inline-start: var(--focus-width) solid currentColor; border-radius: var(--radius-small); margin-bottom: var(--space-4); }
 .state p:last-child { margin-bottom: 0; }
+.estado-vista--vacio { color: var(--color-idle); background: var(--color-idle-bg); }
+.estado-vista--cargando { color: var(--state-validando-fg); background: var(--state-validando-bg); }
+.estado-vista--error { color: var(--color-error); background: var(--color-error-bg); }
+.sin-ruta { border-color: var(--color-warning); color: var(--color-warning); background: var(--color-warning-bg); }
 .validando { color: var(--state-validando-fg); background: var(--state-validando-bg); }
 .generando { color: var(--state-generando-fg); background: var(--state-generando-bg); }
 .verificado { color: var(--state-verificado-fg); background: var(--state-verificado-bg); }

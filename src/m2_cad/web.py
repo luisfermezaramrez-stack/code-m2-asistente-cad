@@ -1,4 +1,4 @@
-"""Build Vue y CORS explícito, sin fallback HTML para rutas desconocidas."""
+"""Build Vue, CORS explícito y rutas SPA; las desconocidas siguen en 404 JSON."""
 
 import os
 from pathlib import Path
@@ -7,6 +7,8 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+
+RUTAS_VISTAS = ("/nueva-solicitud", "/historial", "/ajustes")
 
 
 def origenes_frontend() -> list[str]:
@@ -39,7 +41,7 @@ def configurar_web(
     directorio: Path | None = None,
     origenes: list[str] | None = None,
 ) -> None:
-    """Añade solo / y /assets: la SPA actual no tiene rutas de navegación propias."""
+    """Sirve /, /assets y las vistas SPA; el resto conserva su 404 JSON."""
     dist = directorio or Path(
         os.getenv(
             "M2_FRONTEND_DIST", str(Path(__file__).resolve().parents[2] / "frontend" / "dist")
@@ -55,13 +57,25 @@ def configurar_web(
         expose_headers=["X-Solicitud-ID", "Content-Disposition", "X-Download-Token"],
     )
 
+    def indice() -> FileResponse:
+        archivo = dist / "index.html"
+        if not archivo.is_file():
+            raise HTTPException(503, "El build de la interfaz todavía no está disponible.")
+        return FileResponse(archivo, media_type="text/html", headers={"Cache-Control": "no-cache"})
+
     @app.get("/", include_in_schema=False)
     @app.head("/", include_in_schema=False)
     def inicio() -> FileResponse:
-        indice = dist / "index.html"
-        if not indice.is_file():
-            raise HTTPException(503, "El build de la interfaz todavía no está disponible.")
-        return FileResponse(indice, media_type="text/html", headers={"Cache-Control": "no-cache"})
+        return indice()
+
+    for ruta in RUTAS_VISTAS:
+        app.add_api_route(
+            ruta,
+            indice,
+            methods=["GET", "HEAD"],
+            include_in_schema=False,
+            name=f"vista_{ruta.strip('/').replace('-', '_')}",
+        )
 
     @app.get("/assets/{nombre:path}", include_in_schema=False)
     @app.head("/assets/{nombre:path}", include_in_schema=False)

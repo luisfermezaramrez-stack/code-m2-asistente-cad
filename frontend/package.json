@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "three": "0.187.0",
-    "vue": "3.5.45"
+    "vue": "3.5.45",
+    "vue-router": "4.6.5"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.99.0",

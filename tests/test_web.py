@@ -33,6 +33,16 @@ def test_estaticos_y_head(cliente):
     assert cliente.head("/assets/index-hash.js").content == b""
 
 
+@pytest.mark.parametrize("ruta", ["/nueva-solicitud", "/historial", "/ajustes"])
+def test_rutas_de_vista_sirven_el_indice(cliente, ruta):
+    response = cliente.get(ruta)
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert response.headers["cache-control"] == "no-cache"
+    assert "SPA de prueba" in response.text
+    assert cliente.head(ruta).content == b""
+
+
 @pytest.mark.parametrize(
     "ruta",
     [
@@ -41,6 +51,7 @@ def test_estaticos_y_head(cliente):
         "/generaciones/no-existe/otra",
         "/health/no-existe",
         "/ruta-desconocida",
+        "/nueva-solicitud/no-existe",
         "/assets/ausente.js",
         "/assets/%2e%2e/index.html",
     ],
@@ -56,8 +67,9 @@ def test_build_ausente_no_finge_interfaz_lista(tmp_path):
     app = FastAPI()
     configurar_web(app, directorio=tmp_path)
     with TestClient(app) as client:
-        assert client.get("/").status_code == 503
-        assert client.get("/").headers["content-type"] == "application/json"
+        for ruta in ("/", "/nueva-solicitud", "/historial", "/ajustes"):
+            assert client.get(ruta).status_code == 503
+            assert client.get(ruta).headers["content-type"] == "application/json"
 
 
 def test_cors_solo_origen_exacto_y_metodos_necesarios(cliente):
@@ -112,6 +124,10 @@ def test_api_real_sirve_build_vue_y_conserva_errores_json():
         response = client.get("/")
         assert response.status_code == 200, "Construye primero frontend con npm run build"
         assert '<div id="app">' in response.text
+        for ruta in ("/nueva-solicitud", "/historial", "/ajustes"):
+            vista = client.get(ruta)
+            assert vista.status_code == 200
+            assert '<div id="app">' in vista.text
         assets = re.findall(r'(?:src|href)="(/assets/[^\"]+)"', response.text)
         assert assets
         for url in assets:

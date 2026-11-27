@@ -99,6 +99,8 @@ licencia.
    build123d / OpenCascade): aprueba o declina cada pieza.
 3. **Entrega** por Vue 3 + FastAPI, con etapas reales mediante SSE y registro
    trazable (texto, resultado, latencia y versión del modelo).
+4. **Navegación** por URLs propias (`/nueva-solicitud`, `/historial` y `/ajustes`),
+   con borrador y tema recuperables al abrir la vista en otra pestaña (HU-38).
 
 ## Estructura
 

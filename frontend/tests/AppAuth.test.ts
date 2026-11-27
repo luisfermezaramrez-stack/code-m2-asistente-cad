@@ -1,6 +1,8 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryHistory } from 'vue-router'
 import App from '../src/App.vue'
+import { createAppRouter } from '../src/router'
 import { FakeCadService } from './fakeCadService'
 
 describe('acceso HU-53 en la SPA', () => {
@@ -11,9 +13,13 @@ describe('acceso HU-53 en la SPA', () => {
     service = new FakeCadService()
     service.sesion = { requerido: true, autenticado: false, usuario: null }
     vi.stubGlobal('fetch', service.fetch)
+    const router = createAppRouter(createMemoryHistory())
+    await router.push('/nueva-solicitud')
+    await router.isReady()
     wrapper = mount(App, {
       attachTo: document.body,
       global: {
+        plugins: [router],
         stubs: { GlbViewer: { props: ['url'], template: '<div data-testid="visor-simulado" />' } },
       },
     })

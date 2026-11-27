@@ -1,10 +1,48 @@
-import { computed, onScopeDispose, ref } from 'vue'
+import { computed, inject, onScopeDispose, provide, ref, watch, type InjectionKey } from 'vue'
 import { availableArtifacts, downloadArtifact, parseJob, publicMessage, requestJob, type Artifact, type Job, type Stage } from './api'
 import { readSSE } from './sse'
 
+const DRAFT_STORAGE_KEY = 'm2-cad-draft'
+const DEFAULT_TIMEOUT = 180
+
+interface Draft {
+  description: string
+  timeoutSeconds: number
+}
+
+function readDraft(): Draft {
+  try {
+    const value = window.localStorage.getItem(DRAFT_STORAGE_KEY)
+    if (!value) return { description: '', timeoutSeconds: DEFAULT_TIMEOUT }
+    const parsed: unknown = JSON.parse(value)
+    if (typeof parsed !== 'object' || parsed === null) return { description: '', timeoutSeconds: DEFAULT_TIMEOUT }
+    const data = parsed as Partial<Draft>
+    const description = typeof data.description === 'string' ? data.description.slice(0, 1000) : ''
+    const timeoutSeconds = typeof data.timeoutSeconds === 'number'
+      && Number.isFinite(data.timeoutSeconds)
+      && data.timeoutSeconds >= 5
+      && data.timeoutSeconds <= 600
+      ? data.timeoutSeconds
+      : DEFAULT_TIMEOUT
+    return { description, timeoutSeconds }
+  } catch {
+    return { description: '', timeoutSeconds: DEFAULT_TIMEOUT }
+  }
+}
+
+function saveDraft(draft: Draft): void {
+  try {
+    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
+  } catch {}
+}
+
 export function useGeneration() {
-  const description = ref('')
-  const timeoutSeconds = ref(180)
+  const initial = readDraft()
+  const description = ref(initial.description)
+  const timeoutSeconds = ref(initial.timeoutSeconds)
+  watch([description, timeoutSeconds], () => {
+    saveDraft({ description: description.value, timeoutSeconds: timeoutSeconds.value })
+  })
   const job = ref<Job | null>(null)
   const requestId = ref('')
   const downloadToken = ref('')
@@ -206,4 +244,25 @@ export function useGeneration() {
   return { description, timeoutSeconds, job, stages, artifacts, downloadToken, busy, checking, cancelling,
     loadingFiles, message, inputError, filesError, disconnected, canCancel, canCheck,
     start, cancel, refresh, stopWaiting, download }
+}
+
+export type Generation = ReturnType<typeof useGeneration>
+
+const GENERATION_KEY: InjectionKey<Generation> = Symbol('m2-cad-generation')
+
+/**
+ * Crea el estado de generación en el shell (App.vue). Debe vivir por encima de la
+ * vista de solicitud: navegar desmonta la vista y un estado propio de ésta abortaría
+ * el stream SSE en curso. Su `onScopeDispose` aborta al desmontar la aplicación.
+ */
+export function provideGeneration(): Generation {
+  const generation = useGeneration()
+  provide(GENERATION_KEY, generation)
+  return generation
+}
+
+export function useGenerationContext(): Generation {
+  const generation = inject(GENERATION_KEY, null)
+  if (!generation) throw new Error('El estado de generación se provee desde el shell.')
+  return generation
 }
