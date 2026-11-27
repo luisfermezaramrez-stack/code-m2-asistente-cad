@@ -50,7 +50,11 @@ def registrar_terminal(
     ruta_registro: Path,
 ) -> None:
     """Registra y mide una vez por trabajo; el id deduplica reanudaciones (RNF-3)."""
-    from m2_cad.api import _ESTADOS_CORRIDA_SSE, medir_solicitud
+    from m2_cad.api import (
+        _ESTADOS_CORRIDA_SSE,
+        _registrar_version_inicial,
+        medir_solicitud,
+    )
 
     inicio = datetime.fromisoformat(trabajo["creado_en"])
     latencia_ms = (datetime.now(UTC) - inicio).total_seconds() * 1000
@@ -81,6 +85,10 @@ def registrar_terminal(
         configuracion=configuracion,
     )
     estado = _ESTADOS_CORRIDA_SSE.get(terminal["estado"], "error")
+    if estado == "entregada":
+        # HU-35: con la cola activa la pieza la construye este worker, así que es él
+        # quien deja la versión 1 del historial (la misma función que las rutas API).
+        _registrar_version_inicial(trabajo["id"], trabajo.get("usuario") or ANONIMO, medido)
     medir_solicitud(
         corrida,
         medido,

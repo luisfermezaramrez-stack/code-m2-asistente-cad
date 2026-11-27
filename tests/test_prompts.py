@@ -487,6 +487,28 @@ def test_el_manifiesto_debe_declarar_el_prompt_que_usa_el_pipeline(tmp_path):
     assert prompts.PROMPT_VIGENTE in " ".join(errores)
 
 
+def test_el_manifiesto_declara_el_prompt_del_planificador_y_el_de_edicion():
+    """HU-35/S9: el prompt de edición es un artefacto versionado aparte (editor-v1)."""
+    manifiesto = prompts.cargar_manifiesto()
+    ids = [entrada["id"] for entrada in manifiesto["prompts"]]
+
+    assert "planner" in ids and "editor" in ids
+
+    editor = prompts.cargar("editor")
+    assert editor.etiqueta == "editor-v1"
+    assert editor.version == 1
+    assert editor.archivo == "editor-v1.txt"
+    assert editor.sha256 == prompts.sha256_texto(editor.texto)
+    assert (CARPETA_PROMPTS / editor.archivo).read_text(encoding="utf-8") == editor.texto + "\n"
+    for palabra in ("JSON", "unsupported", "mm"):
+        assert palabra in editor.texto, palabra
+
+    # El prompt del planificador no cambió: su hash congelado sigue siendo el declarado.
+    assert prompts.cargar("planner").sha256 == (
+        "b64b187dd7b365c37ff7dad4150ecca69eccd3e4a12470c595f63d3b0a41b6d3"
+    )
+
+
 # --- Endurecimiento pedido por la revisión nativa (R2-002, R3-bool-version-03,
 # --- R3-io-leak-01, R3-worker-cov-04) ---------------------------------------
 

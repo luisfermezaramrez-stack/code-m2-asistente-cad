@@ -108,6 +108,7 @@ code-m2-asistente-cad/
 │   ├── api.py                  # FastAPI: rutas `/v1`, redirecciones planas y SSE (HU-06/HU-31)
 │   ├── pipeline.py             # orquesta solicitud→DSL→verificación→B-rep (HU-04)
 │   ├── declinacion.py          # catálogo de causas legibles de declinación (HU-26)
+│   ├── versiones.py           # historial de versiones de la pieza por solicitud (HU-35)
 │   ├── llm_resiliente.py       # reintentos, plazo total y caché del LLM (HU-25)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
 │   ├── evaluacion.py           # evaluador HTTP HU-07: reporte por familia y enlaces CSV/STEP
@@ -124,7 +125,8 @@ code-m2-asistente-cad/
 ├── tests/                      # pytest: dataset, banco, pipeline, API, registro, seguimiento, SSE, web
 ├── data/
 │   ├── test_cases.csv          # banco de 40 solicitudes
-│   └── registro.csv            # registro de solicitudes (ignorado en git)
+│   ├── registro.csv            # registro de solicitudes (ignorado en git)
+│   └── versiones/              # índice de versiones por solicitud (ignorado en git)
 ├── contracts/                  # contrato OpenAPI v1 congelado (HU-31)
 ├── outputs/                    # entregables por solicitud (uuid/; ignorado en git)
 ├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
@@ -228,6 +230,16 @@ aceptan declaradas en `security/excepciones-secretos.toml` o
 revisión vigente (máximo 180 días); una excepción vencida vuelve a bloquear y toda
 excepción sigue visible en el repositorio y en el log del job. La política completa
 vive en [`security/politica-excepciones.md`](security/politica-excepciones.md).
+
+La edición iterativa (HU-35) reutiliza el pipeline determinista: `POST
+/v1/generar/{id}/editar` recibe una instrucción en español, reconstruye el programa con el
+prompt `editor-v1` y lo vuelve a verificar antes de construir. El id de la solicitud es la
+identidad de la pieza y su dueño manda (HU-53): un usuario nunca edita ni ve versiones
+ajenas. Cada versión vive en `data/versiones/<solicitud>.json` con su programa, sus
+artefactos, el diff respecto de la anterior y el prompt usado; una edición que no verifica
+declina con su causa de SPEC-027 y no toca el histórico. `GET /v1/generar/{id}/versiones`
+lo expone en orden. El registro CSV no cambia de forma: la corrida de MLflow lleva
+`operacion`, `version_pieza` y `solicitud_origen`.
 
 HU-27 define `EstadoTrabajo` en `contratos.py`, compartido por GET/DELETE de
 generaciones y documentado para el JSON `data` de SSE con `x-event-data-schema`.
