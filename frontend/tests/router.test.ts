@@ -4,7 +4,7 @@ import { createMemoryHistory, type Router } from 'vue-router'
 import App from '../src/App.vue'
 import { THEME_STORAGE_KEY } from '../src/design/theme'
 import { createAppRouter } from '../src/router'
-import { FakeCadService } from './fakeCadService'
+import { FakeCadService, event } from './fakeCadService'
 
 describe('AC1 y AC2 · URL propia y estado recuperable', () => {
   let router: Router
@@ -210,5 +210,52 @@ describe('AC4 · Navegación sólo con teclado', () => {
 
     expect(router.currentRoute.value.path).toBe('/ajustes')
     expect(wrapper.text()).toContain('Ajustes')
+  })
+})
+
+describe('AC2 · La generación pertenece al shell, no a la vista', () => {
+  let service: FakeCadService
+  let router: Router
+  let wrapper: VueWrapper
+
+  beforeEach(async () => {
+    service = new FakeCadService()
+    vi.stubGlobal('fetch', service.fetch)
+    router = createAppRouter(createMemoryHistory())
+    await router.push('/nueva-solicitud')
+    await router.isReady()
+    wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
+    await flushPromises()
+  })
+
+  afterEach(() => {
+    wrapper.unmount()
+    document.body.innerHTML = ''
+    window.localStorage.clear()
+    vi.unstubAllGlobals()
+  })
+
+  async function visitar(ruta: string) {
+    await router.push(ruta)
+    await flushPromises()
+  }
+
+  it('conserva la generación en curso al navegar a historial y volver a nueva solicitud', async () => {
+    // Arrange: una generación en curso con su stream SSE abierto.
+    await wrapper.get('textarea').setValue('Espaciador de 14 mm')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    service.send(event('validando', 1))
+    service.send(event('generando', 2))
+    await flushPromises()
+    expect(wrapper.get('.state strong').text()).toBe('Generando pieza')
+
+    // Act: abandonar la vista de generación y regresar a ella.
+    await visitar('/historial')
+    await visitar('/nueva-solicitud')
+
+    // Assert: navegar no aborta el stream ni pierde el trabajo en curso.
+    expect(service.posts[0]?.signal.aborted).toBe(false)
+    expect(wrapper.get('.state strong').text()).toBe('Generando pieza')
   })
 })

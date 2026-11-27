@@ -3,8 +3,11 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { cerrarSesion, estadoSesion, iniciarSesion, sinSesion, type EstadoSesion } from './auth'
 import { activeTheme, initTheme, setTheme, type Theme } from './design/theme'
+import { provideGeneration } from './useGeneration'
 
 const router = useRouter()
+// La generación pertenece al shell: sobrevive a la navegación entre vistas.
+provideGeneration()
 const nav = ref<HTMLElement | null>(null)
 const sesion = ref<EstadoSesion>(sinSesion)
 const cargandoSesion = ref(true)

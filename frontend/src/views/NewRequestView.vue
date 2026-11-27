@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, ref } from 'vue'
 import type { Stage } from '../api'
-import { useGeneration } from '../useGeneration'
+import { useGenerationContext } from '../useGeneration'
 
 const props = defineProps<{ necesitaLogin: boolean }>()
 
 const GlbViewer = defineAsyncComponent(() => import('../GlbViewer.vue'))
-const flow = useGeneration()
+// El estado de generación pertenece al shell: navegar no aborta el trabajo en curso.
+const flow = useGenerationContext()
 const { description, timeoutSeconds, job, stages, artifacts, busy, checking, cancelling, loadingFiles,
   message, inputError, filesError, disconnected, canCancel, canCheck, downloadToken } = flow
 const input = ref<HTMLTextAreaElement>()

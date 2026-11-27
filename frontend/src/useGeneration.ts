@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, ref, watch } from 'vue'
+import { computed, inject, onScopeDispose, provide, ref, watch, type InjectionKey } from 'vue'
 import { availableArtifacts, downloadArtifact, parseJob, publicMessage, requestJob, type Artifact, type Job, type Stage } from './api'
 import { readSSE } from './sse'
 
@@ -244,4 +244,25 @@ export function useGeneration() {
   return { description, timeoutSeconds, job, stages, artifacts, downloadToken, busy, checking, cancelling,
     loadingFiles, message, inputError, filesError, disconnected, canCancel, canCheck,
     start, cancel, refresh, stopWaiting, download }
+}
+
+export type Generation = ReturnType<typeof useGeneration>
+
+const GENERATION_KEY: InjectionKey<Generation> = Symbol('m2-cad-generation')
+
+/**
+ * Crea el estado de generación en el shell (App.vue). Debe vivir por encima de la
+ * vista de solicitud: navegar desmonta la vista y un estado propio de ésta abortaría
+ * el stream SSE en curso. Su `onScopeDispose` aborta al desmontar la aplicación.
+ */
+export function provideGeneration(): Generation {
+  const generation = useGeneration()
+  provide(GENERATION_KEY, generation)
+  return generation
+}
+
+export function useGenerationContext(): Generation {
+  const generation = inject(GENERATION_KEY, null)
+  if (!generation) throw new Error('El estado de generación se provee desde el shell.')
+  return generation
 }
