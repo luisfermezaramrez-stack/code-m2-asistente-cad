@@ -83,6 +83,8 @@ def _evaluador(monkeypatch, variantes, vistos):
             "familia": fila["familia"],
             "esperado": "declinar" if declinar else "aceptar",
             "estado": estado,
+            # HU-46: el registro real de banco.evaluar_caso siempre trae la causa.
+            "causa": "ninguna",
             "correcto": correcto,
             "latencia_s": 0.1,
             "tokens_entrada": 100,

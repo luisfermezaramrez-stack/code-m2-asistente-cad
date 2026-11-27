@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  issues: write  # HU-46: abrir issue cuando la corrida real registra una regresión.
 
 concurrency:
   group: banco-baseline
@@ -50,11 +51,47 @@ jobs:
       - name: Correr el banco real y registrar el baseline
         run: uv run --no-sync python -m m2_cad.banco --salida outputs/banco-baseline
 
-      - name: Publicar resumen del baseline
+      - name: Comparar la corrida real contra el baseline (HU-46)
+        id: comparar
+        run: |
+          uv run --no-sync python -B scripts/verificar_alertas.py \
+            --corrida-dir outputs/banco-baseline --salida outputs/alertas --no-fail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          datos = json.loads(Path("outputs/alertas/ultimo.json").read_text())
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as salida:
+              salida.write(f"regresion={1 if datos['regresion'] else 0}\n")
+          PY
+
+      - name: Abrir issue si hay regresión
+        if: steps.comparar.outputs.regresion == '1'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('outputs/alertas/ultimo.md', 'utf8');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Regresión de calidad del banco (${new Date().toISOString().slice(0, 10)})`,
+              body,
+              labels: ['ML', 'Testing']
+            });
+
+      - name: Fallar el job si hay regresión
+        if: steps.comparar.outputs.regresion == '1'
+        run: exit 1
+
+      - name: Publicar resumen del baseline y de alertas
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: banco-baseline
-          path: outputs/banco-baseline/
+          path: |
+            outputs/banco-baseline/
+            outputs/alertas/
           if-no-files-found: warn
           retention-days: 30

@@ -157,6 +157,13 @@ licencia.
 | python-solvespace | ≥ 3.0 |
 | llama.cpp (heredado) | 0.9.0-dev (commit f4777f9, backend CUDA) — servidor GGUF (Q6_K) |
 | constraint-kit | repositorio del autor (sin modificar) |
+| Release | `v1.0.1` — `CHANGELOG.md` generado desde Conventional Commits (HU-55) |
+
+Los releases se cortan desde `main` después de la CI: `feat` sube la versión menor,
+`fix`/`perf` la de parche y `BREAKING CHANGE` o `!:` la mayor. Un cambio incompatible
+del contrato `/v1` (HU-31) fuerza versión mayor. `make release-dry-run` muestra la
+propuesta sin crear etiquetas ni publicar; `make release-check` comprueba que la etiqueta,
+`pyproject.toml` y `CHANGELOG.md` coinciden.
 
 ## Instalación y uso
 
@@ -164,7 +171,8 @@ licencia.
 bash scripts/vendor-constraint-kit.sh
 uv sync --locked --dev
 make frontend-install
-make check        # Ruff + contratos + Vitest + TypeScript + build + pytest/cobertura
+make check        # Ruff + contratos + Vitest + TypeScript + build + sitio + pytest/cobertura
+make docs-build   # sitio MkDocs estricto; `make docs-serve` para vista previa
 make e2e-install  # una vez: descarga el Chromium de Playwright
 make e2e          # E2E de la SPA sobre el build real (backend simulado, sin GPU)
 uv run --locked uvicorn m2_cad.api:app --app-dir src --host 127.0.0.1 --port 8000 --workers 1
@@ -316,6 +324,30 @@ cada lunes 03:17 UTC y bajo `workflow_dispatch`, con `DEEPSEEK_API_KEY` y
 `MLFLOW_TRACKING_URI` (`vars.MLFLOW_TRACKING_URI`). Registra el experimento
 `m2-cad-banco` en MLflow y publica el CSV/JSON como artefacto del workflow.
 
+### Alertas de regresión de calidad (HU-46)
+
+`make alertas` compara la última corrida del banco (replay en CI o real programada) contra
+`data/alertas_baseline.json`: baseline v1 con 40 casos, métricas (`acierto`,
+`declinaciones_correctas`, `errores_silenciosos`), umbrales versionados y trazabilidad de
+quién, cuándo y desde qué corrida se actualizó. No usa red, API key, GPU ni tokens: lee el
+JSON y el CSV que ya produjo `make bench-replay`; el CSV incluye la `causa` de SPEC-027.
+
+```bash
+make alertas                                   # última corrida de outputs/banco-replay/
+make alertas CORRIDA=outputs/banco-baseline/<archivo>.json
+uv run --no-sync python -B scripts/verificar_alertas.py --actualizar-baseline \
+  --autor 'Nombre' --motivo 'cambio revisado' --corrida-origen 'mlflow-run-...' --issue '#106'
+```
+
+Salidas: `0` sin regresión (sólo `outputs/alertas/ultimo.json`, sin alerta Markdown), `1`
+regresión (falla el job, escribe `outputs/alertas/ultimo.md` con las métricas degradadas y
+los casos cambiados con familia y causa; la corrida programada abre un issue) y `2`
+artefacto inválido o incompleto.
+
+El baseline inicial se generó desde el replay de HU-44 (`origen: referencia-banco`), así que
+mide estabilidad del pipeline y del prompt, no calidad del proveedor en una corrida pagada.
+Actualizarlo nunca es implícito: exige `--autor`, `--motivo` y `--corrida-origen`, y deja
+`historial` en el propio JSON.
 
 ### Comparación A/B de prompts y modelos (HU-52)
 

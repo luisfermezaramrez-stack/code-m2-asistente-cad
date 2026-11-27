@@ -85,7 +85,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Testing** | `pytest` + cobertura **≥ 70 %** de `src/m2_cad` (umbral en `pyproject.toml`) |
 | **Lint / Formato** | [Ruff](https://docs.astral.sh/ruff/) — reglas `E, F, I, B`, `line-length = 100` |
 | **Pre-commit** | Ruff + higiene de archivos + bloqueo de pesos (`.gguf`, `.safetensors`, …) |
-| **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `main` |
+| **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `main`; valida títulos convencionales y publica releases desde `main` tras `test`/`e2e` (HU-55) |
 | **Espejo GitLab** | GitHub es la fuente de verdad; `.github/workflows/espejo-gitlab.yml` replica ramas y etiquetas en GitLab (solo lectura) vía deploy key SSH (`vars.GITLAB_MIRROR_URL`, `secrets.GITLAB_MIRROR_SSH_KEY`) |
 | **Pipeline GitLab** | `.gitlab-ci.yml` deja evidencia sobre el espejo en seis jobs: `lint` (imagen de uv 0.13.5 con el Python de `.python-version` y `make lint`), `secretos` (gitleaks sobre el historial completo), `dependencias` (pip-audit sobre el export de `uv.lock`), `run_test` (`vendor` + `uv sync --locked` + `make frontend-install` + `make test` sobre `node:24-bookworm`), `e2e` (Playwright/Chromium sobre el build real con backend simulado, HU-41) y `build_image` (imagen Docker). Corre con push a la rama por defecto del espejo, lanzamiento manual o pipeline programado: no abre una segunda puerta de integración, que la puerta es el PR en GitHub |
 | **Dependencias automáticas** | [Dependabot](.github/dependabot.yml) (target `main`) |
@@ -114,6 +114,7 @@ code-m2-asistente-cad/
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
 │   ├── banco_replay.py         # respuestas grabadas/versionadas del banco, sin red (HU-44)
 │   ├── ab.py                   # comparación A/B de prompts y modelos sobre el banco (HU-52)
+│   ├── alertas.py              # baseline versionado y comparación de regresiones (HU-46)
 │   ├── evaluacion.py           # evaluador HTTP HU-07: reporte por familia y enlaces CSV/STEP
 │   ├── registro.py             # registro CSV con exclusión de PII (HU-06) y lector del historial (HU-37)
 │   ├── trabajos.py             # SSE, registro en memoria y cancelación cooperativa
@@ -121,6 +122,7 @@ code-m2-asistente-cad/
 │   ├── seguimiento.py          # MLflow: una corrida por solicitud y por caso del banco (HU-16)
 │   ├── observabilidad.py       # logs JSON, request_id/job_id y redacción de secretos (HU-24)
 │   ├── contrato_api.py         # carga y compara el OpenAPI v1 congelado (HU-31)
+│   ├── releases.py             # versión semántica y changelog desde commits (HU-55)
 │   └── web.py                  # Vue/estáticos, CORS restringido y errores JSON
 ├── frontend/src/design/        # tokens.css y resolución de tema del frontend
 ├── frontend/e2e/               # E2E de Playwright con backend simulado (HU-41)
@@ -130,22 +132,26 @@ code-m2-asistente-cad/
 ├── data/
 │   ├── test_cases.csv          # banco de 40 solicitudes
 │   ├── banco_replay.json       # respuestas grabadas del banco con versión de prompt (HU-44)
+│   ├── alertas_baseline.json   # baseline v1, umbrales e historial de actualización (HU-46)
 │   ├── registro.csv            # registro de solicitudes (ignorado en git)
 │   └── versiones/              # índice de versiones por solicitud (ignorado en git)
 ├── contracts/                  # contrato OpenAPI v1 congelado (HU-31)
 ├── outputs/                    # entregables por solicitud (uuid/; ignorado en git)
 ├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
 ├── specs/                      # specs SDD 001–023 (Spec Kit, Retroactiva, Spec-first); índice en specs/README.md
-├── scripts/                    # fetch-model, verify-serve, vendor, cloud, verify_banco_replay.py (HU-44) y comparar_ab.py (HU-52)
+├── scripts/                    # fetch-model, verify-serve, vendor, cloud, verify_banco_replay.py (HU-44),
+│                               # verificar_alertas.py (HU-46) y comparar_ab.py (HU-52)
 ├── docs/                       # documentación, sistema de diseño, runbook operativo, política de versionado y diagrama
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
-├── .github/                    # CI, banco real programado (HU-44), labels, Dependabot, plantillas
+├── .github/                    # CI, banco real programado (HU-44), alertas (HU-46), labels,
+│                               # Dependabot y plantillas
 ├── .opencode/rules/            # reglas para agentes (tgrep)
 ├── AGENTS.md                   # contexto para agentes LLM
 ├── CONSTITUTION.md             # este archivo — verdad central
 ├── README.md                   # puerta de entrada pública
 ├── CONTRIBUTING.md             # guía de contribución
 ├── CODE_OF_CONDUCT.md          # código de conducta
+├── CHANGELOG.md                # entradas de release generadas desde commits (HU-55)
 ├── Makefile                    # interfaz de comandos (`make help`)
 ├── pyproject.toml              # metadatos y dependencias (uv)
 ├── uv.lock                     # lockfile determinista (versionado)
@@ -204,18 +210,21 @@ code-m2-asistente-cad/
 | Corpus dorado | Divergencia geométrica del núcleo por huella de STEP, en cada PR | `make corpus-dorado` |
 | Banco en replay | Aceptación del banco con respuestas grabadas, sin red, key ni tokens, en cada PR | `make bench-replay` | SPEC-045 |
 | Baseline real del banco | Corrida pagada semanal con registro en MLflow y artefactos | `.github/workflows/banco-baseline.yml` | SPEC-045 |
+| Alertas de regresión | Comparación del banco con baseline versionado; fallo en CI o issue en la corrida programada | `make alertas` | SPEC-047 |
 | Seguridad | gitleaks y pip-audit en cada PR | `make security` | SPEC-029 |
 | Prompts versionados | id, versión y hash del prompt; CI falla si el texto cambia sin subir versión | `make prompts-check` | SPEC-034 |
 | Comparación A/B | dos variantes prompt/modelo sobre el mismo banco, con corridas en MLflow y reporte por familia | `make ab` / `make ab-replay` | SPEC-053 |
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
 | E2E del frontend | Playwright (un solo Chromium) sobre el build real con backend simulado; axe-core audita WCAG 2.1 AA en cuatro vistas y dos temas | `make e2e` |
+| Sitio de documentación | MkDocs 1.6.1 con staging generado, nav del runbook y enlaces estrictos | `make docs-build` / `make docs-serve` |
 | Servicio | Vue/FastAPI + DeepSeek externo | `make up` / `make down` |
 
 `make check` ejecuta Ruff, comprobación del contrato congelado, comprobación de tipos
-OpenAPI, Vitest, TypeScript, build y pytest con cobertura; CI reproduce estos controles
-desde lockfiles. Las pruebas con dobles se identifican como simuladas y no prueban
-inferencia real. Los E2E (HU-41) son un paso propio, fuera de `make check` porque
-necesitan un navegador: `make e2e` construye la SPA, la sirve con `vite preview` y corre
+OpenAPI, Vitest, TypeScript, build, sitio con `mkdocs build --strict` y pytest con
+cobertura; CI reproduce estos controles desde lockfiles. Las pruebas con dobles se
+identifican como simuladas y no prueban inferencia real. Los E2E (HU-41) son un paso
+propio, fuera de `make check` porque necesitan un navegador: `make e2e` construye la
+SPA, la sirve con `vite preview` y corre
 los escenarios de Playwright contra un backend simulado con `page.route` sobre `/v1`, sin
 red externa, API key ni GPU. CI los corre en el job `e2e` y, ante un fallo, publica la
 captura y la traza (AC2 de SPEC-042); Vitest sigue siendo la suite de componentes. Desde
@@ -230,6 +239,15 @@ salida 1 si el acierto baja del umbral (1.0 por defecto) o con salida 2 si el ar
 cubre los 40 casos. Nunca llama al proveedor como fallback. La corrida real, que sí gasta
 tokens, vive en `.github/workflows/banco-baseline.yml` (lunes 03:17 UTC y ejecución manual),
 con MLflow y artefactos; no forma parte de la puerta de integración.
+
+HU-46 añade `make alertas` inmediatamente después del replay en CI (`src/m2_cad/alertas.py`
+y `scripts/verificar_alertas.py`, SPEC-047). Compara `acierto`, `declinaciones_correctas` y
+`errores_silenciosos` contra los umbrales de `data/alertas_baseline.json`: salida 0 sin
+regresión, 1 con regresión (resumen Markdown con familia y causa de SPEC-027) y 2 si el
+artefacto es inválido. El workflow programado usa `--no-fail` para abrir el issue antes de
+propagar el fallo. El baseline sólo se cambia con `--actualizar-baseline --autor --motivo
+--corrida-origen`; el JSON guarda `historial`. El inicial procede del replay de HU-44, no
+de una corrida pagada del proveedor.
 
 HU-33 versiona los prompts como artefactos: `prompts/planner-v1.txt` guarda el texto
 exacto del planificador y `prompts/manifest.toml` declara su id, versión y `sha256`;
@@ -360,6 +378,12 @@ rechazar con 403 al cliente de la API aunque `/health` responda correctamente.
 - **Estrategia:** `main` es la única rama de integración; **toda rama de trabajo sale
   de `main`** y vuelve por pull request. Las entregas son etiquetas anotadas sobre
   `main`. Un `Closes #N` en la PR cierra la issue al fusionar.
+- **Releases:** el job `release` corre sólo en `push` a `main` después de `test`/`e2e`.
+  Calcula la versión con Conventional Commits (`feat` → menor, `fix`/`perf` → parche,
+  `BREAKING CHANGE`/`!:` → mayor; cambio incompatible de `/v1` → mayor), actualiza
+  `CHANGELOG.md` y `pyproject.toml`, crea la etiqueta anotada `vX.Y.Z` y publica el
+  GitHub Release con esas notas. `make release-dry-run` y `make release-check` permiten
+  validar el flujo sin publicar (HU-55).
 - **Nombres de rama:** `feature/hu-XX-tema` (una rama por historia de usuario);
   utilidades con `fix/...`, `docs/...`, `chore/...`.
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) —
@@ -422,12 +446,14 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-25 | HU-53: sesión local con cookie firmada y usuarios PBKDF2 por entorno; activa por defecto, modo local explícito | Controlar acceso y costo en despliegue público sin red, OIDC ni dependencias nuevas; dueño en trabajos y registro con respuestas 404 ajenas |
 | 2026-11-25 | HU-53 × HU-31/32/45: `/v1/auth/*`; la cola guarda el dueño y el worker lo registra; topes e idempotencia por usuario; login con límite de intentos; firma ligada al hash vigente; configuración validada al arrancar | Integrar la autenticación con la API versionada, la cola y el control de uso sin fugas entre usuarios; endurecer la sesión según la revisión del PR #133 |
 | 2026-11-27 | HU-26: `declinacion.py` concentra el catálogo cerrado de causas, el mensaje legible y la tabla que traduce los códigos del verificador; el registro gana la columna `causa` y MLflow la etiqueta `causa_declinacion`; la causa no viaja en el cuerpo de `/v1` | Un motivo en texto libre no explica la declinación al usuario ni sirve como dimensión de métricas; asignar la causa en el origen evita heurísticas sobre texto y conserva el contrato HTTP y los tipos del frontend |
-| 2026-11-27 | HU-44: `banco_replay.py` y `data/banco_replay.json` fijan 40 respuestas con versión de prompt; `llm_resiliente.clave_cuerpo()` comparte la clave canónica sin credenciales y `pipeline.cuerpo_planificador()` evita definir dos veces la petición; CI corre `make bench-replay` y un workflow programado registra el baseline real en MLflow | Detectar caídas de aceptación en cada PR sin pagar tokens ni abrir red; separar la puerta barata de la corrida real, y hacer explícita cualquier divergencia de prompt/modelo en vez de buscar el proveedor como fallback |
-| 2026-11-27 | HU-52: `ab.py` y `comparar_ab.py` comparan dos variantes de prompt/modelo sobre el mismo banco, con dos corridas en `m2-cad-ab` y reporte por familia/caso; `planner-v2` se registra sin desplazar a la v1 | Separar la decisión de promover de la evidencia: la comparación real gasta tokens y vive fuera de CI, el replay por variante no usa red y las pruebas no dependen de MLflow ni del proveedor |
 | 2026-11-27 | HU-40: quitar el manejador de `App.vue` que atrapaba `Tab` en la navegación, hacer `ol.steps` región viva persistente, mantener `Generar pieza` enfocable con `aria-disabled` durante `busy` y añadir axe-core a los E2E sobre cuatro vistas × dos temas | Eliminar la trampa de teclado, evitar que Chromium mueva el foco a `body` al deshabilitar el botón y anunciar cada etapa sin mover el foco; convertir la auditoría manual en una comprobación de CI sin red, API key ni GPU y sin reescribir la UI |
 | 2026-11-26 | HU-38: `vue-router` da URL propia a nueva solicitud, historial y ajustes; `App.vue` es el shell, `useGeneration.ts` recupera borrador y timeout, y `web.py` sirve esas vistas sin relajar el 404 JSON de API y `/assets` | Compartir o reabrir una vista concreta sin perder su estado, conservando el flujo SSE y la navegación por teclado; los estados nuevos del shell se distinguen con componentes presentacionales y la ruta comodín |
 | 2026-11-27 | HU-37: `GET /v1/registros` lista sólo las solicitudes propias con campos mínimos y filtros en el servidor; el estado se deriva en el backend con precedencia documentada y `GET /v1/registros/{id}` emite `X-Download-Token` tras sesión y propiedad; `/historial` deja de leer `?estado=` y la reapertura vive en `/historial/:identificador` | Consultar y reabrir solicitudes sin copia autoritativa en el cliente ni recorrer ids, y descargar el STEP pasado el reinicio sin relajar `exigir_token`; derivar el estado sólo en el backend evita que la misma regla viva en Python y en TypeScript |
 | 2026-11-27 | HU-39: `viewerMedidas.ts` separa `caja_mm`, unidades y direcciones de vista; `GlbViewer.vue` usa `OrthographicCamera`, cotas y PNG reproducible con `preserveDrawingBuffer` + re-render | Revisar la pieza desde tres vistas canónicas con el mismo encuadre, medir contra la caja verificada y exportar la vista sin GPU real; las cotas nunca se leen del CSV y los controles/atajos de HU-16 permanecen |
+| 2026-11-27 | HU-54: sitio MkDocs sobre staging generado desde los Markdown versionados, navegación con el runbook y workflow de GitHub Pages desde `main` | MkDocs exige `docs_dir` hijo de la config, así que el staging conserva las rutas y enlaces originales sin duplicar documentos; `--strict` convierte enlaces rotos en fallo de CI |
+| 2026-11-27 | HU-44: `banco_replay.py` y `data/banco_replay.json` fijan 40 respuestas con versión de prompt; `llm_resiliente.clave_cuerpo()` comparte la clave canónica sin credenciales y `pipeline.cuerpo_planificador()` evita definir dos veces la petición; CI corre `make bench-replay` y un workflow programado registra el baseline real en MLflow | Detectar caídas de aceptación en cada PR sin pagar tokens ni abrir red; separar la puerta barata de la corrida real, y hacer explícita cualquier divergencia de prompt/modelo en vez de buscar el proveedor como fallback |
+| 2026-11-27 | HU-55: releases automáticos desde `main` con versión semántica y `CHANGELOG.md` generados por `releases.py`; el job `release` de CI publica sólo tras `test`/`e2e`, con modo seco y verificación en `make check` | Cumplir SPEC-056 sin redactar notas a mano ni publicar desde PRs/forks, manteniendo `pyproject.toml`, etiqueta y changelog coherentes y respetando la decisión de `main` de SPEC-058 |
+| 2026-11-27 | HU-52: `ab.py` y `comparar_ab.py` comparan dos variantes de prompt/modelo sobre el mismo banco, con dos corridas en `m2-cad-ab` y reporte por familia/caso; `planner-v2` se registra sin desplazar a la v1 | Separar la decisión de promover de la evidencia: la comparación real gasta tokens y vive fuera de CI, el replay por variante no usa red y las pruebas no dependen de MLflow ni del proveedor |
 
 ## 10. Notas y tareas pendientes
 
