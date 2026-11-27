@@ -68,3 +68,42 @@ jobs:
 
       - name: Arranque integrado HTTP (modelo simulado, sin traducción, CAD real)
         run: uv run --no-sync python scripts/verify_hu15_deployment.py --simulate-model
+
+  e2e:
+    # SPEC-042 (HU-41): el flujo completo de la SPA en un navegador real contra el
+    # backend simulado que el propio test intercepta. Sin red externa, sin API key,
+    # sin GPU y sin kernel CAD: solo Node y Chromium (RF-5, RNF-1).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: "frontend/package-lock.json"
+
+      - name: Instalar frontend desde lockfile
+        run: make frontend-install
+
+      - name: Instalar solo Chromium de Playwright
+        # Un solo navegador basta (Supuesto de SPEC-042); --with-deps trae las
+        # bibliotecas del sistema que Chromium necesita en el runner.
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Suite E2E sobre el build real con backend simulado
+        run: make e2e
+
+      - name: Publicar captura y traza del fallo
+        # AC2: ante un fallo quedan la captura (screenshot: only-on-failure), la
+        # traza (trace: retain-on-failure) y el reporte HTML.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-playwright
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          if-no-files-found: warn
+          retention-days: 7

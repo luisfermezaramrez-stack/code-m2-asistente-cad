@@ -202,7 +202,34 @@ run_test:
       junit: report.xml
 
 # -----------------------------------------------------------------------------
-# Job 5: imagen Docker de la entrega, publicada en el registro elegido.
+# Job 5: E2E de la SPA con Playwright (SPEC-042, HU-41). El backend está
+# simulado por el propio test (`page.route` sobre `/v1`): no necesita kernel CAD,
+# API key ni red externa, solo Node y Chromium.
+# -----------------------------------------------------------------------------
+e2e:
+  stage: test
+  # Misma versión mayor de Node que GitHub Actions: el build y la suite son npm.
+  image: node:24-bookworm
+  timeout: 30 minutes
+  before_script:
+    # Lockfile del frontend, sin resolver versiones nuevas.
+    - npm --prefix frontend ci
+    # Un solo navegador (Supuesto de SPEC-042); --with-deps trae sus bibliotecas.
+    - (cd frontend && npx playwright install --with-deps chromium)
+  script:
+    # Los mismos pasos que `make e2e` en local y en GitHub: build real + suite.
+    - npm --prefix frontend run build
+    - npm --prefix frontend run e2e
+  artifacts:
+    # AC2: ante un fallo quedan la captura, la traza y el reporte HTML.
+    when: on_failure
+    expire_in: 1 week
+    paths:
+      - frontend/test-results/
+      - frontend/playwright-report/
+
+# -----------------------------------------------------------------------------
+# Job 6: imagen Docker de la entrega, publicada en el registro elegido.
 # -----------------------------------------------------------------------------
 build_image:
   stage: build
