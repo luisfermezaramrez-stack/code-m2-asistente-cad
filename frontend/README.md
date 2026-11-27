@@ -128,6 +128,13 @@ necesitar una vista GLB.
   funcionan en Chrome. No se afirma validación de lectores de pantalla ni de
   otros navegadores. Contraste de tokens verificado en ambos temas: texto ≥6.31:1,
   bordes/foco ≥3.39:1; detalle y valores por par en `../docs/diseno-v2.md`.
+- `make e2e` incluye `e2e/accesibilidad.spec.ts`: axe-core audita nueva solicitud,
+  resultado, historial y ajustes en temas claro y oscuro, sin violaciones críticas,
+  serias ni de `color-contrast` (SPEC-041). `e2e/teclado.spec.ts` completa solicitud,
+  progreso y descarga usando sólo Tab/Enter, con foco visible de 3 px y sin saltos de
+  foco durante los eventos SSE. `ol.steps` es una región viva persistente, así que cada
+  etapa nueva se anuncia. Esto sustituye la revisión manual por una comprobación que
+  falla en CI; no equivale a certificación con lectores de pantalla reales.
 
 Límites heredados: retención de trabajos en memoria de un proceso, archivos
 indisponibles por ID tras expulsión/reinicio y operaciones bloqueantes que no se

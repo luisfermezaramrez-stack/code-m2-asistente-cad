@@ -3,8 +3,11 @@
 ## Alcance y punto de partida
 
 - **Rama**: `feature/hu-52-ab-prompts-modelos`, creada desde `feature/hu-44-banco-ci-replay`
-  (`358a557`) porque SPEC-045 sigue en revisión en PR #151. El PR final apunta a `main`;
-  cuando se fusione #151 el diff queda limitado a HU-52.
+  (`358a557`) porque SPEC-045 sigue en revisión en PR #151. El PR final apunta a `main`
+  ([PR #154](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/154));
+  cuando se fusione #151 el diff queda limitado a HU-52. Se integró `origin/main` en la
+  rama: el único conflicto fue el historial de `CONSTITUTION.md` y se resolvió conservando
+  las filas de HU-40, HU-44 y HU-52.
 - **Spec-first**: [`plan.md`](./plan.md) y [`tasks.md`](./tasks.md) se escribieron antes del
   código; este archivo consigna la ejecución y sus límites reales.
 - **Estándar `@jan-project-standard`**: auditoría no destructiva del repo antes de tocar nada
@@ -46,7 +49,7 @@
 | `.venv/bin/ruff format --check` sobre los 5 archivos Python de HU-52 | ✅ 5 archivos ya formateados. El chequeo de todo el repo señala 4 archivos preexistentes no tocados por HU-52 (`api.py`, `seguridad_ci.py`, `test_api_seguimiento.py`, `test_declinacion.py`). |
 | `.venv/bin/pre-commit run --files …` sobre todos los archivos de la rama | ✅ Ruff, ruff-format, higiene y bloqueo de pesos: `Passed`. |
 | `pytest tests/test_hu52_ab.py tests/test_prompts.py tests/test_hu44_banco_replay.py` | ✅ 47 pruebas pasan; 3 `FutureWarning` de CadQuery. |
-| `pytest --cov=src/m2_cad --cov-report=term-missing:skip-covered -q` | 708 pasan, 1 falla preexistente, cobertura total **91,71 %** (umbral 70 %). |
+| `pytest --cov=src/m2_cad --cov-report=term -q` (tras integrar `main`) | 750 pasan, 1 falla preexistente, cobertura total **91,85 %** (umbral 70 %). Antes de la fusión de `main`: 708 pasan y 91,71 %. |
 | `scripts/generate_api_contract.py --check` | ✅ Contrato OpenAPI v1 actualizado (el prompt no cambia la API). |
 | `scripts/generate_api_types.py --check` | ✅ Tipos OpenAPI actualizados. |
 | `scripts/verify_prompts.py` | ✅ 3 versiones verificadas por hash. |
@@ -87,4 +90,4 @@ el repo guarda código, prompts y documentación, no evidencia pagada ni pesos.
 - Código, pruebas y documentación completos en la rama; sin cambios sin commitear al cierre.
 - Comparación real documentada pero **no ejecutada** localmente: requiere API key y gasto
   de tokens. La evidencia disponible cubre la lógica completa con modelos simulados y replay.
-- Falta la aprobación/revisión del PR y la fusión de #151 antes de fusionar este cambio.
+- PR #154 abierto y apuntando a `main`; pendiente de revisión y de la fusión de #151.

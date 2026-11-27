@@ -65,10 +65,10 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [035](035-hu-34-sistema-diseno-v2/) | HU-34 · Sistema de diseño v2: tokens, tipografía y modo oscuro | 1 | Carlos | #94 | #137 | Spec-first | En revisión |
 | [036](036-hu-35-edicion-iterativa/) | HU-35 · Edición iterativa de la pieza | 1 | Luis Meza | #95 | — | Spec-first | Propuesta |
 | [037](037-hu-36-endurecimiento-descargas/) | HU-36 · Endurecimiento de artefactos y descargas | 1 | Juan Camilo | #96 | — | Spec-first | Propuesta |
-| [038](038-hu-37-historial-ui/) | HU-37 · Historial de solicitudes en la UI | 2 | Carlos | #97 | — | Spec-first | Propuesta |
+| [038](038-hu-37-historial-ui/) | HU-37 · Historial de solicitudes en la UI | 2 | Carlos | #97 | #145 | Spec-first | En revisión |
 | [039](039-hu-38-app-shell/) | HU-38 · App shell y navegación por vistas | 2 | Carlos | #98 | #142 | Spec-first | En revisión |
-| [040](040-hu-39-visor-ortogonal-medidas/) | HU-39 · Visor 3D: vistas ortogonales, medidas y captura | 2 | Carlos | #99 | — | Spec-first | Propuesta |
-| [041](041-hu-40-wcag-aa/) | HU-40 · Cierre de brechas WCAG 2.1 AA | 2 | Carlos | #100 | — | Spec-first | Propuesta |
+| [040](040-hu-39-visor-ortogonal-medidas/) | HU-39 · Visor 3D: vistas ortogonales, medidas y captura | 2 | Carlos | #99 | #148 | Spec-first | En revisión |
+| [041](041-hu-40-wcag-aa/) | HU-40 · Cierre de brechas WCAG 2.1 AA | 2 | Carlos | #100 | #149 | Spec-first | En revisión |
 | [042](042-hu-41-e2e-playwright/) | HU-41 · E2E del frontend con Playwright en CI | 2 | Carlos | #101 | #144 | Spec-first | En revisión |
 | [043](043-hu-42-exportacion-dxf/) | HU-42 · Exportación DXF de planos 2D | 2 | Luis Meza | #102 | — | Spec-first | Propuesta |
 | [044](044-hu-43-exportacion-pdf/) | HU-43 · Exportación PDF de planos con cotas | 2 | Luis Meza | #103 | — | Spec-first | Propuesta |
@@ -80,7 +80,7 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [050](050-hu-49-plantillas-parametrizadas/) | HU-49 · Plantillas parametrizadas de piezas | 3 | Luis Meza | #109 | — | Spec-first | Propuesta (opcional) |
 | [051](051-hu-50-cortes-visor-3d/) | HU-50 · Cortes y secciones en el visor 3D | 3 | Carlos | #110 | — | Spec-first | Propuesta (opcional) |
 | [052](052-hu-51-panorama-metricas/) | HU-51 · Panorama de métricas sobre MLflow | 3 | Juan Camilo | #111 | — | Spec-first | Propuesta (opcional) |
-| [053](053-hu-52-ab-prompts-modelos/) | HU-52 · Comparación A/B de prompts y modelos | 3 | Juan Camilo | #112 | — | Spec-first | En revisión |
+| [053](053-hu-52-ab-prompts-modelos/) | HU-52 · Comparación A/B de prompts y modelos | 3 | Juan Camilo | #112 | #154 | Spec-first | En revisión |
 | [054](054-hu-53-autenticacion/) | HU-53 · Autenticación y usuarios | 3 | Juan Camilo | #113 | #133 | Spec-first | En revisión |
 | [055](055-hu-54-sitio-documentacion/) | HU-54 · Sitio de documentación publicado | 3 | Carlos | #114 | — | Spec-first | Propuesta (opcional) |
 | [056](056-hu-55-releases-automaticos/) | HU-55 · Releases automáticos con changelog | 3 | Carlos | #115 | — | Spec-first | Propuesta (opcional) |
