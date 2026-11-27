@@ -260,9 +260,7 @@ def test_el_detalle_tecnico_se_conserva_en_el_log(tmp_path, monkeypatch, caplog)
     detalle = "part-build-error at parts[0].params: bore 20 > outer_d 10"
 
     def fallar(texto, **kwargs):
-        raise pipeline.ErrorVerificacion(
-            detalle, causa=declinacion.Causa.DIMENSION_INCOHERENTE
-        )
+        raise pipeline.ErrorVerificacion(detalle, causa=declinacion.Causa.DIMENSION_INCOHERENTE)
 
     monkeypatch.setenv("LLM_BASE_URL", "http://llama:8080")
     monkeypatch.setattr(pipeline, "generar_pieza", fallar)

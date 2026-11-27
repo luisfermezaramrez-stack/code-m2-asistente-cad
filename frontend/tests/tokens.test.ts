@@ -101,13 +101,18 @@ describe('sistema de diseño v2', () => {
     expect(appSource).not.toMatch(/#[0-9a-f]{3,8}\b/i)
   })
 
-  it.each(['claro', 'oscuro'] as const)('cumple contraste AA en el tema %s', (theme) => {
-    const palette = theme === 'claro' ? light : systemDark
+  it.each([
+    ['claro', light],
+    ['oscuro del sistema', systemDark],
+    ['oscuro explícito', explicitDark],
+  ] as const)('cumple contraste AA en el tema %s', (theme, palette) => {
     for (const [foreground, background] of textPairs) {
-      expect(contrast(colorOf(palette, foreground!), colorOf(palette, background!))).toBeGreaterThanOrEqual(4.5)
+      expect(contrast(colorOf(palette, foreground!), colorOf(palette, background!)),
+        `${theme}: ${foreground} sobre ${background}`).toBeGreaterThanOrEqual(4.5)
     }
     for (const [foreground, background] of nonTextPairs) {
-      expect(contrast(colorOf(palette, foreground!), colorOf(palette, background!))).toBeGreaterThanOrEqual(3)
+      expect(contrast(colorOf(palette, foreground!), colorOf(palette, background!)),
+        `${theme}: ${foreground} sobre ${background}`).toBeGreaterThanOrEqual(3)
     }
   })
 
