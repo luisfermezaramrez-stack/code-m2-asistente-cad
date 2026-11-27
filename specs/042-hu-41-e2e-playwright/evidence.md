@@ -59,7 +59,7 @@ No se modificaron `frontend/src/**`, `src/m2_cad/**` ni los contratos OpenAPI.
 | Suite E2E | `make e2e` | **Verde**: 3 escenarios aprobados en 4,7 s sobre el build real. |
 | Paridad de pipelines | `uv run --locked pytest -q tests/test_ci_parity.py` | **16 aprobadas**. |
 | Tipo de los E2E | `npm --prefix frontend run typecheck` | Sin errores (`e2e/**` y `playwright.config.ts` incluidos). |
-| CI del PR | Job `e2e` de [CI #45946739885](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/45946739885) | **Verde** en 35 s; el resto de jobs del PR (test, seguridad, espejo) también en verde. |
+| CI del PR | Job `e2e` de [CI #45946739885](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/45946739885) y de la corrida del último commit, [CI #45947220661](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/45947220661/job/140334575383) | **Verde** en 35 s y 39 s respectivamente; el resto de jobs del PR (`test`, `secretos`, `dependencias`, `espejo`) también en verde. |
 | Hooks | `make precommit` | **No verde en el estado base**: ver sección 5; los hooks sobre los archivos de esta HU pasaron en cada commit. |
 
 ## 4. Compatibilidad y seguridad
