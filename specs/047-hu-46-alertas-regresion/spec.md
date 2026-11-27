@@ -8,7 +8,7 @@
   [SPEC-027](../027-hu-26-declinacion-legible/spec.md) (RF-3 y AC3 agrupan por su etiqueta de
   causa de declinación)
 - **Rama**: `feature/hu-46-alertas-regresion`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: Spec-first · en implementación; `plan.md`, `tasks.md` y `evidence.md` acompañan al código
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
 - **Auditoría**: corregida según
   [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)

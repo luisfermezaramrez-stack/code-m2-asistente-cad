@@ -71,6 +71,11 @@ jobs:
         # ni tokens; falla si la tasa de aceptación baja del umbral (por defecto 1.0).
         run: make bench-replay
 
+      - name: Comparar el banco contra el baseline de calidad
+        # HU-46: sin red, key ni tokens; falla si alguna métrica empeora más allá
+        # de los umbrales versionados en data/alertas_baseline.json.
+        run: make alertas
+
       - name: Arranque integrado HTTP (modelo simulado, sin traducción, CAD real)
         run: uv run --no-sync python scripts/verify_hu15_deployment.py --simulate-model
 
