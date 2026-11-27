@@ -1,0 +1,58 @@
+site_name: M2 Asistente CAD
+site_description: Documentación del asistente CAD para diseño preliminar de componentes metálicos auxiliares
+
+docs_dir: docs-build
+site_dir: .site
+
+nav:
+  - Inicio: README.md
+  - Uso:
+      - Modelo y límites: docs/model-card.md
+      - Versionado de API: docs/versionado-api.md
+      - Sistema de diseño: docs/diseno-v2.md
+      - Contribución: CONTRIBUTING.md
+      - Código de conducta: CODE_OF_CONDUCT.md
+  - Arquitectura:
+      - Índice y diagrama: docs/README.md
+      - SSE: docs/hu15-sse.md
+      - Integración con DeepSeek: docs/hu15-integracion-hu14.md
+      - Despliegue: docs/hu15-despliegue.md
+      - Validación Docker: docs/hu15-docker-validation.md
+  - Operación:
+      - Runbook operativo: docs/runbook-operativo.md
+      - Prueba de usuarios: docs/prueba-usuarios.md
+      - Kit de prueba: docs/prueba-usuarios/kit.md
+      - Informe final: docs/informe-final.md
+  - Especificaciones:
+      - Índice: specs/README.md
+      - HU-54 sitio de documentación: specs/055-hu-54-sitio-documentacion/spec.md
+  - Decisiones:
+      - Constitución: CONSTITUTION.md
+      - Backlog v2: docs/backlog-v2.md
+      - Auditoría SPEC-024 a SPEC-056: docs/auditoria-specs-024-056.md
+
+exclude_docs: |
+  .*
+  !/.python-version
+  !/.env.example
+  !/.gitignore
+  !/.github/
+  !/.github/dependabot.yml
+  !/.opencode/
+  !/.opencode/rules/
+  !/.opencode/rules/tgrep.md
+
+markdown_extensions:
+  - toc
+  - tables
+  - fenced_code
+  - admonition
+  - footnotes
+
+validation:
+  nav:
+    omitted_files: ignore
+  links:
+    not_found: warn
+    anchors: ignore
+    unrecognized_links: ignore

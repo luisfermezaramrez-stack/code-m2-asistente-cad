@@ -92,6 +92,11 @@ frontend/playwright-report/
 frontend/blob-report/
 frontend/.playwright/
 
+# ===== HU-54: staging y salida del sitio de documentación =====
+docs-build/
+.site/
+site/
+
 # ===== HU-16: seguimiento de experimentos con MLflow =====
 # Base de datos y artefactos locales del seguimiento; nunca se versionan.
 mlruns/

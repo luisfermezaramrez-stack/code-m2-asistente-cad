@@ -49,7 +49,7 @@ y obtiene, sin redactar prompts en inglés ni usar la consola:
 | Salida | Formato | Uso |
 | --- | --- | --- |
 | Modelo | STEP (ISO 10303) | Abrir en cualquier CAD |
-| Vista 3D | GLB | Visualizar en el navegador |
+| Vista 3D | GLB | Visualizar en el navegador, con vistas ortogonales, cotas y captura PNG |
 | Lista de materiales | CSV | Corte / compra |
 
 Si la pieza no se puede construir, el asistente declina con un motivo en
@@ -101,6 +101,11 @@ licencia.
    trazable (texto, resultado, latencia y versión del modelo).
 4. **Navegación** por URLs propias (`/nueva-solicitud`, `/historial` y `/ajustes`),
    con borrador y tema recuperables al abrir la vista en otra pestaña (HU-38).
+5. **Historial** de solicitudes reales desde el registro persistente: listado con
+   filtros por resultado y por descripción, y reapertura que descarga el STEP de una
+   solicitud anterior aunque el servidor se haya reiniciado (HU-37).
+6. **Revisión** de la pieza en el navegador con vistas frontal, superior y lateral,
+   cotas tomadas de `caja_mm`, unidades mm/pulgadas y captura PNG (HU-39).
 
 ## Estructura
 
@@ -159,7 +164,8 @@ licencia.
 bash scripts/vendor-constraint-kit.sh
 uv sync --locked --dev
 make frontend-install
-make check        # Ruff + contratos + Vitest + TypeScript + build + pytest/cobertura
+make check        # Ruff + contratos + Vitest + TypeScript + build + sitio + pytest/cobertura
+make docs-build   # sitio MkDocs estricto; `make docs-serve` para vista previa
 make e2e-install  # una vez: descarga el Chromium de Playwright
 make e2e          # E2E de la SPA sobre el build real (backend simulado, sin GPU)
 uv run --locked uvicorn m2_cad.api:app --app-dir src --host 127.0.0.1 --port 8000 --workers 1

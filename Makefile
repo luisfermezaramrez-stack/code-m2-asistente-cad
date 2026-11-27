@@ -8,7 +8,9 @@
         security security-secretos security-dependencias security-excepciones-validar \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
         e2e e2e-install \
-        mlflow api-types api-types-check api-contract api-contract-check hash-clave
+        mlflow api-types api-types-check api-contract api-contract-check hash-clave \
+        docs-stage docs-build docs-serve
+
 
 help: ## Lista los objetivos disponibles
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -16,6 +18,15 @@ help: ## Lista los objetivos disponibles
 
 install: ## Instala dependencias (dev incluidas) con uv
 	uv sync --locked --dev
+
+docs-stage: ## HU-54: genera el árbol temporal de documentación sin duplicar fuentes
+	uv run --locked python scripts/build_docs_site.py
+
+docs-build: docs-stage ## HU-54: construye el sitio con MkDocs en modo estricto
+	uv run --locked mkdocs build --strict
+
+docs-serve: docs-stage ## HU-54: sirve el sitio localmente
+	uv run --locked mkdocs serve --strict
 
 vendor: ## Vendea y parchea constraint-kit (necesario antes de uv sync/build)
 	bash scripts/vendor-constraint-kit.sh
@@ -67,12 +78,13 @@ cov: frontend-build ## Corre pytest con reporte de cobertura
 lint: ## Ruff con reglas E, F, I, B
 	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py \
 		scripts/generate_api_contract.py scripts/verify_corpus_dorado.py scripts/verify_prompts.py \
-		scripts/verify_banco_replay.py
+		scripts/verify_banco_replay.py \
+		scripts/build_docs_site.py
 
 format: ## Aplica ruff format
 	uv run ruff format src tests
 
-check: lint prompts-check api-contract-check api-types-check frontend-check cov ## Ruff, contratos, SPA y cobertura (CI)
+check: lint prompts-check api-contract-check api-types-check frontend-check docs-build cov ## Ruff, contratos, SPA, sitio y cobertura (CI)
 
 worker: ## HU-45: consume la cola persistente en un proceso separado de la API
 	uv run --no-sync python -m m2_cad.worker
