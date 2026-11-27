@@ -392,9 +392,7 @@ def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str,
     try:
         resultado = pipeline.generar_pieza(texto, medir_uso=medir_uso)
     except pipeline.PiezaDeclinada as exc:
-        medido.update(
-            familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa)
-        )
+        medido.update(familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa))
         _anotar_detalle(exc)
         raise DeclinacionSolicitud(exc.motivo, exc.programa_json, causa=exc.causa) from exc
     except (pipeline.ErrorGeneracion, pipeline.ErrorVerificacion) as exc:
@@ -441,9 +439,7 @@ def procesar_con_progreso(
     try:
         resultado = pipeline.generar_pieza(texto, control=control, medir_uso=medir_uso)
     except pipeline.PiezaDeclinada as exc:
-        medido.update(
-            familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa)
-        )
+        medido.update(familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa))
         _anotar_detalle(exc)
         raise SolicitudDeclinada(exc.motivo) from exc
     except (pipeline.ErrorGeneracion, pipeline.ErrorVerificacion) as exc:
