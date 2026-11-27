@@ -48,6 +48,7 @@
 | `uv run --no-sync python scripts/generate_api_contract.py --check` | Contrato OpenAPI v1 actualizado |
 | `uv run --no-sync python -B scripts/verify_banco_replay.py --solo-verificar` | `replay válido: 40 respuestas, prompt planner-v1, origen referencia-banco` |
 | `make bench-replay UMBRAL=1.0` | 40/40 correctos; `acierto=1.0`, `tokens=0`, `costo=0.0`; salida 0 |
+| CI del PR [#151](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/151) ([run 46013610033](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46013610033)) | **Verde**: `test` (incluye `Corpus dorado` y `Banco en replay`), `e2e` y `Seguridad` ✓ |
 
 ### Fallo preexistente aislado
 
@@ -55,7 +56,8 @@
 falla en este host con huellas STEP distintas para `acepta-screw-hu02-p26` y
 `acepta-screw-hu02-p30`. Se reprodujo **antes** de crear la rama y no guarda relación con
 HU-44: es una divergencia del OCCT de macOS x86_64 respecto del congelado en CI (Linux).
-El resto de la suite (702 pruebas) pasa. No se regeneró el corpus para ocultar la diferencia.
+El resto de la suite (702 pruebas) pasa y el mismo test **sí pasa en el CI del PR #151**.
+No se regeneró el corpus para ocultar la diferencia.
 
 ### Limitaciones del entorno local
 
