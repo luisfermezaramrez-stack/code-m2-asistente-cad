@@ -1,10 +1,48 @@
-import { computed, onScopeDispose, ref } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { availableArtifacts, downloadArtifact, parseJob, publicMessage, requestJob, type Artifact, type Job, type Stage } from './api'
 import { readSSE } from './sse'
 
+const DRAFT_STORAGE_KEY = 'm2-cad-draft'
+const DEFAULT_TIMEOUT = 180
+
+interface Draft {
+  description: string
+  timeoutSeconds: number
+}
+
+function readDraft(): Draft {
+  try {
+    const value = window.localStorage.getItem(DRAFT_STORAGE_KEY)
+    if (!value) return { description: '', timeoutSeconds: DEFAULT_TIMEOUT }
+    const parsed: unknown = JSON.parse(value)
+    if (typeof parsed !== 'object' || parsed === null) return { description: '', timeoutSeconds: DEFAULT_TIMEOUT }
+    const data = parsed as Partial<Draft>
+    const description = typeof data.description === 'string' ? data.description.slice(0, 1000) : ''
+    const timeoutSeconds = typeof data.timeoutSeconds === 'number'
+      && Number.isFinite(data.timeoutSeconds)
+      && data.timeoutSeconds >= 5
+      && data.timeoutSeconds <= 600
+      ? data.timeoutSeconds
+      : DEFAULT_TIMEOUT
+    return { description, timeoutSeconds }
+  } catch {
+    return { description: '', timeoutSeconds: DEFAULT_TIMEOUT }
+  }
+}
+
+function saveDraft(draft: Draft): void {
+  try {
+    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
+  } catch {}
+}
+
 export function useGeneration() {
-  const description = ref('')
-  const timeoutSeconds = ref(180)
+  const initial = readDraft()
+  const description = ref(initial.description)
+  const timeoutSeconds = ref(initial.timeoutSeconds)
+  watch([description, timeoutSeconds], () => {
+    saveDraft({ description: description.value, timeoutSeconds: timeoutSeconds.value })
+  })
   const job = ref<Job | null>(null)
   const requestId = ref('')
   const downloadToken = ref('')
