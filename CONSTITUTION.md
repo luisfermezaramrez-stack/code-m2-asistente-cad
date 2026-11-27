@@ -113,6 +113,7 @@ code-m2-asistente-cad/
 │   ├── llm_resiliente.py       # reintentos, plazo total y caché del LLM (HU-25)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
 │   ├── banco_replay.py         # respuestas grabadas/versionadas del banco, sin red (HU-44)
+│   ├── alertas.py              # baseline versionado y comparación de regresiones (HU-46)
 │   ├── evaluacion.py           # evaluador HTTP HU-07: reporte por familia y enlaces CSV/STEP
 │   ├── registro.py             # registro CSV con exclusión de PII (HU-06) y lector del historial (HU-37)
 │   ├── trabajos.py             # SSE, registro en memoria y cancelación cooperativa
@@ -129,16 +130,19 @@ code-m2-asistente-cad/
 ├── data/
 │   ├── test_cases.csv          # banco de 40 solicitudes
 │   ├── banco_replay.json       # respuestas grabadas del banco con versión de prompt (HU-44)
+│   ├── alertas_baseline.json   # baseline v1, umbrales e historial de actualización (HU-46)
 │   ├── registro.csv            # registro de solicitudes (ignorado en git)
 │   └── versiones/              # índice de versiones por solicitud (ignorado en git)
 ├── contracts/                  # contrato OpenAPI v1 congelado (HU-31)
 ├── outputs/                    # entregables por solicitud (uuid/; ignorado en git)
 ├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
 ├── specs/                      # specs SDD 001–023 (Spec Kit, Retroactiva, Spec-first); índice en specs/README.md
-├── scripts/                    # fetch-model, verify-serve, vendor, cloud y verify_banco_replay.py (HU-44)
+├── scripts/                    # fetch-model, verify-serve, vendor, cloud, verify_banco_replay.py (HU-44)
+│                               # y verificar_alertas.py (HU-46)
 ├── docs/                       # documentación, sistema de diseño, runbook operativo, política de versionado y diagrama
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
-├── .github/                    # CI, banco real programado (HU-44), labels, Dependabot, plantillas
+├── .github/                    # CI, banco real programado (HU-44), alertas (HU-46), labels,
+│                               # Dependabot y plantillas
 ├── .opencode/rules/            # reglas para agentes (tgrep)
 ├── AGENTS.md                   # contexto para agentes LLM
 ├── CONSTITUTION.md             # este archivo — verdad central
@@ -203,6 +207,7 @@ code-m2-asistente-cad/
 | Corpus dorado | Divergencia geométrica del núcleo por huella de STEP, en cada PR | `make corpus-dorado` |
 | Banco en replay | Aceptación del banco con respuestas grabadas, sin red, key ni tokens, en cada PR | `make bench-replay` | SPEC-045 |
 | Baseline real del banco | Corrida pagada semanal con registro en MLflow y artefactos | `.github/workflows/banco-baseline.yml` | SPEC-045 |
+| Alertas de regresión | Comparación del banco con baseline versionado; fallo en CI o issue en la corrida programada | `make alertas` | SPEC-047 |
 | Seguridad | gitleaks y pip-audit en cada PR | `make security` | SPEC-029 |
 | Prompts versionados | id, versión y hash del prompt; CI falla si el texto cambia sin subir versión | `make prompts-check` | SPEC-034 |
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
@@ -230,6 +235,15 @@ salida 1 si el acierto baja del umbral (1.0 por defecto) o con salida 2 si el ar
 cubre los 40 casos. Nunca llama al proveedor como fallback. La corrida real, que sí gasta
 tokens, vive en `.github/workflows/banco-baseline.yml` (lunes 03:17 UTC y ejecución manual),
 con MLflow y artefactos; no forma parte de la puerta de integración.
+
+HU-46 añade `make alertas` inmediatamente después del replay en CI (`src/m2_cad/alertas.py`
+y `scripts/verificar_alertas.py`, SPEC-047). Compara `acierto`, `declinaciones_correctas` y
+`errores_silenciosos` contra los umbrales de `data/alertas_baseline.json`: salida 0 sin
+regresión, 1 con regresión (resumen Markdown con familia y causa de SPEC-027) y 2 si el
+artefacto es inválido. El workflow programado usa `--no-fail` para abrir el issue antes de
+propagar el fallo. El baseline sólo se cambia con `--actualizar-baseline --autor --motivo
+--corrida-origen`; el JSON guarda `historial`. El inicial procede del replay de HU-44, no
+de una corrida pagada del proveedor.
 
 HU-33 versiona los prompts como artefactos: `prompts/planner-v1.txt` guarda el texto
 exacto del planificador y `prompts/manifest.toml` declara su id, versión y `sha256`;

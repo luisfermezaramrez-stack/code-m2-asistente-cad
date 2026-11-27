@@ -33,6 +33,7 @@ CAMPOS = (
     "id",
     "familia",
     "esperado",
+    "causa",  # HU-46: etiqueta cerrada de SPEC-027 para el desglose de regresiones.
     "estado",
     "correcto",
     "latencia_s",

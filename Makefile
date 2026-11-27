@@ -72,13 +72,16 @@ bench-report: ## HU-07: evalúa 40 solicitudes HTTP y genera reporte por familia
 bench-replay: ## HU-44: banco en replay (sin red, API key ni tokens; falla bajo el umbral)
 	uv run --no-sync python -B scripts/verify_banco_replay.py $(if $(UMBRAL),--umbral $(UMBRAL))
 
+alertas: ## HU-46: compara la última corrida con el baseline versionado (sin red ni tokens)
+	uv run --no-sync python -B scripts/verificar_alertas.py $(if $(CORRIDA),--corrida $(CORRIDA)) $(if $(BASELINE),--baseline $(BASELINE))
+
 cov: frontend-build ## Corre pytest con reporte de cobertura
 	uv run --locked pytest --cov=src/m2_cad --cov-report=term-missing
 
 lint: ## Ruff con reglas E, F, I, B
 	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py \
 		scripts/generate_api_contract.py scripts/verify_corpus_dorado.py scripts/verify_prompts.py \
-		scripts/verify_banco_replay.py \
+		scripts/verify_banco_replay.py scripts/verificar_alertas.py \
 		scripts/build_docs_site.py
 
 format: ## Aplica ruff format

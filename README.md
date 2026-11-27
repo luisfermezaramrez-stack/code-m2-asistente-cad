@@ -317,6 +317,31 @@ cada lunes 03:17 UTC y bajo `workflow_dispatch`, con `DEEPSEEK_API_KEY` y
 `MLFLOW_TRACKING_URI` (`vars.MLFLOW_TRACKING_URI`). Registra el experimento
 `m2-cad-banco` en MLflow y publica el CSV/JSON como artefacto del workflow.
 
+### Alertas de regresión de calidad (HU-46)
+
+`make alertas` compara la última corrida del banco (replay en CI o real programada) contra
+`data/alertas_baseline.json`: baseline v1 con 40 casos, métricas (`acierto`,
+`declinaciones_correctas`, `errores_silenciosos`), umbrales versionados y trazabilidad de
+quién, cuándo y desde qué corrida se actualizó. No usa red, API key, GPU ni tokens: lee el
+JSON y el CSV que ya produjo `make bench-replay`; el CSV incluye la `causa` de SPEC-027.
+
+```bash
+make alertas                                   # última corrida de outputs/banco-replay/
+make alertas CORRIDA=outputs/banco-baseline/<archivo>.json
+uv run --no-sync python -B scripts/verificar_alertas.py --actualizar-baseline \
+  --autor 'Nombre' --motivo 'cambio revisado' --corrida-origen 'mlflow-run-...' --issue '#106'
+```
+
+Salidas: `0` sin regresión (sólo `outputs/alertas/ultimo.json`, sin alerta Markdown), `1`
+regresión (falla el job, escribe `outputs/alertas/ultimo.md` con las métricas degradadas y
+los casos cambiados con familia y causa; la corrida programada abre un issue) y `2`
+artefacto inválido o incompleto.
+
+El baseline inicial se generó desde el replay de HU-44 (`origen: referencia-banco`), así que
+mide estabilidad del pipeline y del prompt, no calidad del proveedor en una corrida pagada.
+Actualizarlo nunca es implícito: exige `--autor`, `--motivo` y `--corrida-origen`, y deja
+`historial` en el propio JSON.
+
 ### Seguimiento de experimentos (MLflow, HU-16)
 
 Cada solicitud y cada corrida del banco queda en MLflow (params, métricas y
