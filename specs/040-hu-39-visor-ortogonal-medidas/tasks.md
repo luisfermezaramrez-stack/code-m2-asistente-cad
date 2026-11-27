@@ -10,4 +10,4 @@ Checklist completado en orden de ejecución; la evidencia está en [evidence.md]
 - [x] T5 · Capturar la vista actual como PNG con `preserveDrawingBuffer` y re-render, con error si el lienzo está vacío (AC2).
 - [x] T6 · Pasar `cajaMm` desde `NewRequestView.vue` y añadir estilos con tokens del sistema de diseño.
 - [x] T7 · Añadir pruebas Vitest con WebGL simulado y patrón AAA, sin red, API key ni GPU.
-- [ ] T8 · Actualizar `CONSTITUTION.md`, `README.md` e índice de specs; ejecutar `make check`, commitear, subir y abrir PR a `main` con `Closes #99`.
+- [x] T8 · Actualizar `CONSTITUTION.md`, `README.md` e índice de specs; ejecutar `make check`, commitear, subir y abrir PR a `main` con `Closes #99`.

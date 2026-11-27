@@ -1,7 +1,7 @@
 # Evidencia · HU-39 (SPEC-040)
 
 - **Rama**: `feature/hu-39-visor-ortogonal-medidas` (desde `origin/main` @ `094fe9b`).
-- **Issue**: #99 · **PR**: pendiente de crear (`Closes #99`).
+- **Issue**: #99 · **PR**: [#148](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/148) (`Closes #99`).
 - **Fecha**: 2026-11-27.
 - **Entorno**: checkout local Windows; `npm ci` ejecutado con `make frontend-install`. Para `make check` se usaron variables temporales de sesión (`UV_NO_SYNC=1`, `PYTHONPATH=src`, `M2_DOWNLOAD_SECRET` de 32+ bytes) para no recompilar `python-solvespace` (requiere MSVC) y satisfacer el secreto de descargas.
 
