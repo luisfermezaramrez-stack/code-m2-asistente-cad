@@ -50,6 +50,7 @@ test.describe('flujo sin mouse', () => {
     await page.keyboard.press('Enter')
 
     await expect(page.locator('ol.steps')).toHaveAttribute('aria-live', 'polite')
+    await expect(generar).toBeFocused()
     const focoAntes = await foco(page)
     await expect(page.locator('ol.steps li')).toHaveText([
       'Validando solicitud',

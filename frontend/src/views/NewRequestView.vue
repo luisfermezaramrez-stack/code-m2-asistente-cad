@@ -51,7 +51,7 @@ async function submit() {
           <p id="timeout-help" class="help">De 5 a 600 segundos. Interrumpir la espera desconecta y solicita cancelación local; consulta el estado para confirmar la detención. No se confirma la detención de servicios remotos.</p>
         </details>
         <div class="actions">
-          <button class="primary" type="submit" :disabled="busy || props.necesitaLogin">Generar pieza</button>
+          <button class="primary" type="submit" :disabled="props.necesitaLogin" :aria-disabled="busy || props.necesitaLogin">Generar pieza</button>
           <button type="button" :disabled="!canCancel" @click="flow.cancel">Cancelar solicitud</button>
         </div>
       </form>

@@ -4,7 +4,7 @@
 
 No se reescribe la UI. Se conservan el foco visible de 3 px, los `aria-describedby`, el
 `role="alert"`, los tokens con contraste verificado y el visor con controles de teclado.
-Se corrigen tres brechas con evidencia en el código y se automatiza lo que hoy sólo era
+Se corrigen cuatro brechas con evidencia en el código y se automatiza lo que hoy sólo era
 manual:
 
 1. **Trampa de teclado en el shell.** `frontend/src/App.vue` intercepta `Tab` entre los
@@ -17,13 +17,18 @@ manual:
    lista en una región viva persistente (`aria-live="polite"`,
    `aria-relevant="additions text"`) que siempre existe en el DOM; así el primer `<li>`
    también se anuncia. No se mueve el foco.
-3. **Auditoría axe ausente en CI.** `axe-core` se añade como dependencia de desarrollo y
+3. **Pérdida de foco al enviar.** `Generar pieza` se deshabilitaba al pasar `busy` a
+   `true`; Chromium mueve el foco a `body` de forma intermitente. El botón sigue
+   enfocable y expone `aria-disabled="true"`; la guarda existente en `start()` evita un
+   segundo envío sin quitar el foco. AC2 deja de depender del instante en que Vue aplica
+   el deshabilitado.
+4. **Auditoría axe ausente en CI.** `axe-core` se añade como dependencia de desarrollo y
    se inyecta en la página desde un helper de Playwright. Un nuevo espec
    `e2e/accesibilidad.spec.ts` audita las cuatro vistas (nueva solicitud, resultado,
    historial y ajustes) en tema claro y oscuro, sobre el build real y con el backend
    simulado de SPEC-042. Como `make e2e` ya corre en GitHub Actions y en el espejo, una
    violación crítica o seria hace fallar CI sin abrir una segunda puerta.
-4. **Contraste AA.** La prueba `frontend/tests/tokens.test.ts` ya calcula la luminancia
+5. **Contraste AA.** La prueba `frontend/tests/tokens.test.ts` ya calcula la luminancia
    WCAG desde el CSS; se amplía para evaluar también el bloque explícito
    `:root[data-theme='dark']`, además del sistema. La auditoría axe comprueba además el
    contraste renderizado en ambos temas.
@@ -33,8 +38,10 @@ manual:
 - `frontend/src/App.vue`: quitar `useRouter`, `nav`, `manejarTeclado` y `@keydown`;
   añadir `tabindex="-1"` a `<main id="contenido">`.
 - `frontend/src/views/NewRequestView.vue`: `ol.steps` siempre renderizado con `aria-live`
-  y oculto cuando está vacío por CSS; el estado conserva su región viva.
-- `frontend/src/style.css`: regla `:empty` para la lista sin etapas; sin tokens nuevos.
+  y oculto cuando está vacío por CSS; el estado conserva su región viva y el botón de
+  envío conserva el foco con `aria-disabled` mientras `busy`.
+- `frontend/src/style.css`: regla `.steps--vacio` para la lista sin etapas y aspecto
+  compartido entre `button:disabled` y `button[aria-disabled='true']`; sin tokens nuevos.
 - `frontend/e2e/support/auditoriaA11y.ts`: inyecta `axe-core/axe.min.js`, ejecuta las
   reglas `wcag2a`, `wcag2aa`, `wcag21a` y `wcag21aa`, y falla con el detalle de las
   violaciones críticas/serias y de `color-contrast`.
