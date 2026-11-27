@@ -123,6 +123,11 @@ def _preparar_entorno(configuracion: Configuracion) -> None:
     logging.getLogger("mlflow").setLevel(logging.WARNING)
 
 
+def preparar_entorno(configuracion: Configuracion) -> None:
+    """Puerta pública del módulo para quien lo consume desde fuera (p. ej. `metricas`)."""
+    _preparar_entorno(configuracion)
+
+
 class Corrida:
     """Una corrida de MLflow; se vuelve no-op si algo falla."""
 

@@ -102,6 +102,106 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "PanoramaMetricas": {
+        "description": "Panorama de uso, calidad y costo en una ventana (HU-51, SPEC-052, AC1).\n\n`disponible: false` es un estado degradado explícito: la fuente (MLflow) no\nestá accesible, así que los agregados vienen vacíos y `motivo` lo explica.",
+        "properties": {
+          "costo_usd": {
+            "title": "Costo Usd",
+            "type": "number"
+          },
+          "declinaciones_por_causa": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Declinaciones Por Causa",
+            "type": "object"
+          },
+          "declinadas": {
+            "title": "Declinadas",
+            "type": "integer"
+          },
+          "desde": {
+            "format": "date-time",
+            "title": "Desde",
+            "type": "string"
+          },
+          "disponible": {
+            "title": "Disponible",
+            "type": "boolean"
+          },
+          "entregadas": {
+            "title": "Entregadas",
+            "type": "integer"
+          },
+          "entregadas_por_familia": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Entregadas Por Familia",
+            "type": "object"
+          },
+          "errores": {
+            "title": "Errores",
+            "type": "integer"
+          },
+          "generado_en": {
+            "format": "date-time",
+            "title": "Generado En",
+            "type": "string"
+          },
+          "hasta": {
+            "format": "date-time",
+            "title": "Hasta",
+            "type": "string"
+          },
+          "latencia_media_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latencia Media Ms"
+          },
+          "mlflow_ui": {
+            "title": "Mlflow Ui",
+            "type": "string"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          },
+          "solicitudes": {
+            "title": "Solicitudes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "disponible",
+          "desde",
+          "hasta",
+          "solicitudes",
+          "entregadas",
+          "entregadas_por_familia",
+          "declinadas",
+          "errores",
+          "declinaciones_por_causa",
+          "costo_usd",
+          "mlflow_ui",
+          "generado_en"
+        ],
+        "title": "PanoramaMetricas",
+        "type": "object"
+      },
       "RespuestaEdicion": {
         "description": "Nueva versión verificada de la pieza, con el diff del programa (HU-35, AC1).",
         "properties": {
@@ -836,6 +936,49 @@
           }
         },
         "summary": "Health"
+      }
+    },
+    "/v1/metricas": {
+      "get": {
+        "description": "Agregados de uso, calidad y costo de las últimas `horas` (HU-51, RF-1).\n\nSi el seguimiento está desactivado o MLflow no responde, responde **200** con\n`disponible: false` y el motivo: nunca un 500 (RNF-2).",
+        "operationId": "panorama_metricas_v1_metricas_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "horas",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 720,
+              "minimum": 1,
+              "title": "Horas",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PanoramaMetricas"
+                }
+              }
+            },
+            "description": "Panorama o estado degradado explícito."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Panorama Metricas"
       }
     },
     "/v1/ready": {
