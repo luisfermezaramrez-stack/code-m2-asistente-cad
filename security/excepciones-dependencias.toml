@@ -20,9 +20,44 @@
 # deja de valer y el hallazgo vuelve a bloquear. La entrada se conserva en el
 # repositorio y aparece siempre en el log del job, nunca se borra en silencio.
 #
-# ESTADO ACTUAL: no hay excepciones aprobadas. Los hallazgos reales que el
-# escaneo encuentra hoy en `main` (por ejemplo `pillow` y `vtk`, que sí tienen
-# corrección publicada) quedan pendientes de una decisión humana: o se actualiza
-# el paquete o se aprueba aquí una excepción justificada y con fecha.
+# ESTADO ACTUAL: `pillow` se actualizó a 13.0.0 (corrige sus advisories) y quedan
+# cuatro excepciones aprobadas: tres de `vtk`, porque su versión la fija el kernel
+# CAD vendoreado, y una de `diskcache`, que no tiene corrección publicada.
 
-# (sin entradas)
+# vtk 9.3.1: la versión la fija el kernel CAD. `cadquery-ocp 7.8.1.1.post1`
+# (el que ata el vendor `cadkit:0.1`) exige `vtk==9.3.1`, así que corregirlo
+# implica subir el kernel OCC, que cambia la geometría y la huella del corpus
+# dorado: es una decisión de otra HU, no de esta puerta de CI.
+[[excepciones]]
+advisory = "PYSEC-2025-224"
+cve = "CVE-2025-57106"
+paquete = "vtk"
+justificacion = "vtk 9.3.1 lo fija el kernel CAD: cadquery-ocp 7.8.1.1.post1 exige vtk==9.3.1. Subir vtk obliga a cambiar el kernel OCC vendoreado (cadkit:0.1) y a recongelar el corpus dorado por el cambio de geometría; se revisa cuando se planifique ese salto."
+aprobado_por = "Aprobador del PR de HU-28"
+revision = "2027-05-25"
+
+[[excepciones]]
+advisory = "PYSEC-2025-225"
+cve = "CVE-2025-57107"
+paquete = "vtk"
+justificacion = "Mismo pin del kernel CAD que PYSEC-2025-224: vtk 9.3.1 es la versión exacta que exige cadquery-ocp 7.8.1.1.post1, y corregirlo exige subir el kernel OCC vendoreado y recongelar el corpus dorado."
+aprobado_por = "Aprobador del PR de HU-28"
+revision = "2027-05-25"
+
+[[excepciones]]
+advisory = "PYSEC-2025-226"
+cve = "CVE-2025-57108"
+paquete = "vtk"
+justificacion = "Mismo pin del kernel CAD que PYSEC-2025-224: vtk 9.3.1 es la versión exacta que exige cadquery-ocp 7.8.1.1.post1, y corregirlo exige subir el kernel OCC vendoreado y recongelar el corpus dorado."
+aprobado_por = "Aprobador del PR de HU-28"
+revision = "2027-05-25"
+
+# diskcache 5.6.3: no hay versión corregida publicada; entra por llama-cpp-python
+# (`uv tree --invert --package diskcache`), no por mlflow.
+[[excepciones]]
+advisory = "PYSEC-2026-2447"
+cve = "CVE-2025-69872"
+paquete = "diskcache"
+justificacion = "Sin versión corregida publicada: 5.6.3 es la última. Llega como dependencia transitiva de llama-cpp-python, que solo la usa en LlamaDiskCache; src/m2_cad no habilita esa caché, así que no se deserializa ningún directorio de caché en disco. Se retira en cuanto haya corrección o si se activa una caché en disco."
+aprobado_por = "Aprobador del PR de HU-28"
+revision = "2027-05-25"

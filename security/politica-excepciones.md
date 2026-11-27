@@ -3,8 +3,9 @@
 > Fuente de requisitos: `specs/029-hu-28-escaneo-seguridad/spec.md` (RF-4) y
 > `CONSTITUTION.md` §6. Esta política explica **dónde** se declara una excepción,
 > **quién** la aprueba y **cuándo** deja de valer. El escaneo la hace cumplir en
-> cada corrida: `make security-excepciones-validar` valida los dos archivos y los
-> jobs `secretos` y `dependencias` vuelven a leerlos antes de decidir.
+> cada corrida: `make security-secretos` y `make security-dependencias` dependen de
+> `make security-excepciones-validar`, así que una excepción incompleta, vencida o
+> con revisión a más de 180 días hace fallar el job antes de escanear.
 
 El escaneo de seguridad corre en dos jobs independientes sobre cada PR a `main`:
 
@@ -26,8 +27,10 @@ Solo hay dos archivos, uno por herramienta, y son la única vía de aceptación:
 - `security/excepciones-dependencias.toml` — excepciones de `pip-audit`.
 
 No se admiten claves desconocidas, entradas que no sean tablas ni listas dentro de
-las entradas. Los dos archivos se entregan con el esquema documentado en
-comentarios y **sin ninguna excepción aprobada**.
+las entradas. Los dos archivos llevan el esquema documentado en comentarios.
+`excepciones-secretos.toml` no tiene excepciones aprobadas;
+`excepciones-dependencias.toml` tiene las de `vtk` 9.3.1 (fijado por el kernel CAD)
+y `diskcache` 5.6.3 (sin corrección publicada), con revisión el 2027-05-25.
 
 ### Esquema de `excepciones-secretos.toml`
 
@@ -58,14 +61,15 @@ cubre otro, aunque compartan paquete.
 
 ## 2. Quién aprueba
 
-Aprueban **el responsable de la entrega junto con quien mantiene la HU-28**, y
-ambos quedan nombrados en `aprobado_por`. **Nadie aprueba su propia excepción**:
-quien introduce el hallazgo no puede firmar la excepción que lo tapa. Si el
-responsable de la entrega y quien mantiene la HU-28 son la misma persona, la
-aprobación queda pendiente hasta que otra persona del equipo firme.
+Basta **una firma**, y puede darla **cualquier integrante del equipo**: quien
+aprueba el PR que introduce la excepción es quien la firma. **Nadie aprueba su
+propia excepción**: quien abre el PR no puede ser quien lo aprueba, así que la
+firma siempre es de otra persona.
 
 La aprobación se hace por PR: la excepción entra versionada con su justificación
-y su fecha, y la revisión del PR es la discusión donde se aprueba.
+y su fecha, y la aprobación del PR es la firma. Por eso `aprobado_por` remite a
+esa aprobación (por ejemplo, «Aprobador del PR de HU-28») en lugar de anticipar
+un nombre que todavía no existe cuando se escribe la entrada.
 
 ## 3. Justificación obligatoria
 

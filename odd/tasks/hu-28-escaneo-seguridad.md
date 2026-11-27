@@ -140,3 +140,36 @@ L9 — Nota de entorno: la corrida de `make check` heredó un `data/registro.csv
 sesión de HU-26 (10 columnas con `causa`, gitignored) que este árbol no entiende y rompía
 `tests/test_web.py`. No era un defecto del cambio: se movió a `/tmp/hu28-registro-local.csv`
 como respaldo y la suite volvió a verde.
+
+L10 — 2026-11-26, decisión del usuario sobre el estado de `main` (respondida en el agente):
+subir `pillow` a 13.0.0 y exceptuar `vtk` 9.3.1 (fijado por `cadquery-ocp 7.8.1.1.post1`,
+`Requires-Dist: vtk==9.3.1`) y `diskcache` 5.6.3 (sin corrección publicada). Corpus dorado
+con `pillow` 13: 16/16.
+
+L11 — Verificación independiente (orquestador, solo lectura). Bloqueos encontrados y
+corregidos en una tanda, con RED observado (4 fallos) → GREEN:
+B1, el job `secretos` del espejo GitLab no instalaba `git` y `gitleaks git` fallaba siempre,
+cortando las etapas posteriores → instala `make git`; B2, ningún pipeline corría la
+validación de la política, así que una excepción incompleta desbloqueaba un hallazgo →
+`security-secretos` y `security-dependencias` dependen de `security-excepciones-validar`;
+B3, gitleaks sale con 1 aunque una excepción vigente cubra el hallazgo y el script lo
+convertía en exit 2 (y escribía «superado» ante un fallo de la herramienta) → 0/1 se
+interpretan y el fallo nunca se declara superado; B4, las pruebas exigían archivos vacíos,
+la política decía «sin excepciones» y la justificación de `diskcache` la atribuía a mlflow:
+llega por `llama-cpp-python`, que solo la usa en `LlamaDiskCache`, no habilitada en `src/`.
+Quedan como notas: gitleaks escanea todas las ramas descargadas (N1) y no hay disparador
+programado para CVE publicados después del merge (N5).
+
+L12 — 2026-11-26, decisión del usuario sobre quién firma, literal: «todos podemos firmar
+con una firma puede ser suficiente y sera elmismo que apruebe el PR». La política (§2) pasa
+a una sola firma de cualquier integrante, que es quien aprueba el PR; `aprobado_por` remite
+a esa aprobación. Cierre: `make check` 572 pruebas, cobertura 92,07 %; `make security` en
+verde (sin secretos; dependencias sin hallazgos bloqueantes).
+
+L13 — 2026-11-26, el push fue rechazado por la protección de push de GitHub: el fixture
+`secreto-falso.env` usaba un valor con forma de clave de DeepSeek (`sk-` + 32). Decisión del
+usuario, literal: «2» (reescribir el fixture en vez de desbloquearlo en GitHub). Se reemplazó
+por `M2_FIXTURE_API_KEY` con 40 caracteres alfanuméricos aleatorios, sin prefijo de
+proveedor; `gitleaks 8.30.1 dir` con reglas por defecto lo detecta como `generic-api-key` en
+la línea 2 (exit 1). Se ajustó `gitleaks-hallazgo.json` y se reescribió la historia local
+no publicada para que ningún commit contenga el valor anterior.
