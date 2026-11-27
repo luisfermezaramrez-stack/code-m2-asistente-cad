@@ -110,6 +110,12 @@ Sin `--force`; las 21 diferencias son personalizaciones preexistentes del reposi
 
 ## Entrega
 
-- PR: (pendiente de crear; se registrará tras el push).
-- CI del PR: (pendiente de verificar).
-- Publicación real: NO; requiere merge en `main` y Pages con fuente GitHub Actions.
+- PR: https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/150 — abierto,
+  base `main`, head `feature/hu-54-sitio-documentacion`, `Closes #114`.
+- CI del PR: `test`, `e2e`, `dependencias`, `secretos` y `espejo` en verde; el merge está
+  `BLOCKED` sólo por `reviewDecision=REVIEW_REQUIRED` (sin aprobaciones registradas).
+- La rama se actualizó con `origin/main` mediante merge no destructivo (`95414e8`) porque
+  `main` avanzó con HU-51; no hubo conflictos y el build estricto sigue limpio con
+  183 Markdown y 20 recursos enlazados.
+- Publicación real: NO; requiere aprobación y merge en `main`, además de habilitar Pages
+  con fuente GitHub Actions.

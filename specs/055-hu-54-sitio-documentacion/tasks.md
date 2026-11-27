@@ -37,8 +37,9 @@
 - [x] `make docs-build` sin errores ni advertencias de enlaces rotos.
 - [ ] `make check` ejecutado: 696 pasan, 5 fallas preexistentes de Windows/CAD/MLflow;
       auditoría no destructiva sin FALTA y revisiones de git sin whitespace.
-- [ ] Commit, push y PR a `main` con `Closes #114`.
-- [ ] Verificar CI del PR y reportar qué falta para AC2 si Pages no está habilitado.
+- [x] Commit, push y PR a `main` con `Closes #114` (PR #150).
+- [x] Verificar CI del PR y reportar qué falta para AC2: aprobación, merge y Pages con
+      fuente GitHub Actions.
 
 ## Criterios de aceptación cubiertos
 
