@@ -45,8 +45,12 @@ Issue: #95 · Rama: `feature/hu-35-edicion-iterativa` (apilada sobre HU-33) · D
    `medir_solicitud`.
 8. **UI fuera de alcance**: el historial en la interfaz es SPEC-038; aquí sólo se regeneran
    los tipos, sin cambios visuales.
-9. **SSE fuera de alcance**: la edición es síncrona (JSON). La cola y el worker no cambian;
-   el endpoint reutiliza el mismo registrador y la misma medición que la ruta JSON.
+9. **La edición es síncrona (JSON)**, pero la cola y el worker **sí** participan: con
+   `M2_COLA_HABILITADA=1` —el despliegue de `docker-compose.yml` y la ruta que usa la SPA por
+   SSE— la pieza la construye `m2_cad.worker`, así que su `registrar_terminal` llama a
+   `_registrar_version_inicial` (la misma función que la ruta JSON y el SSE en proceso) con
+   el dueño del trabajo. Sin eso, toda pieza generada por la SPA no tendría versión 1 y
+   `POST /editar` y `GET /versiones` responderían 404. La edición en sí no encola nada.
 
 ## Interfaces congeladas (las consume la API y las pruebas)
 
@@ -95,3 +99,14 @@ al modelo lleva el programa anterior y la instrucción; el sistema es `PROMPT_ED
 | `tests/test_edicion.py` | edición verificada con modelo simulado (programa nuevo, artefactos en un directorio nuevo); edición que rompe la verificación → declinación con causa y versión previa intacta; el prompt usado es `editor-v1`. |
 | `tests/test_api_edicion.py` | AC1 (200, diff, versión 1 conservada), AC2 (422 con causa, versiones intactas), AC3 (tres versiones en orden con programa y artefactos), 404 para id ajeno o inexistente, 422 de validación del cuerpo, y que `/generar` conserva su respuesta. |
 | `tests/test_prompts.py` | el manifiesto declara `planner` y `editor`, ambos cargables, y `planner-v1` no cambió. |
+
+## Errores catalogados del historial
+
+- **Índice ilegible al leer**: con autenticación activa responde **404** igual que un id
+  desconocido, porque un índice roto no se puede atribuir a un dueño y un usuario nunca debe
+  distinguir el historial ajeno del inexistente (HU-53). En modo local (sin terceros) responde
+  **409** con «El historial de versiones de esa solicitud no está disponible: el índice
+  guardado no se pudo leer.»
+- **Fallo al escribir la versión nueva** después de una edición válida: **409** con «La
+  edición se construyó pero no se pudo guardar como versión nueva…», y aun así se escribe la
+  fila del registro, se imputa el costo y se cierra la corrida de MLflow antes de responder.

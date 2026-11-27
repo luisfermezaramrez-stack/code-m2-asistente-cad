@@ -1084,12 +1084,37 @@ _INDICE_ILEGIBLE = (
     "El historial de versiones de esa solicitud no está disponible: "
     "el índice guardado no se pudo leer."
 )
+_INDICE_SIN_GUARDAR = (
+    "La edición se construyó pero no se pudo guardar como versión nueva: "
+    "el historial de versiones no está disponible."
+)
 
 
 def _error_indice(exc: Exception) -> HTTPException:
     """Traduce un índice de versiones ilegible a un error catalogado (HU-35)."""
     logger.warning("historial de versiones ilegible: %s", exc)
     return HTTPException(status.HTTP_409_CONFLICT, _INDICE_ILEGIBLE)
+
+
+def _historial_propio(solicitud_id: str, usuario: str) -> list[dict]:
+    """Versiones legibles y del solicitante; si no se pueden atribuir, 404 (HU-53).
+
+    Con autenticación activa un índice ilegible no se puede probar del solicitante,
+    así que responde igual que un id desconocido: un usuario nunca puede distinguir
+    el historial ajeno del inexistente (B3). En modo local no hay terceros y se
+    informa el 409 con el mensaje catalogado.
+    """
+    try:
+        guardadas = versiones.leer_versiones(solicitud_id)
+    except versiones.ErrorVersiones as exc:
+        if autenticacion_activa():
+            logger.warning("historial de versiones ilegible: %s", exc)
+            raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES) from exc
+        raise _error_indice(exc) from exc
+    if not guardadas:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES)
+    garantizar_propietario(usuario, guardadas[0].get("usuario"), _SIN_VERSIONES)
+    return guardadas
 
 
 def _registrar_version_inicial(solicitud_id: str, usuario: str, medido: dict) -> None:
@@ -1197,15 +1222,21 @@ def _editar_json(
                 diff=diff,
             )
         except (versiones.ErrorVersiones, OSError) as exc:
-            raise _error_indice(exc) from exc
-        respuesta = {
-            "solicitud_id": solicitud_origen,
-            "version": entrada["version"],
-            "prompt": str(medido.get("prompt") or ""),
-            "programa": resultado.programa,
-            "diff": diff,
-            **resultado.a_respuesta(),
-        }
+            # B2: la fila del registro, el costo y el cierre de la corrida se
+            # escriben igual antes de responder; el mensaje no habla de lectura.
+            logger.warning("no se pudo guardar la versión nueva: %s", exc)
+            estado = "error"
+            fallo = HTTPException(status.HTTP_409_CONFLICT, _INDICE_SIN_GUARDAR)
+            entrada = None
+        if entrada is not None:
+            respuesta = {
+                "solicitud_id": solicitud_origen,
+                "version": entrada["version"],
+                "prompt": str(medido.get("prompt") or ""),
+                "programa": resultado.programa,
+                "diff": diff,
+                **resultado.a_respuesta(),
+            }
 
     latencia_ms = (time.perf_counter() - inicio) * 1000
     registrar(
@@ -1298,13 +1329,7 @@ def editar_pieza(
             clave = f"{sesion}\n{clave}"
         # La solicitud se resuelve y se autoriza ANTES de reservar cupo: un 404 no
         # consume la ventana de uso (HU-32, R3-reserva-ventana-404).
-        try:
-            previa = versiones.ultima_version(origen)
-        except versiones.ErrorVersiones as exc:
-            raise _error_indice(exc) from exc
-        if previa is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES)
-        garantizar_propietario(usuario, previa.get("usuario"), _SIN_VERSIONES)
+        previa = _historial_propio(origen, usuario)[-1]
         repetido, reserva = control.reservar_idempotencia(
             clave, sesion, cuerpo.instruccion, "json", origen
         )
@@ -1346,13 +1371,7 @@ def historial_de_versiones(
         clave = versiones.validar_solicitud_id(solicitud_id)
     except versiones.ErrorVersiones as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES) from exc
-    try:
-        guardadas = versiones.leer_versiones(clave)
-    except versiones.ErrorVersiones as exc:
-        raise _error_indice(exc) from exc
-    if not guardadas:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES)
-    garantizar_propietario(usuario, guardadas[0].get("usuario"), _SIN_VERSIONES)
+    guardadas = _historial_propio(clave, usuario)
     return RespuestaVersiones(
         solicitud_id=clave,
         versiones=[

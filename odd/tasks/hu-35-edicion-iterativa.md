@@ -152,3 +152,26 @@ nada más, después del rebase sobre `main` (commits `2bc01a7`, `04d8bea`, `fa2d
   al terminar el archivo. La guarda nace verde (el `monkeypatch` del fixture ya restauraba
   el valor); su sensibilidad se comprobó con una sonda que instala un parche suelto y
   observa el fallo de la aserción.
+
+L10 — Bloqueos del verificador independiente, corregidos en una tanda (commits sobre el
+rebase en `2bc01a7`, `04d8bea`, `fa2d156`, `6c74c86`).
+
+- B1 (alto): con `M2_COLA_HABILITADA=1` la pieza la construye el worker, así que
+  `worker.registrar_terminal` ahora llama a `api._registrar_version_inicial` (la misma
+  función que la ruta JSON y el SSE en proceso) con el dueño del trabajo. RED observado:
+  `GET /v1/generar/{id}/versiones` daba 404 tras `worker.ejecutar`; GREEN: la prueba
+  encola, ejecuta el worker y después lista (1 versión) y edita (v2, 200) por HTTP.
+- B2 (medio): si falla la escritura del índice tras una edición, la ruta responde 409 con
+  «La edición se construyó pero no se pudo guardar como versión nueva…» **después** de
+  escribir la fila del registro, imputar el costo y cerrar la corrida de MLflow. RED
+  observado: el mensaje decía «no se pudo leer» y la fila y la corrida no se escribían.
+- B3 (seguridad, bajo): `_historial_propio` lee el índice y verifica el dueño en un solo
+  lugar; con autenticación activa un índice ilegible responde 404 como un id desconocido.
+  RED observado: el usuario B recibía 500/409 con el índice ajeno corrupto y 404 con uno
+  inexistente; GREEN con dos usuarios reales y la misma respuesta (status y cuerpo) en GET
+  y POST para el id ajeno y el desconocido.
+- B4 (higiene): `tests/conftest.py` fija `M2_VERSIONES_DIR` en un directorio temporal
+  autouse, así que ninguna prueba escribe `data/versiones/` del repositorio. RED observado:
+  `versiones.ruta_versiones()` resolvía dentro de `data/` del repo.
+- El OpenAPI no cambió (solo textos de `detail`): `make api-types-check` y
+  `make api-contract-check` siguen verdes sin regenerar artefactos.

@@ -342,3 +342,182 @@ def test_el_pipeline_no_queda_parchado_tras_las_pruebas_de_edicion():
     from m2_cad import pipeline
 
     assert pipeline.editar_pieza.__module__ == "m2_cad.pipeline"
+
+
+# --- Bloqueos del verificador independiente de HU-35 (B1, B2, B3, B4) --------
+
+
+def _procesador_de_cola(tmp_path, *, thick: float):
+    """Procesador SSE mínimo: informa etapas, llena `medido` y devuelve la respuesta."""
+
+    def procesar(texto, control, medido):
+        from m2_cad import pipeline
+
+        control.informar("validando")
+        control.informar("generando")
+        pieza = _pieza(tmp_path, thick=thick)
+        medido.update(
+            modelo=pieza.version_modelo,
+            version_modelo="prueba",
+            temperatura=0.1,
+            familia=pieza.familia,
+            prompt=pipeline.PROMPT_VIGENTE.etiqueta,
+            prompt_hash=pipeline.PROMPT_VIGENTE.sha256,
+            artefactos=[pieza.programa_json, pieza.step, pieza.glb, pieza.bom_csv],
+            programa=pieza.programa,
+        )
+        return pieza.a_respuesta()
+
+    return procesar
+
+
+def test_b1_una_pieza_generada_por_el_worker_se_puede_editar(tmp_path, monkeypatch):
+    """B1: con la cola activa, el worker deja la versión 1 y la SPA puede editar."""
+    from dataclasses import asdict
+
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api, cola_trabajos, seguimiento, worker
+
+    monkeypatch.setenv("M2_COLA_HABILITADA", "1")
+    monkeypatch.chdir(tmp_path)
+    cola = cola_trabajos.ColaTrabajos(tmp_path / "cola.json", propietario="prueba-b1")
+    monkeypatch.setattr(api, "cola_trabajos", cola)
+    api.app.dependency_overrides[api.obtener_cola_trabajos] = lambda: cola
+    ruta_registro = tmp_path / "registro.csv"
+    try:
+        trabajo = cola.encolar(
+            "Placa de 40x30x5 mm",
+            request_id="req-b1",
+            configuracion=asdict(seguimiento.Configuracion(activo=False)),
+            ruta_registro=str(ruta_registro),
+            usuario="ana",
+        )
+        identificador = trabajo.id
+        reclamado = cola.reclamar()
+        assert reclamado is not None and reclamado["id"] == identificador
+        worker.ejecutar(
+            reclamado,
+            _procesador_de_cola(tmp_path, thick=5),
+            cola,
+            ruta_registro=ruta_registro,
+        )
+
+        cliente = TestClient(api.app)
+        cliente.__enter__()
+        try:
+            historial = cliente.get(f"/v1/generar/{identificador}/versiones")
+            assert historial.status_code == 200, historial.json()
+            assert [v["version"] for v in historial.json()["versiones"]] == [1]
+
+            monkeypatch.setattr(
+                "m2_cad.pipeline.editar_pieza", lambda *a, **k: _pieza(tmp_path, thick=10)
+            )
+            editada = cliente.post(
+                f"/v1/generar/{identificador}/editar",
+                json={"instruccion": "hazla 5 mm más gruesa"},
+            )
+            assert editada.status_code == 200, editada.json()
+            assert editada.json()["version"] == 2
+        finally:
+            cliente.__exit__(None, None, None)
+    finally:
+        api.app.dependency_overrides.pop(api.obtener_cola_trabajos, None)
+
+
+def test_b2_si_falla_la_escritura_del_indice_igual_registra_y_mide(
+    cliente_editando, monkeypatch, tmp_path
+):
+    """B2: una edición construida sin poder archivarse deja fila, costo y corrida cerrada."""
+    from mlflow.tracking import MlflowClient
+
+    from m2_cad import seguimiento, versiones
+
+    cliente, origen, _ = cliente_editando
+
+    def roto(*args, **kwargs):
+        raise versiones.ErrorVersiones("no hay espacio en el disco")
+
+    monkeypatch.setattr(versiones, "registrar_version", roto)
+    respuesta = cliente.post(
+        f"/v1/generar/{origen}/editar", json={"instruccion": "hazla 5 mm más gruesa"}
+    )
+
+    assert respuesta.status_code == 409
+    detalle = respuesta.json()["detail"]
+    assert "no se pudo leer" not in detalle
+    assert "no se pudo guardar" in detalle
+
+    with (tmp_path / "registro.csv").open(newline="", encoding="utf-8") as archivo:
+        filas = list(csv.DictReader(archivo))
+    assert filas[-1]["texto"] == "hazla 5 mm más gruesa"
+    assert filas[-1]["prompt"] == "editor-v1"
+
+    cliente_mlflow = MlflowClient(tracking_uri=f"file:{tmp_path / 'mlruns'}")
+    experimento = cliente_mlflow.get_experiment_by_name(seguimiento.EXPERIMENTO_GENERACION)
+    corridas = list(cliente_mlflow.search_runs([experimento.experiment_id]))
+    edicion = [c for c in corridas if c.data.params.get("operacion") == "edicion"]
+    assert edicion, "la corrida de la edición tiene que existir"
+    assert all(c.info.status == "FINISHED" for c in corridas), "ninguna corrida en RUNNING"
+    assert edicion[0].data.metrics["verificacion_ok"] == pytest.approx(0.0)
+
+
+def test_b3_un_indice_ajeno_corrupto_es_indistinguible_de_uno_inexistente(tmp_path, monkeypatch):
+    """B3: con autenticación, el id ajeno da la misma respuesta que el desconocido."""
+    import json
+    import os
+
+    from fastapi.testclient import TestClient
+
+    from m2_cad import api, pipeline
+    from m2_cad.autenticacion import hash_clave
+
+    monkeypatch.setenv("M2_AUTH_ENABLED", "1")
+    monkeypatch.setenv("M2_AUTH_SECRET", os.urandom(32).hex())
+    monkeypatch.setenv(
+        "M2_AUTH_USERS",
+        json.dumps({"ana": hash_clave("clave-ana"), "bob": hash_clave("clave-bob")}),
+    )
+    monkeypatch.setenv("M2_AUTH_COOKIE_SECURE", "0")
+    monkeypatch.setenv("LLM_BASE_URL", "http://llama:8080")
+    monkeypatch.setattr(
+        pipeline, "generar_pieza", lambda texto, medir_uso=None: _pieza(tmp_path, thick=5)
+    )
+
+    ana = TestClient(api.app)
+    ana.__enter__()
+    try:
+        acceso = ana.post("/v1/auth/login", json={"usuario": "ana", "clave": "clave-ana"})
+        assert acceso.status_code == 200
+        generada = ana.post("/v1/generar", json={"texto": "Placa de 40x30x5 mm"})
+        assert generada.status_code == 200
+        ajeno = generada.headers["X-Registro-ID"]
+    finally:
+        ana.__exit__(None, None, None)
+
+    indice = tmp_path / "versiones" / f"{ajeno}.json"
+    indice.write_text("{roto", encoding="utf-8")
+    desconocido = "f" * 32
+
+    bob = TestClient(api.app)
+    bob.__enter__()
+    try:
+        acceso = bob.post("/v1/auth/login", json={"usuario": "bob", "clave": "clave-bob"})
+        assert acceso.status_code == 200
+        propio = bob.get(f"/v1/generar/{ajeno}/versiones")
+        otro = bob.get(f"/v1/generar/{desconocido}/versiones")
+        assert propio.status_code == 404
+        assert propio.status_code == otro.status_code
+        assert propio.json() == otro.json()
+
+        editar_ajeno = bob.post(
+            f"/v1/generar/{ajeno}/editar", json={"instruccion": "hazla más gruesa"}
+        )
+        editar_otro = bob.post(
+            f"/v1/generar/{desconocido}/editar", json={"instruccion": "hazla más gruesa"}
+        )
+        assert editar_ajeno.status_code == 404
+        assert editar_ajeno.status_code == editar_otro.status_code
+        assert editar_ajeno.json() == editar_otro.json()
+    finally:
+        bob.__exit__(None, None, None)

@@ -287,3 +287,15 @@ def test_la_variable_de_entorno_cambia_el_directorio(tmp_path, monkeypatch):
     assert entrada["version"] == 1
     assert (destino / f"{ID_UNO}.json").exists()
     assert versiones.leer_versiones(ID_UNO) == [entrada]
+
+
+def test_el_directorio_de_versiones_de_las_pruebas_no_es_el_del_repositorio():
+    """B4: ninguna prueba escribe el índice de versiones dentro del repositorio."""
+    from pathlib import Path
+
+    from m2_cad import versiones
+
+    repositorio = Path(__file__).resolve().parents[1]
+    efectivo = versiones.ruta_versiones().resolve()
+
+    assert not efectivo.is_relative_to((repositorio / "data").resolve())

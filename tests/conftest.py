@@ -33,3 +33,9 @@ def aislar_cache_hu25_entre_pruebas():
         with llm_resiliente._CERROJO:
             llm_resiliente._CACHE.clear()
         llm_resiliente.reiniciar_metricas()
+
+
+@pytest.fixture(autouse=True)
+def _aislar_versiones_en_temporales(monkeypatch, tmp_path_factory):
+    """HU-35: ninguna prueba escribe el índice de versiones dentro del repositorio."""
+    monkeypatch.setenv("M2_VERSIONES_DIR", str(tmp_path_factory.mktemp("versiones")))
