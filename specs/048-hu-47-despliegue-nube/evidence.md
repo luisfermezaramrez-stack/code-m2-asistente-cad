@@ -72,7 +72,8 @@ No se fijó `PYTHONIOENCODING=utf-8` en la corrida final: en Windows esa variabl
 
 - `espejo`, `titulo-pr`, `dependencias`, `e2e` y `test`: pass en `https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46050068323`; `release`: skipping.
 - `secretos`: fail en `https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46050067490`. `gitleaks 8.30.1` marcó `tests/test_hu47_cloud_config.py:17` con `generic-api-key` sobre un valor **falso** de `DEEPSEEK_API_KEY` usado por las pruebas.
-- El valor literal ya se sustituyó por una concatenación de fragmentos no sensibles para que el nuevo commit no añada un hallazgo; las 22 pruebas dirigidas siguen pasando. La ocurrencia histórica en el primer commit sigue en el historial y requiere una decisión explícita: excepción justificada en `security/excepciones-secretos.toml` o reescritura de historia autorizada.
+- El valor literal ya se sustituyó por una concatenación de fragmentos no sensibles para que el nuevo commit no añada un hallazgo; las 22 pruebas dirigidas siguen pasando. La ocurrencia histórica en el primer commit sigue en el historial.
+- Se declaró una excepción vigente en `security/excepciones-secretos.toml` para `tests/test_hu47_cloud_config.py:17` / `generic-api-key`, aprobada por `luisfermezaramrez-stack` y con revisión `2026-12-31`. No se reescribió historia ni se usó `allowlist`.
 
 ## Lo que falta exactamente para publicar
 
