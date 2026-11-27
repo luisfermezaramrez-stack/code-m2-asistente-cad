@@ -3,7 +3,9 @@
 Rama: `feature/hu-46-alertas-regresion` (creada desde `feature/hu-44-banco-ci-replay`).
 PR: [#152](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/152);
 apunta a `main` y depende de #151 (SPEC-045), que sigue en revisión. No se fusiona nada
-antes de la aprobación de esa dependencia.
+antes de la aprobación de esa dependencia. Estado verificado: `MERGEABLE` pero `BEHIND` main;
+CI verde en los runs `46019143987` (test y e2e), `46019143984` (dependencias y secretos) y
+`46019135237` (espejo).
 
 ## Implementación
 
