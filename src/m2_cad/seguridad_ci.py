@@ -520,8 +520,7 @@ def mensaje_secretos(
         )
     else:
         lineas.append(
-            "RESULTADO: escaneo de secretos superado: no hay secretos bloqueantes "
-            "en el historial."
+            "RESULTADO: escaneo de secretos superado: no hay secretos bloqueantes en el historial."
         )
     return "\n".join(lineas)
 
