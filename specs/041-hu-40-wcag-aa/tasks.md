@@ -18,5 +18,5 @@ Orden de ejecución; la evidencia final vive en [evidence.md](./evidence.md).
 - [x] T7 · Actualizar `frontend/README.md`, `specs/README.md`, `CONSTITUTION.md` y
   `evidence.md`; verificar que el estándar sigue sin `FALTA`.
 - [x] T8 · `npm test`, `typecheck`, `build`, `make e2e` y `make check`.
-- [ ] T9 · Commit conventional, push de `feature/hu-40-wcag-aa`, PR con `Closes #100` y
+- [x] T9 · Commit conventional, push de `feature/hu-40-wcag-aa`, PR #149 con `Closes #100` y
   revisión solicitada; sin merge.

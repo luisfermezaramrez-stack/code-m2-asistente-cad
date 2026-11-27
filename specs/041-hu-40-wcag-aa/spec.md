@@ -8,7 +8,7 @@
   [SPEC-039](../039-hu-38-app-shell/spec.md)
 - **Rama**: `feature/hu-40-wcag-aa`
 - **Estado**: Spec-first · implementada; `plan.md`, `tasks.md` y `evidence.md` completos.
-  PR pendiente de apertura.
+  PR #149 abierto, sin fusionar.
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §5
 - **Auditoría**: corregida según
   [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)

@@ -4,7 +4,7 @@
 **Issue:** #100
 **Especificación:** SPEC-041 (dependencias: SPEC-035 y SPEC-039)
 **Rama:** `feature/hu-40-wcag-aa`
-**PR:** pendiente de apertura
+**PR:** [#149](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/149)
 
 ## 1. Implementación
 
