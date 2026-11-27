@@ -88,3 +88,28 @@ ni en el registro.
 L7 — Coordinación con HU-37: el cambio en `App.vue` (una entrada de navegación) y en
 `router.ts` (una ruta) se mantiene en una línea por archivo para que el conflicto con la rama
 de historial, si aparece, sea trivial.
+
+L8 — Revisión nativa aprobada (linaje `review-029117b7ec6ef46e`, tier medium, lentes risk,
+readability y reliability) y corrección de sus diez hallazgos informativos en una tanda, con
+prueba en rojo por punto:
+
+- R1-1/R1-2: el `motivo` degradado es un mensaje fijo en español; el detalle técnico
+  (excepción, URI, rutas) va sólo al log, redactado. RED: el motivo contenía
+  `RuntimeError: falló http://host:5000/mlruns … clave=clave-interna`.
+- R2-002: `entregadas_por_familia` entra en el agregado y el contrato, así que el docstring y
+  el plan dejan de prometer un desglose inexistente. RED: `KeyError: 'entregadas_por_familia'`.
+- R2-003: `seguimiento.preparar_entorno` es pública y es la que usa el módulo. RED:
+  `AttributeError: module 'm2_cad.seguimiento' has no attribute 'preparar_entorno'`.
+- R2-004: `_en_ventana` es el único predicado y sólo lo usa `resumir_corridas`. RED:
+  «leer_corridas ya no vuelve a decidir la ventana en memoria».
+- R3-silent-page-cap: lectura paginada y filtrada en el servidor; con 1.050 corridas dentro de
+  la ventana el panorama cuenta 1.050. RED: `assert 1000 == 1050`.
+- R3-no-backend-timeout: plazo `ESPERA_BACKEND_S = 5` con restauración del valor previo. RED:
+  `AttributeError: module 'm2_cad.metricas' has no attribute 'ESPERA_BACKEND_S'`.
+- R3-error-no-retry: la vista ofrece «Reintentar» también cuando falla la petición.
+- R1-3: la vista sólo pinta el enlace a MLflow si es `http(s)`.
+- R2-001: el bloque de `/metricas` se movió debajo de `/uso`, para que el comentario de
+  autorización y gasto global siga pegado al endpoint que documenta.
+
+El contrato se regeneró (campo aditivo `entregadas_por_familia`) y `make check` quedó en
+verde después de la tanda.

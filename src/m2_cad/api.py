@@ -179,6 +179,7 @@ class PanoramaMetricas(BaseModel):
     hasta: datetime
     solicitudes: int
     entregadas: int
+    entregadas_por_familia: dict[str, int]
     declinadas: int
     errores: int
     declinaciones_por_causa: dict[str, int]
@@ -1422,6 +1423,17 @@ def historial_de_versiones(
 
 
 # La sesión es sólo un control de acceso: el gasto es global, no por usuario.
+@router.get("/uso", response_model=RespuestaUso, dependencies=[Depends(usuario_actual)])
+def consultar_uso(
+    control: Annotated[ControlUso, Depends(obtener_control_uso)],
+    cola: Annotated[ColaTrabajos, Depends(obtener_cola_trabajos)],
+) -> RespuestaUso:
+    """RF-5/AC4: gasto acumulado del día, sin red ni identificadores de cliente."""
+    if _usa_cola_persistente():
+        _conciliar_gasto_cola(cola, control)
+    return RespuestaUso(**control.gasto_acumulado())
+
+
 @router.get(
     "/metricas",
     response_model=PanoramaMetricas,
@@ -1439,16 +1451,6 @@ def panorama_metricas(
     """
     return PanoramaMetricas(**metricas.panorama(configuracion, horas=horas))
 
-
-@router.get("/uso", response_model=RespuestaUso, dependencies=[Depends(usuario_actual)])
-def consultar_uso(
-    control: Annotated[ControlUso, Depends(obtener_control_uso)],
-    cola: Annotated[ColaTrabajos, Depends(obtener_cola_trabajos)],
-) -> RespuestaUso:
-    """RF-5/AC4: gasto acumulado del día, sin red ni identificadores de cliente."""
-    if _usa_cola_persistente():
-        _conciliar_gasto_cola(cola, control)
-    return RespuestaUso(**control.gasto_acumulado())
 
 
 @router.get("/generaciones/{solicitud_id}", response_model=EstadoTrabajo)

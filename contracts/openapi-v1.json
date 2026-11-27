@@ -133,6 +133,13 @@
             "title": "Entregadas",
             "type": "integer"
           },
+          "entregadas_por_familia": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Entregadas Por Familia",
+            "type": "object"
+          },
           "errores": {
             "title": "Errores",
             "type": "integer"
@@ -184,6 +191,7 @@
           "hasta",
           "solicitudes",
           "entregadas",
+          "entregadas_por_familia",
           "declinadas",
           "errores",
           "declinaciones_por_causa",

@@ -93,3 +93,34 @@ describe('AC2 · estado degradado', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('No se pudieron leer las métricas')
   })
 })
+
+describe('Hallazgos de la revisión · enlace y reintento', () => {
+  let wrapper: VueWrapper | undefined
+  afterEach(() => {
+    wrapper?.unmount()
+    vi.unstubAllGlobals()
+  })
+
+  it('no pinta un enlace si MLflow no es http(s)', async () => {
+    wrapper = montarCon(panorama({ mlflow_ui: 'javascript:alert(1)' }))
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="mlflow"]').exists()).toBe(false)
+  })
+
+  it('ofrece reintentar cuando falla la petición', async () => {
+    const fetchFalso = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: true, json: async () => panorama() })
+    vi.stubGlobal('fetch', fetchFalso)
+    wrapper = mount(MetricsView)
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('No se pudieron leer las métricas')
+
+    await wrapper.get('[data-test="reintentar-error"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="solicitudes"]').text()).toBe('9')
+  })
+})

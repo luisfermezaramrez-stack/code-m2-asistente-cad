@@ -13,10 +13,14 @@ Issue: #111 · Rama: `feature/hu-51-panorama-metricas` · Destino PR: `main`.
    filtra por `start_time` de la corrida y se devuelve `desde`/`hasta` explícitos para que la
    UI y MLflow hablen del mismo intervalo.
 3. **Estado degradado (AC2, S6)**: si el seguimiento está desactivado o MLflow falla, el
-   endpoint responde **200** con `disponible: false`, un `motivo` en español y los agregados
-   vacíos; nunca 500. La UI muestra el motivo y un enlace para reintentar.
-4. **Sin PII (S7)**: el panorama agrega por causa y familia; no devuelve textos de solicitud,
-   nombres de usuario ni identificadores de corrida más allá del enlace a MLflow.
+   endpoint responde **200** con `disponible: false`, un `motivo` fijo en español y los
+   agregados vacíos; nunca 500. El `motivo` **no** incluye texto de la excepción ni de la URI
+   (rutas, hosts y credenciales quedan sólo en el log, redactados), y la UI muestra el motivo
+   con un botón para reintentar, también cuando falla la petición.
+4. **Sin PII (S7)**: el panorama agrega por causa (`declinaciones_por_causa`) y por familia
+   (`entregadas_por_familia`); no devuelve textos de solicitud, nombres de usuario ni
+   identificadores de corrida más allá del enlace a MLflow. `familia` y `prompt` se normalizan
+   en cada fila para trazabilidad; `prompt` hoy no se agrega.
 5. **Enlace a MLflow (S4, AC3)**: `mlflow_ui` sale de `MLFLOW_UI_URL` (por defecto
    `http://127.0.0.1:5000`), que es la UI que el repo ya levanta con `make mlflow`.
 6. **UI sin librería nueva (S3)**: una vista (`MetricsView.vue`) con tablas y cifras, más una
@@ -38,6 +42,21 @@ def panorama(configuracion, *, horas: int) -> dict   # agrega o degrada, nunca l
 `GET /v1/metricas` → `PanoramaMetricas` (typed) con `disponible`, `motivo`, `desde`, `hasta`,
 `solicitudes`, `entregadas`, `declinadas`, `errores`, `declinaciones_por_causa`,
 `latencia_media_ms`, `costo_usd`, `mlflow_ui`, `generado_en`.
+
+## Hallazgos de la revisión nativa y su corrección
+
+- **Lectura completa**: `leer_corridas` filtra en el servidor por `attributes.start_time`,
+  ordena por inicio descendente y **pagina** por `token` con página de 1.000: nada de topes
+  silenciosos que acortaran las cifras.
+- **Plazo del backend**: la lectura corre con `MLFLOW_HTTP_REQUEST_TIMEOUT` fijado a
+  `ESPERA_BACKEND_S` (5 s) y lo restaura al salir, para que un MLflow colgado degrade en vez
+  de bloquear el handler.
+- **Una sola ventana**: `_en_ventana` es el único predicado y lo usa sólo `resumir_corridas`;
+  el lector ya no vuelve a filtrar en memoria.
+- **Sin helper privado**: `seguimiento.preparar_entorno` es la puerta pública que usa el
+  módulo de métricas.
+- **Enlace seguro**: la vista sólo pinta el enlace a MLflow si `mlflow_ui` empieza por
+  `http://` o `https://`.
 
 ## Pruebas
 

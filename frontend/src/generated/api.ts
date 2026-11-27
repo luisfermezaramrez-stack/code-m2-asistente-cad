@@ -117,6 +117,12 @@ export type PanoramaMetricas = {
      */
     entregadas: number;
     /**
+     * Entregadas Por Familia
+     */
+    entregadas_por_familia: {
+        [key: string]: number;
+    };
+    /**
      * Errores
      */
     errores: number;

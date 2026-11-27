@@ -63,6 +63,7 @@ def test_ac1_los_agregados_salen_de_las_corridas_de_mlflow(entorno):
     assert cuerpo["entregadas"] == 2
     assert cuerpo["declinadas"] == 2
     assert cuerpo["errores"] == 0
+    assert cuerpo["entregadas_por_familia"] == {"plate": 2}
     assert cuerpo["declinaciones_por_causa"] == {
         "dimension_incoherente": 1,
         "familia_no_soportada": 1,

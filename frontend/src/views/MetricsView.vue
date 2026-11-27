@@ -9,6 +9,11 @@ const error = ref('')
 const cargando = ref(true)
 
 const causas = computed(() => Object.entries(panorama.value?.declinaciones_por_causa ?? {}))
+// R1-3: sólo un enlace http(s) se pinta; cualquier otro esquema del entorno se omite.
+const mlflowUi = computed(() => {
+  const valor = panorama.value?.mlflow_ui ?? ''
+  return /^https?:\/\//i.test(valor) ? valor : null
+})
 const costo = computed(() => `USD ${(panorama.value?.costo_usd ?? 0).toFixed(4)}`)
 const latencia = computed(() => {
   const valor = panorama.value?.latencia_media_ms
@@ -35,7 +40,10 @@ onMounted(cargar)
     <p class="muted">Uso, calidad y costo de las generaciones registradas en la ventana.</p>
 
     <p v-if="cargando" role="status">Leyendo métricas…</p>
-    <p v-else-if="error" class="field-error" role="alert">{{ error }}</p>
+    <p v-else-if="error" class="field-error" role="alert">
+      {{ error }}
+      <button type="button" data-test="reintentar-error" @click="cargar">Reintentar</button>
+    </p>
 
     <template v-else-if="panorama">
       <p v-if="!panorama.disponible" class="aviso-degradado" role="alert" data-test="degradado">
@@ -64,9 +72,9 @@ onMounted(cargar)
         </tbody>
       </table>
 
-      <p class="detalle">
+      <p v-if="mlflowUi" class="detalle">
         Detalle por corrida en
-        <a :href="panorama.mlflow_ui" target="_blank" rel="noopener noreferrer" data-test="mlflow">la UI de MLflow</a>.
+        <a :href="mlflowUi" target="_blank" rel="noopener noreferrer" data-test="mlflow">la UI de MLflow</a>.
       </p>
       <p class="muted">Ventana: {{ panorama.desde }} — {{ panorama.hasta }}.</p>
     </template>

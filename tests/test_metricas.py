@@ -9,7 +9,11 @@ temporal (``tmp_path/mlruns``), sin red, API key ni GPU.
 from __future__ import annotations
 
 import json
+import logging
+import math
+import os
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 
@@ -17,6 +21,13 @@ from m2_cad import metricas, seguimiento
 
 DESDE = datetime(2026, 5, 1, 0, 0, tzinfo=UTC)
 HASTA = DESDE + timedelta(hours=24)
+
+# El motivo que llega al cliente es fijo: no arrastra texto de la excepción ni el
+# URI del backend (R1-1/R1-2).
+MOTIVO_BACKEND = (
+    "El seguimiento no está disponible: no se pudieron leer las métricas de MLflow."
+)
+VAR_ESPERA = "MLFLOW_HTTP_REQUEST_TIMEOUT"
 
 CLAVES_DEL_PANORAMA = {
     "disponible",
@@ -28,6 +39,7 @@ CLAVES_DEL_PANORAMA = {
     "declinadas",
     "errores",
     "declinaciones_por_causa",
+    "entregadas_por_familia",
     "latencia_media_ms",
     "costo_usd",
     "mlflow_ui",
@@ -82,6 +94,72 @@ def _corridas_en_mlflow(configuracion) -> list:
     return cliente.search_runs([experimento.experiment_id])
 
 
+class _Pagina(list):
+    """Página de resultados falsa con el token de continuación que publica MLflow."""
+
+    def __init__(self, corridas=(), token=None):
+        super().__init__(corridas)
+        self.token = token
+
+
+class _ClienteFalso:
+    """Cliente de MLflow guionizado: ni red ni file store (S5/RNF-1)."""
+
+    def __init__(self, paginas=(), *, error=None, al_leer=None):
+        self.paginas = list(paginas)
+        self.llamadas: list[dict] = []
+        self.experimentos_consultados: list[str] = []
+        self.error = error
+        self.al_leer = al_leer
+
+    def get_experiment_by_name(self, nombre):
+        self.experimentos_consultados.append(nombre)
+        if self.error is not None:
+            raise self.error
+        return SimpleNamespace(experiment_id="exp-generacion")
+
+    def search_runs(self, experiment_ids, **parametros):
+        self.llamadas.append({"experiment_ids": experiment_ids, **parametros})
+        if self.al_leer is not None:
+            self.al_leer()
+        if self.error is not None:
+            raise self.error
+        return self.paginas.pop(0) if self.paginas else _Pagina()
+
+
+def _instalar_cliente(monkeypatch, cliente, observaciones=None):
+    """Sustituye el cliente de MLflow por el doble y anota el entorno al construirlo."""
+
+    def construir(**_):
+        if observaciones is not None:
+            observaciones["creacion"] = os.environ.get(VAR_ESPERA)
+        return cliente
+
+    monkeypatch.setattr("mlflow.tracking.MlflowClient", construir)
+    return cliente
+
+
+def _corrida_falsa(
+    *,
+    estado: str = "entregada",
+    familia: str | None = "spacer",
+    latencia: float | None = None,
+    costo: float | None = None,
+    inicio: datetime | None = None,
+):
+    """Corrida mínima compatible con ``metricas.lectura``, sin MLflow de por medio."""
+    medidas = {
+        clave: valor
+        for clave, valor in (("latencia_ms", latencia), ("costo_usd", costo))
+        if valor is not None
+    }
+    parametros = {"familia": familia} if familia is not None else {}
+    return SimpleNamespace(
+        info=SimpleNamespace(start_time=_ms(inicio or DESDE + timedelta(hours=1))),
+        data=SimpleNamespace(tags={"estado": estado}, metrics=medidas, params=parametros),
+    )
+
+
 # -- agregación pura ---------------------------------------------------
 
 
@@ -109,6 +187,7 @@ def test_resumir_corridas_agrega_totales_causas_latencia_y_costo():
         "familia_no_soportada": 1,
         "dimension_incoherente": 1,
     }
+    assert resumen["entregadas_por_familia"] == {"spacer": 2}
     assert resumen["latencia_media_ms"] == pytest.approx(1500.0)
     assert resumen["costo_usd"] == pytest.approx(0.0003)
     assert resumen["disponible"] is True
@@ -147,6 +226,29 @@ def test_declinada_sin_causa_cuenta_como_sin_causa():
         "familia_no_soportada": 1,
         "sin_causa": 3,
     }
+
+
+def test_entregadas_por_familia_solo_cuenta_entregadas():
+    # Arrange
+    corridas = [
+        _fila("entregada", familia="spacer"),
+        _fila("entregada", familia="brida"),
+        _fila("entregada", familia=None),
+        _fila("entregada", familia=""),
+        _fila("declinada", causa="familia_no_soportada", familia="spacer"),
+        _fila("error", familia="brida"),
+    ]
+
+    # Act
+    resumen = metricas.resumir_corridas(corridas, desde=DESDE, hasta=HASTA)
+
+    # Assert
+    assert resumen["entregadas_por_familia"] == {
+        "brida": 1,
+        "desconocida": 2,
+        "spacer": 1,
+    }
+    assert list(resumen["entregadas_por_familia"]) == ["brida", "desconocida", "spacer"]
 
 
 def test_descarta_las_filas_fuera_de_la_ventana():
@@ -205,7 +307,6 @@ def test_el_resultado_no_expone_textos_ni_identificadores():
 
 # -- estado degradado --------------------------------------------------
 
-
 def test_resumir_corridas_con_motivo_degrada_y_deja_los_contadores_en_cero():
     # Arrange
     motivo = "El seguimiento está desactivado: activa MLFLOW y vuelve a intentarlo."
@@ -223,6 +324,7 @@ def test_resumir_corridas_con_motivo_degrada_y_deja_los_contadores_en_cero():
     assert resumen["declinadas"] == 0
     assert resumen["errores"] == 0
     assert resumen["declinaciones_por_causa"] == {}
+    assert resumen["entregadas_por_familia"] == {}
     assert resumen["latencia_media_ms"] is None
     assert resumen["costo_usd"] == 0.0
 
@@ -277,8 +379,38 @@ def test_el_error_de_mlflow_no_expone_credenciales():
 
     # Assert
     mensaje = str(excinfo.value)
+    assert mensaje == MOTIVO_BACKEND
     assert "secreto" not in mensaje
     assert "usuario:secreto" not in mensaje
+
+
+def test_el_motivo_degradado_es_fijo_y_no_filtra_el_detalle_del_backend(
+    monkeypatch, caplog
+):
+    # Arrange: la excepción del backend arrastra URI con credenciales y rutas.
+    fuga = RuntimeError(
+        "falló http://usuario:clave@host:5000/mlruns al leer /var/lib/mlflow "
+        "(credencial clave=clave-interna)"
+    )
+    _instalar_cliente(monkeypatch, _ClienteFalso(error=fuga))
+    configuracion = seguimiento.configuracion_en("http://127.0.0.1:5000")
+
+    # Act
+    with caplog.at_level(logging.WARNING):
+        panorama = metricas.panorama(configuracion, horas=1)
+
+    # Assert
+    assert panorama["disponible"] is False
+    motivo = panorama["motivo"]
+    assert motivo == MOTIVO_BACKEND
+    assert "http://" not in motivo
+    assert "@" not in motivo
+    assert "/var/lib" not in motivo
+    assert "clave" not in motivo
+    assert "RuntimeError" not in motivo
+    # El detalle técnico sigue disponible en el log, sin el userinfo del URI.
+    assert "RuntimeError" in caplog.text
+    assert "usuario:clave" not in caplog.text
 
 
 @pytest.mark.parametrize("horas", [0, -1, metricas.HORAS_MAXIMAS + 1])
@@ -363,11 +495,195 @@ def test_lee_y_agrega_las_corridas_que_mlflow_tiene_en_la_ventana(tmp_path):
     assert entregada_leida["familia"] == "spacer"
 
 
-def test_leer_corridas_reporta_un_experimento_inexistente(tmp_path):
+def test_leer_corridas_reporta_un_experimento_inexistente(tmp_path, caplog):
     # Arrange
     configuracion = _configuracion(tmp_path, experimento_generacion="experimento-inexistente")
 
-    # Act / Assert
-    with pytest.raises(metricas.SeguimientoNoDisponible) as excinfo:
+    # Act
+    with (
+        caplog.at_level(logging.WARNING),
+        pytest.raises(metricas.SeguimientoNoDisponible) as excinfo,
+    ):
         metricas.leer_corridas(configuracion, desde=DESDE, hasta=HASTA)
-    assert "experimento-inexistente" in str(excinfo.value)
+
+    # Assert
+    assert str(excinfo.value) == MOTIVO_BACKEND
+    assert "experimento-inexistente" in caplog.text
+
+
+# -- puerta pública del seguimiento (R2-003) ----------------------------
+
+
+def test_metricas_usa_la_puerta_publica_del_seguimiento(tmp_path, monkeypatch):
+    # Arrange
+    assert callable(seguimiento.preparar_entorno)
+    configuracion = _configuracion(tmp_path)
+    corrida = seguimiento.iniciar_corrida(
+        seguimiento.EXPERIMENTO_GENERACION, configuracion=configuracion
+    )
+    corrida.finalizar(estado="entregada")
+    assert corrida.id
+    original = seguimiento.preparar_entorno
+    recibidas = []
+
+    def espia(configuracion_recibida):
+        recibidas.append(configuracion_recibida)
+        return original(configuracion_recibida)
+
+    monkeypatch.setattr(seguimiento, "preparar_entorno", espia)
+    desde = datetime.now(UTC) - timedelta(hours=1)
+    hasta = datetime.now(UTC) + timedelta(hours=1)
+
+    # Act
+    filas = metricas.leer_corridas(configuracion, desde=desde, hasta=hasta)
+
+    # Assert
+    assert recibidas == [configuracion]
+    assert len(filas) == 1
+    assert filas[0]["estado"] == "entregada"
+
+
+# -- ventana: un solo predicado y filtro en el servidor (R2-004, R3) -----
+
+
+def test_leer_corridas_delega_la_ventana_en_mlflow_y_no_refiltra_en_memoria(monkeypatch):
+    # Arrange
+    dentro = _corrida_falsa(inicio=DESDE + timedelta(hours=1))
+    fuera = _corrida_falsa(inicio=DESDE - timedelta(days=30))
+    cliente = _instalar_cliente(monkeypatch, _ClienteFalso([_Pagina([dentro, fuera])]))
+    configuracion = seguimiento.configuracion_en("http://127.0.0.1:5000")
+
+    # Act
+    filas = metricas.leer_corridas(configuracion, desde=DESDE, hasta=HASTA)
+    resumen = metricas.resumir_corridas(filas, desde=DESDE, hasta=HASTA)
+
+    # Assert
+    assert len(filas) == 2, "leer_corridas ya no vuelve a decidir la ventana en memoria"
+    assert resumen["solicitudes"] == 1, "resumir_corridas es el único que decide"
+    assert cliente.llamadas[0]["filter_string"] == (
+        f"attributes.start_time >= {math.floor(_ms(DESDE))} "
+        f"and attributes.start_time <= {math.ceil(_ms(HASTA))}"
+    )
+    assert cliente.llamadas[0]["order_by"] == ["attributes.start_time DESC"]
+    assert cliente.llamadas[0]["max_results"] == 1000
+
+
+def test_leer_corridas_sigue_la_continuacion_hasta_agotar_los_tokens(monkeypatch):
+    # Arrange
+    corridas = [_corrida_falsa(latencia=float(indice)) for indice in range(5)]
+    paginas = [
+        _Pagina(corridas[0:2], token="pagina-2"),
+        _Pagina(corridas[2:4], token="pagina-3"),
+        _Pagina(corridas[4:5]),
+    ]
+    cliente = _instalar_cliente(monkeypatch, _ClienteFalso(paginas))
+    configuracion = seguimiento.configuracion_en("http://127.0.0.1:5000")
+
+    # Act
+    filas = metricas.leer_corridas(configuracion, desde=DESDE, hasta=HASTA)
+
+    # Assert
+    assert len(filas) == 5
+    assert [llamada["page_token"] for llamada in cliente.llamadas] == [
+        None,
+        "pagina-2",
+        "pagina-3",
+    ]
+
+
+def test_leer_corridas_no_se_detiene_en_un_multiplo_exacto_de_la_pagina(monkeypatch):
+    # Arrange: 4 filas es múltiplo exacto de la página, y todavía quedaba token.
+    corridas = [_corrida_falsa(latencia=float(indice)) for indice in range(4)]
+    paginas = [
+        _Pagina(corridas[0:2], token="pagina-2"),
+        _Pagina(corridas[2:4], token="pagina-3"),
+        _Pagina(),
+    ]
+    cliente = _instalar_cliente(monkeypatch, _ClienteFalso(paginas))
+    configuracion = seguimiento.configuracion_en("http://127.0.0.1:5000")
+
+    # Act
+    filas = metricas.leer_corridas(configuracion, desde=DESDE, hasta=HASTA)
+
+    # Assert
+    assert len(filas) == 4
+    assert len(cliente.llamadas) == 3
+
+
+def test_lee_las_1050_corridas_del_file_store_con_paginacion_completa(tmp_path):
+    """Regresión R3: con más corridas que una página, el panorama no se queda corto.
+
+    Las corridas se crean directamente con el cliente de MLflow porque 1050
+    `iniciar_corrida` cerradas una a una hacen el suite demasiado lento; el tamaño de
+    página es el real del módulo (``TAMANO_PAGINA = 1000``), así que la prueba cruza
+    el mismo límite que la implementación en producción y lee dos páginas.
+    """
+    # Arrange
+    from mlflow.tracking import MlflowClient
+
+    configuracion = _configuracion(tmp_path)
+    cliente = MlflowClient(tracking_uri=configuracion.uri)
+    experimento_id = cliente.create_experiment(configuracion.experimento_generacion)
+    ahora_ms = int(datetime.now(UTC).timestamp() * 1000)
+    for indice in range(1050):
+        cliente.create_run(
+            experimento_id,
+            start_time=ahora_ms - 1050 + indice,
+            tags={"estado": "entregada"},
+        )
+    desde = datetime.now(UTC) - timedelta(hours=1)
+    hasta = datetime.now(UTC) + timedelta(hours=1)
+
+    # Act
+    filas = metricas.leer_corridas(configuracion, desde=desde, hasta=hasta)
+    resumen = metricas.resumir_corridas(filas, desde=desde, hasta=hasta)
+
+    # Assert
+    assert len(filas) == 1050, "una página incompleta acorta el panorama sin avisar"
+    assert resumen["solicitudes"] == 1050
+    assert resumen["entregadas"] == 1050
+    assert metricas.TAMANO_PAGINA == 1000
+
+
+# -- plazo del backend (R3-no-backend-timeout) --------------------------
+
+
+def test_fija_el_plazo_del_backend_y_restaura_el_valor_anterior(monkeypatch):
+    # Arrange
+    monkeypatch.setenv(VAR_ESPERA, "2")
+    observaciones = {}
+
+    def al_leer():
+        observaciones["lectura"] = os.environ.get(VAR_ESPERA)
+
+    _instalar_cliente(
+        monkeypatch,
+        _ClienteFalso([_Pagina([_corrida_falsa()])], al_leer=al_leer),
+        observaciones=observaciones,
+    )
+    configuracion = seguimiento.configuracion_en("http://127.0.0.1:5000")
+
+    # Act
+    metricas.leer_corridas(configuracion, desde=DESDE, hasta=HASTA)
+
+    # Assert
+    assert metricas.ESPERA_BACKEND_S == 5
+    plazo = str(metricas.ESPERA_BACKEND_S)
+    assert observaciones["creacion"] == plazo
+    assert observaciones["lectura"] == plazo
+    assert os.environ.get(VAR_ESPERA) == "2"
+
+
+def test_quita_el_plazo_del_backend_si_no_estaba_fijado(monkeypatch):
+    # Arrange
+    monkeypatch.delenv(VAR_ESPERA, raising=False)
+    observaciones = {}
+    _instalar_cliente(monkeypatch, _ClienteFalso(), observaciones=observaciones)
+    configuracion = seguimiento.configuracion_en("http://127.0.0.1:5000")
+
+    # Act
+    metricas.leer_corridas(configuracion, desde=DESDE, hasta=HASTA)
+
+    # Assert
+    assert observaciones["creacion"] == str(metricas.ESPERA_BACKEND_S)
+    assert VAR_ESPERA not in os.environ
