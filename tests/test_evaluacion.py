@@ -169,7 +169,7 @@ def test_evaluador_y_api_actual_40_registros_unicos_sin_modelo(tmp_path, monkeyp
 
     from fastapi.testclient import TestClient
 
-    from m2_cad import api, seguimiento
+    from m2_cad import api, declinacion, seguimiento
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("M2_DOWNLOAD_SECRET", "hu36-test-" * 8)
@@ -183,7 +183,10 @@ def test_evaluador_y_api_actual_40_registros_unicos_sin_modelo(tmp_path, monkeyp
     def simular(texto, medicion=None):
         caso = casos[texto]
         if caso["resultado_esperado"] == "declinar":
-            raise api.DeclinacionSolicitud("fuera del catálogo (SIMULADO)")
+            raise api.DeclinacionSolicitud(
+                "fuera del catálogo (SIMULADO)",
+                causa=declinacion.Causa.FAMILIA_NO_SOPORTADA,
+            )
         esperado = json.loads(caso["resultado_esperado"])
         return {
             "step": str(step),

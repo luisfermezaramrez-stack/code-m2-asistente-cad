@@ -21,7 +21,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
-from m2_cad import seguimiento
+from m2_cad import declinacion, seguimiento
 from m2_cad.autenticacion import (
     ANONIMO,
     LimiteIntentos,
@@ -216,15 +216,26 @@ class FalloHTTP(HTTPException):
 
 
 class DeclinacionSolicitud(HTTPException):
-    """Declinación con motivo y programa, sin cambiar el 422 de HU-05."""
+    """Declinación con motivo legible, causa y programa, sin cambiar el 422 de HU-05.
 
-    def __init__(self, motivo: str, programa_json: Path | None = None) -> None:
+    HU-26: `causa` es la etiqueta del catálogo que llega al registro y al seguimiento;
+    `motivo` sigue siendo el texto que lee el usuario (RF-4, AC3).
+    """
+
+    def __init__(
+        self,
+        motivo: str,
+        programa_json: Path | None = None,
+        *,
+        causa: declinacion.Causa,
+    ) -> None:
         super().__init__(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Pieza declinada: {motivo}",
             headers={"X-Resultado-Tipo": "declinacion_explicita"},
         )
         self.motivo = motivo
+        self.causa = causa
         self.programa_json = programa_json
 
 
@@ -289,6 +300,20 @@ def _preparar_medicion(pipeline, medido: dict) -> Callable[[dict], None]:
     return medir_uso
 
 
+def _anotar_detalle(exc: Exception) -> None:
+    """Conserva el detalle técnico de una declinación para diagnóstico (RF-5).
+
+    Se registra en el log estructurado —redactado por HU-24— y nunca se muestra como
+    mensaje ni se escribe en el registro consultable: el usuario no debe leer jerga.
+    """
+    detalle = getattr(exc, "detalle", None)
+    logger.warning(
+        "declinación con causa %s; detalle técnico: %s",
+        getattr(exc, "causa", None),
+        detalle or "sin detalle",
+    )
+
+
 def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str, str]:
     """Genera la pieza con el pipeline CAD (HU-04) y traduce sus errores a HTTP.
 
@@ -305,12 +330,16 @@ def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str,
     try:
         resultado = pipeline.generar_pieza(texto, medir_uso=medir_uso)
     except pipeline.PiezaDeclinada as exc:
-        medido.update(familia="desconocida", artefactos=[exc.programa_json])
-        raise DeclinacionSolicitud(exc.motivo, exc.programa_json) from exc
+        medido.update(
+            familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa)
+        )
+        _anotar_detalle(exc)
+        raise DeclinacionSolicitud(exc.motivo, exc.programa_json, causa=exc.causa) from exc
     except (pipeline.ErrorGeneracion, pipeline.ErrorVerificacion) as exc:
-        medido["familia"] = "desconocida"
+        medido.update(familia="desconocida", causa=str(exc.causa))
+        _anotar_detalle(exc)
         raise FalloHTTP(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc), type(exc).__name__
+            status.HTTP_422_UNPROCESSABLE_CONTENT, exc.mensaje, type(exc).__name__
         ) from exc
     except pipeline.ModeloNoDisponible as exc:
         medido["familia"] = "desconocida"
@@ -348,11 +377,15 @@ def procesar_con_progreso(
     try:
         resultado = pipeline.generar_pieza(texto, control=control, medir_uso=medir_uso)
     except pipeline.PiezaDeclinada as exc:
-        medido.update(familia="desconocida", artefactos=[exc.programa_json])
+        medido.update(
+            familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa)
+        )
+        _anotar_detalle(exc)
         raise SolicitudDeclinada(exc.motivo) from exc
     except (pipeline.ErrorGeneracion, pipeline.ErrorVerificacion) as exc:
-        medido["familia"] = "desconocida"
-        raise FalloHTTP(422, str(exc), type(exc).__name__) from exc
+        medido.update(familia="desconocida", causa=str(exc.causa))
+        _anotar_detalle(exc)
+        raise FalloHTTP(422, exc.mensaje, type(exc).__name__) from exc
     except pipeline.ModeloNoDisponible as exc:
         medido["familia"] = "desconocida"
         raise FalloHTTP(
@@ -637,7 +670,12 @@ def medir_solicitud(
             descripcion=f"Configuración servida en /generar: {modelo}",
         )
         corrida.registrar_tags(modelo_registrado=referencia)
-    corrida.finalizar(estado=estado, motivo_declinacion=motivo_declinacion, error=error)
+    corrida.finalizar(
+        estado=estado,
+        motivo_declinacion=motivo_declinacion,
+        causa_declinacion=medido.get("causa") or declinacion.NINGUNA,
+        error=error,
+    )
     # RF-3/AC1: el cierre del seguimiento se registra aquí, fuera de la medición
     # de sobrecarga de `seguimiento.Corrida.finalizar` (AC6 de HU-16).
     logger.info("seguimiento: cerrando corrida (%s)", estado)
@@ -698,6 +736,7 @@ def _generar_sse(
             ruta=ruta_registro,
             identificador=terminal["solicitud_id"],
             usuario=usuario,
+            causa=medido.get("causa"),
         )
         estado = _ESTADOS_CORRIDA_SSE.get(terminal["estado"], "error")
         solicitud_id = terminal["solicitud_id"]
@@ -785,6 +824,7 @@ def _generar_json(
             ruta=obtener_ruta_registro(),
             identificador=solicitud_id,
             usuario=usuario,
+            causa=medido.get("causa"),
         )
         medir_solicitud(
             corrida,

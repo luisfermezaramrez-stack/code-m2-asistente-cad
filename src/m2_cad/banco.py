@@ -22,7 +22,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from m2_cad import pipeline, seguimiento
+from m2_cad import declinacion, pipeline, seguimiento
 from m2_cad.dataset import DEFAULT_PATH, read_dataset
 
 TOLERANCIA = 0.02
@@ -85,6 +85,7 @@ def _seguir_caso(registro: dict, configuracion: seguimiento.Configuracion) -> No
             "caso": registro["id"],
             "esperado": registro["esperado"],
             "estado": registro["estado"],
+            "causa_declinacion": registro.get("causa"),
         },
     )
     corrida.registrar_params(caso=registro["id"], familia=registro["familia"])
@@ -113,6 +114,7 @@ def evaluar_caso(
     esperado = fila["resultado_esperado"]
     declinar = esperado == "declinar"
     registro = {"id": fila["id"], "familia": fila["familia"], "esperado": esperado}
+    causa = declinacion.NINGUNA
 
     inicio = time.perf_counter()
     relativo = None
@@ -122,6 +124,7 @@ def evaluar_caso(
         raise
     except pipeline.PiezaDeclinada as exc:
         estado, correcto, detalle = "declinada", declinar, exc.motivo
+        causa = str(exc.causa)
     except pipeline.ErrorVerificacion as exc:
         estado, correcto, detalle = "invalido", False, str(exc)
     except pipeline.ErrorGeneracion as exc:
@@ -139,6 +142,7 @@ def evaluar_caso(
 
     registro.update(
         estado=estado,
+        causa=causa,
         correcto=correcto,
         latencia_s=round(time.perf_counter() - inicio, 3),
         detalle=detalle,

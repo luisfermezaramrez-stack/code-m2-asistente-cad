@@ -33,7 +33,7 @@ from pathlib import Path
 import httpx
 from constraint_kit import bom, builder, dsl, llm
 
-from m2_cad import MARCA_PRELIMINAR, llm_resiliente
+from m2_cad import MARCA_PRELIMINAR, declinacion, llm_resiliente
 from m2_cad.control import ControlGeneracion
 from m2_cad.observabilidad import redactar
 from m2_cad.registro import _sanitizar
@@ -57,7 +57,7 @@ CATALOGO = {
     "extrusion": "perfil extruido",
     "pipe": "tubo",
 }
-PREFIJO_DECLINACION = "El asistente no puede construir esta pieza:"
+# HU-26: el prefijo y el catálogo de causas viven en `declinacion` (una sola fuente).
 
 # Prompt de sistema para DeepSeek (HU-14): el modelo no está afinado para el DSL
 # de constraint-kit, así que el prompt describe los parámetros de cada tipo del
@@ -114,30 +114,69 @@ class ModeloNoDisponible(ErrorPipeline):
 
 
 class ErrorGeneracion(ErrorPipeline):
-    """La salida del modelo no contiene un programa interpretable."""
+    """La salida del modelo no contiene un programa interpretable (HU-26, RF-2)."""
+
+    def __init__(
+        self, detalle: str, *, causa: declinacion.Causa = declinacion.Causa.TEXTO_AMBIGUO
+    ) -> None:
+        super().__init__(detalle)
+        # RF-5: el detalle técnico se conserva para diagnóstico.
+        self.detalle = detalle
+        self.causa = causa
+        self.mensaje = declinacion.mensaje(causa)
 
 
 class ErrorVerificacion(ErrorPipeline):
-    """El programa no pasa el verificador de constraint-kit (AC1)."""
+    """El programa no pasa el verificador de constraint-kit (AC1).
+
+    `str(exc)` sigue siendo el diagnóstico técnico; `mensaje` es lo que lee el
+    usuario y `causa` la etiqueta estructurada (HU-26, RF-3 a RF-5).
+    """
+
+    def __init__(
+        self, detalle: str, *, causa: declinacion.Causa = declinacion.Causa.VERIFICACION_FALLIDA
+    ) -> None:
+        super().__init__(detalle)
+        self.detalle = detalle
+        self.causa = causa
+        self.mensaje = declinacion.mensaje(causa)
 
 
 class PiezaDeclinada(ErrorPipeline):
-    """La pieza no se construye; `motivo` es legible en español (HU-05, AC1)."""
+    """La pieza no se construye; `motivo` es legible en español (HU-05, AC1).
 
-    def __init__(self, motivo: str, detalle: str | None = None) -> None:
+    HU-26: `causa` es la etiqueta del catálogo que usan el registro y el seguimiento;
+    `detalle` conserva la razón técnica, que nunca se muestra como mensaje.
+    """
+
+    def __init__(
+        self,
+        motivo: str,
+        detalle: str | None = None,
+        *,
+        causa: declinacion.Causa = declinacion.Causa.FAMILIA_NO_SOPORTADA,
+    ) -> None:
         super().__init__(f"Pieza declinada: {motivo}")
         self.motivo = motivo
         self.detalle = detalle
+        self.causa = causa
         # Programa que originó la declinación, para el seguimiento (HU-16, AC2).
         self.programa_json: Path | None = None
 
+    @property
+    def mensaje(self) -> str:
+        """Mensaje que lee el usuario: el motivo ya legible (AC2)."""
+        return self.motivo
 
-def _declinar(explicacion: str, detalle: str | None = None) -> PiezaDeclinada:
+
+def _declinar(
+    causa: declinacion.Causa,
+    contexto: str | None = None,
+    detalle: str | None = None,
+) -> PiezaDeclinada:
     catalogo = ", ".join(CATALOGO.values())
     return PiezaDeclinada(
-        f"{PREFIJO_DECLINACION} {explicacion} Solo se generan piezas únicas del catálogo: "
-        f"{catalogo}.",
-        detalle,
+        declinacion.mensaje(causa, contexto, catalogo=catalogo), detalle, causa=causa
     )
 
 
@@ -210,17 +249,17 @@ def verificar_programa(programa: dict) -> dict:
     """
     informe = dsl.check(programa)
     if informe["declined"]:
-        detalle = informe["reason"] or "sin detalle"
-        raise _declinar(
-            f"la solicitud está fuera del catálogo (el modelo indicó: «{detalle}»).", detalle
-        )
+        raise _declinar(declinacion.causa_de_informe(informe), detalle=informe["reason"])
     if not informe["ok"] or informe["n_errors"]:
         errores = [
             diagnostico["message"]
             for diagnostico in informe["diagnostics"]
             if diagnostico.get("severity") == "error"
         ]
-        raise ErrorVerificacion("; ".join(errores) or "programa inválido")
+        raise ErrorVerificacion(
+            "; ".join(errores) or "programa inválido",
+            causa=declinacion.causa_de_informe(informe),
+        )
     logger.info("pipeline: programa verificado")
     return informe
 
@@ -235,11 +274,15 @@ def validar_catalogo(programa: dict) -> None:
     if dsl.is_decline(programa) or not isinstance(partes, list):
         return
     if "defs" in programa or len(partes) > 1:
-        raise _declinar("los ensamblajes de varias piezas están fuera del alcance.")
+        raise _declinar(
+            declinacion.Causa.FAMILIA_NO_SOPORTADA,
+            "los ensamblajes de varias piezas están fuera del alcance",
+        )
     tipos = [parte.get("type") for parte in partes if isinstance(parte, dict)]
     ajenos = [tipo for tipo in tipos if tipo not in CATALOGO]
     if ajenos:
-        raise _declinar(f"el tipo de pieza «{ajenos[0]}» está fuera del catálogo.", ajenos[0])
+        # El nombre del tipo del motor es un identificador interno: no se muestra (AC2).
+        raise _declinar(declinacion.Causa.FAMILIA_NO_SOPORTADA, detalle=str(ajenos[0]))
 
 
 def _codificar_cadena_step(texto: str) -> str:

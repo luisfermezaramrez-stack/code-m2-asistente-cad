@@ -118,6 +118,8 @@ def test_banco_registra_una_corrida_hija_por_caso(tmp_path, monkeypatch):
 
     negativa = hijas["HU02-N01"]
     assert negativa.data.tags["estado"] == "declinada"
+    # HU-26/AC3: la declinación del banco también queda etiquetada por causa.
+    assert negativa.data.tags["causa_declinacion"] == "familia_no_soportada"
     assert negativa.data.metrics["acierto"] == pytest.approx(1.0)
     assert "error_relativo_pct" not in negativa.data.metrics
 

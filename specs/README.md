@@ -54,7 +54,7 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [024](024-hu-23-corpus-dorado-nucleo/) | HU-23 · Corpus dorado del núcleo determinista en CI | 0 | Luis Meza | #83 | — | Spec-first | Implementada (PR pendiente) |
 | [025](025-hu-24-logging-estructurado/) | HU-24 · Logging estructurado y trazas correlacionadas | 2 | Juan Camilo | #84 | #129 | Spec-first | En revisión |
 | [026](026-hu-25-reintentos-cache-llm/) | HU-25 · Reintentos con backoff y caché de respuestas del LLM | 0 | Juan Camilo | #85 | — | Spec-first | Propuesta |
-| [027](027-hu-26-declinacion-legible/) | HU-26 · Motivo de declinación legible y etiquetado por causa | 0 | Luis Meza | #86 | — | Spec-first | Propuesta |
+| [027](027-hu-26-declinacion-legible/) | HU-26 · Motivo de declinación legible y etiquetado por causa | 0 | Luis Meza | #86 | — | Spec-first | Implementada (PR pendiente) |
 | [028](028-hu-27-tipos-openapi/) | HU-27 · Tipos del frontend generados desde OpenAPI | 0 | Carlos | #87 | — | Spec-first | Propuesta |
 | [029](029-hu-28-escaneo-seguridad/) | HU-28 · Escaneo de dependencias y secretos en CI | 0 | Carlos | #88 | — | Spec-first | Propuesta |
 | [030](030-hu-29-runbook-operativo/) | HU-29 · Runbook operativo | 0 | Carlos | #89 | #136 | Spec-first | En revisión |

@@ -16,7 +16,9 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+from m2_cad import declinacion
 from m2_cad.autenticacion import ANONIMO
+from m2_cad.declinacion import NINGUNA
 from m2_cad.persistencia_registro import _bloqueo, _publicar_bytes, anexar_sin_duplicar
 
 CAMPOS = [
@@ -29,7 +31,12 @@ CAMPOS = [
     "error",
     "version",
     "usuario",
+    "causa",
 ]
+
+# Valor de cada columna añadida después de la primera versión del registro.
+# HU-53 añadió `usuario`; HU-26 añade `causa` (etiqueta de la declinación).
+_DEFECTOS_NUEVAS = {"usuario": ANONIMO, "causa": NINGUNA}
 
 RUTA_DEFAULT = Path("data/registro.csv")
 
@@ -49,8 +56,14 @@ SIN_TRADUCCION = "no aplica"
 _RUTAS_MIGRADAS: set[Path] = set()
 
 
-def _asegurar_columna_usuario(ruta: Path) -> None:
-    """HU-53: añade `usuario` a CSV anteriores sin borrar ni alterar sus filas."""
+def _asegurar_columnas(ruta: Path) -> None:
+    """Añade al CSV las columnas nuevas al final, sin borrar ni alterar sus filas.
+
+    HU-53 añadió `usuario` y HU-26 `causa`; un archivo de cualquiera de las versiones
+    anteriores se migra en una sola pasada, en lugar de fallar contra la cabecera. Sólo
+    se añaden columnas cuyo valor por defecto está definido: cualquier otra cabecera es
+    un registro ajeno o corrupto y sigue fallando.
+    """
     if not ruta.exists():
         return
     with _bloqueo(ruta):
@@ -59,9 +72,20 @@ def _asegurar_columna_usuario(ruta: Path) -> None:
             actuales = lector.fieldnames or []
             if actuales == CAMPOS:
                 return
-            if actuales and actuales != CAMPOS[:-1]:
-                raise ValueError("La cabecera del registro no coincide con CAMPOS.")
-            filas = [{**fila, "usuario": ANONIMO} for fila in lector]
+            if not actuales:
+                # HU-36: un registro vacío (0 bytes) se reconstruye con su cabecera.
+                filas: list[dict[str, str]] = []
+                nuevas: list[str] = []
+            else:
+                if actuales != CAMPOS[: len(actuales)]:
+                    raise ValueError("La cabecera del registro no coincide con CAMPOS.")
+                nuevas = CAMPOS[len(actuales) :]
+                if any(clave not in _DEFECTOS_NUEVAS for clave in nuevas):
+                    raise ValueError("La cabecera del registro no coincide con CAMPOS.")
+                filas = [
+                    {**fila, **{clave: _DEFECTOS_NUEVAS[clave] for clave in nuevas}}
+                    for fila in lector
+                ]
         salida = io.StringIO(newline="")
         escritor = csv.DictWriter(salida, fieldnames=CAMPOS)
         escritor.writeheader()
@@ -92,6 +116,7 @@ def registrar(
     *,
     identificador: str | None = None,
     usuario: str = ANONIMO,
+    causa: str | None = None,
 ) -> dict[str, str]:
     """Registra una solicitud con los campos de la especificación.
 
@@ -108,11 +133,12 @@ def registrar(
         "error": _a_valor_conocido(error, "ninguno"),
         "version": _a_valor_conocido(version, "desconocida"),
         "usuario": _a_valor_conocido(usuario, ANONIMO),
+        "causa": declinacion.normalizar(causa),
     }
 
     destino = Path(ruta).resolve()
     if destino not in _RUTAS_MIGRADAS:
         # Una vez por archivo y proceso: evita leer la cabecera en cada escritura.
-        _asegurar_columna_usuario(destino)
+        _asegurar_columnas(destino)
         _RUTAS_MIGRADAS.add(destino)
     return anexar_sin_duplicar(Path(ruta), fila, CAMPOS)
