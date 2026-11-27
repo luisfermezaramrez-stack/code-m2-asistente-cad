@@ -101,6 +101,9 @@ licencia.
    trazable (texto, resultado, latencia y versión del modelo).
 4. **Navegación** por URLs propias (`/nueva-solicitud`, `/historial` y `/ajustes`),
    con borrador y tema recuperables al abrir la vista en otra pestaña (HU-38).
+5. **Historial** de solicitudes reales desde el registro persistente: listado con
+   filtros por resultado y por descripción, y reapertura que descarga el STEP de una
+   solicitud anterior aunque el servidor se haya reiniciado (HU-37).
 
 ## Estructura
 

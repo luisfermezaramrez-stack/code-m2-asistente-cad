@@ -55,7 +55,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 - Acceso con sesión por usuario: `/auth/login`, `/auth/logout`, `/auth/me`; salud
   abierta y recursos de datos con dueño (HU-53).
 - Registro trazable de solicitudes (texto, resultado, latencia, error, versión)
-  con exclusión de datos personales (Ley 1581 de 2012).
+  con exclusión de datos personales (Ley 1581 de 2012) y consultable desde el
+  historial de la UI (HU-37).
 - Línea base heredada Gemma/llama.cpp solo con overlay explícito.
 
 ### Fuera del alcance (por ahora)
@@ -112,7 +113,7 @@ code-m2-asistente-cad/
 │   ├── llm_resiliente.py       # reintentos, plazo total y caché del LLM (HU-25)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
 │   ├── evaluacion.py           # evaluador HTTP HU-07: reporte por familia y enlaces CSV/STEP
-│   ├── registro.py             # registro CSV con exclusión de PII (HU-06)
+│   ├── registro.py             # registro CSV con exclusión de PII (HU-06) y lector del historial (HU-37)
 │   ├── trabajos.py             # SSE, registro en memoria y cancelación cooperativa
 │   ├── control.py              # puntos seguros de cancelación del pipeline (HU-15)
 │   ├── seguimiento.py          # MLflow: una corrida por solicitud y por caso del banco (HU-16)
@@ -240,6 +241,22 @@ artefactos, el diff respecto de la anterior y el prompt usado; una edición que 
 declina con su causa de SPEC-027 y no toca el histórico. `GET /v1/generar/{id}/versiones`
 lo expone en orden. El registro CSV no cambia de forma: la corrida de MLflow lleva
 `operacion`, `version_pieza` y `solicitud_origen`.
+
+HU-37 consulta el registro persistente desde la UI. `GET /v1/registros` devuelve sólo
+las filas del usuario de la sesión con `id`, `hora`, `texto`, `estado` y `motivo`,
+filtrables por resultado y por texto y ordenadas de la más reciente a la más antigua
+(tope de 200); `registro.listar` y `registro.leer` son el único lector del CSV. El
+estado terminal no se persiste, así que se deriva en el backend con precedencia
+documentada (`resultado` con `step` → `construida`; `causa` del catálogo de SPEC-027 →
+`declinada`; `error` distinto de `ninguno` → fallo; sin señal → `desconocida`), y la
+consulta puntual lo devuelve junto al motivo para que el cliente no repita la regla.
+`GET /v1/registros/{identificador}` emite `X-Download-Token` después de comprobar sesión
+y propiedad: sin él el STEP de una solicitud anterior no se podía descargar tras
+reiniciar el servidor, y `exigir_token` no se relaja. `/historial` deja de leer
+`?estado=` (ese gancho queda sólo en `/ajustes`) y reabre cada solicitud en
+`/historial/:identificador`, con el STEP servido desde el registro y GLB/CSV sólo
+mientras el trabajo sigue vivo. El cliente no guarda historial: recargar o abrir desde
+otro equipo vuelve a preguntar al backend.
 
 HU-27 define `EstadoTrabajo` en `contratos.py`, compartido por GET/DELETE de
 generaciones y documentado para el JSON `data` de SSE con `x-event-data-schema`.
@@ -377,6 +394,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-25 | HU-53 × HU-31/32/45: `/v1/auth/*`; la cola guarda el dueño y el worker lo registra; topes e idempotencia por usuario; login con límite de intentos; firma ligada al hash vigente; configuración validada al arrancar | Integrar la autenticación con la API versionada, la cola y el control de uso sin fugas entre usuarios; endurecer la sesión según la revisión del PR #133 |
 | 2026-11-27 | HU-26: `declinacion.py` concentra el catálogo cerrado de causas, el mensaje legible y la tabla que traduce los códigos del verificador; el registro gana la columna `causa` y MLflow la etiqueta `causa_declinacion`; la causa no viaja en el cuerpo de `/v1` | Un motivo en texto libre no explica la declinación al usuario ni sirve como dimensión de métricas; asignar la causa en el origen evita heurísticas sobre texto y conserva el contrato HTTP y los tipos del frontend |
 | 2026-11-26 | HU-38: `vue-router` da URL propia a nueva solicitud, historial y ajustes; `App.vue` es el shell, `useGeneration.ts` recupera borrador y timeout, y `web.py` sirve esas vistas sin relajar el 404 JSON de API y `/assets` | Compartir o reabrir una vista concreta sin perder su estado, conservando el flujo SSE y la navegación por teclado; los estados nuevos del shell se distinguen con componentes presentacionales y la ruta comodín |
+| 2026-11-27 | HU-37: `GET /v1/registros` lista sólo las solicitudes propias con campos mínimos y filtros en el servidor; el estado se deriva en el backend con precedencia documentada y `GET /v1/registros/{id}` emite `X-Download-Token` tras sesión y propiedad; `/historial` deja de leer `?estado=` y la reapertura vive en `/historial/:identificador` | Consultar y reabrir solicitudes sin copia autoritativa en el cliente ni recorrer ids, y descargar el STEP pasado el reinicio sin relajar `exigir_token`; derivar el estado sólo en el backend evita que la misma regla viva en Python y en TypeScript |
 
 ## 10. Notas y tareas pendientes
 
