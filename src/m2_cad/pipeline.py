@@ -69,6 +69,12 @@ CATALOGO = {
 PROMPT_VIGENTE = prompts.cargar()
 PROMPT_SISTEMA = PROMPT_VIGENTE.texto
 
+# Prompt de edición (HU-35, SPEC-036): artefacto versionado propio
+# (`prompts/editor-v1.txt`, id `editor` en el manifiesto). Recibe el programa DSL
+# vigente y una instrucción de cambio en español, aplica solo ese cambio y repite
+# la regla de honestidad del planificador. `planner-v1` no se toca.
+PROMPT_EDICION = prompts.cargar("editor")
+
 # Mensajes en español para los estados HTTP más comunes de DeepSeek (HU-14, AC3).
 MENSAJES_HTTP = {
     401: "DeepSeek rechazó la API key (HTTP 401). Revisa DEEPSEEK_API_KEY.",
@@ -360,11 +366,41 @@ def _planificador_con_uso(
     control: ControlGeneracion | None = None,
 ) -> Callable[[str], dict]:
     """Planificador por defecto que informa el `usage` del proveedor (HU-16, AC2)."""
+    return _planificador(medir_uso, control)
+
+
+def _planificador_edicion(
+    programa_previo: dict,
+    medir_uso: Callable[[dict], None] | None = None,
+    control: ControlGeneracion | None = None,
+) -> Callable[[str], dict]:
+    """Planificador de una edición: prompt de edición y programa previo (HU-35)."""
+    return _planificador(
+        medir_uso,
+        control,
+        sistema=PROMPT_EDICION.texto,
+        componer=lambda instruccion: _mensaje_edicion(programa_previo, instruccion),
+    )
+
+
+def _planificador(
+    medir_uso: Callable[[dict], None] | None,
+    control: ControlGeneracion | None,
+    *,
+    sistema: str | None = None,
+    componer: Callable[[str], str] | None = None,
+) -> Callable[[str], dict]:
+    """Planificador que devuelve el programa e informa el `usage` del proveedor.
+
+    `sistema` elige el prompt de sistema (`PROMPT_SISTEMA` si es `None`) y
+    `componer` arma el mensaje de usuario a partir del texto recibido.
+    """
 
     def planificar(texto: str) -> dict:
+        mensaje = componer(texto) if componer is not None else texto
         llm_resiliente.reiniciar_metricas()
         try:
-            respuesta = _respuesta_modelo(texto, control=control)
+            respuesta = _respuesta_modelo(mensaje, control=control, sistema=sistema)
         except Exception:
             if medir_uso is not None:
                 medir_uso(llm_resiliente.metricas_actuales())
@@ -379,6 +415,17 @@ def _planificador_con_uso(
         return _programa_de(respuesta)
 
     return planificar
+
+
+def _mensaje_edicion(programa_previo: dict, instruccion: str) -> str:
+    """Mensaje de usuario de una edición: programa vigente e instrucción delimitada."""
+    return (
+        "Programa constraint-kit vigente de la pieza (JSON):\n"
+        f"{json.dumps(programa_previo, ensure_ascii=False, sort_keys=True)}\n\n"
+        "Instrucción de cambio (en español):\n"
+        f"«{instruccion}»\n\n"
+        "Devuelve el programa completo con solo ese cambio aplicado."
+    )
 
 
 def _programa_de(respuesta: dict) -> dict:
@@ -401,10 +448,16 @@ def _programa_de(respuesta: dict) -> dict:
     return programa
 
 
-def _respuesta_modelo(texto: str, *, control: ControlGeneracion | None = None) -> dict:
+def _respuesta_modelo(
+    texto: str,
+    *,
+    control: ControlGeneracion | None = None,
+    sistema: str | None = None,
+) -> dict:
     """Llama al modelo servido con el prompt del sistema y la solicitud.
 
-    `control` permite detener los reintentos si el trabajo SSE se cancela.
+    `control` permite detener los reintentos si el trabajo SSE se cancela y
+    `sistema` elige el prompt del sistema (el del planificador si es `None`).
     """
     url = llm.base_url("planner")
     con_clave = os.environ.get("LLM_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
@@ -414,7 +467,7 @@ def _respuesta_modelo(texto: str, *, control: ControlGeneracion | None = None) -
     cuerpo = {
         "model": llm.planner_model(),
         "messages": [
-            {"role": "system", "content": PROMPT_SISTEMA},
+            {"role": "system", "content": PROMPT_SISTEMA if sistema is None else sistema},
             {"role": "user", "content": texto},
         ],
         "temperature": TEMPERATURA_LLM,
@@ -446,44 +499,20 @@ def _respuesta_modelo(texto: str, *, control: ControlGeneracion | None = None) -
         raise ModeloNoDisponible("No fue posible conectar con el modelo.") from exc
 
 
-def generar_pieza(
-    texto: str,
+def _construir_programa(
+    programa: dict,
+    directorio: Path,
     *,
-    planificar: Callable[[str], dict] | None = None,
-    directorio: Path = RUTA_SALIDA,
-    control: ControlGeneracion | None = None,
-    medir_uso: Callable[[dict], None] | None = None,
+    version: str,
+    tiempo_generacion: float,
+    control: ControlGeneracion | None,
 ) -> ResultadoPieza:
-    """Genera el programa desde el texto en español y construye la pieza (AC1-AC5).
+    """Escribe `programa.json`, valida el catálogo y construye la pieza (AC1-AC5).
 
-    Cada solicitud escribe en su propia subcarpeta de `directorio`, con
-    `programa.json` en cuanto el modelo entrega un programa y los entregables
-    cuando la pieza se construye. `medir_uso` recibe el `usage` del proveedor
-    para el seguimiento (HU-16); sin él el comportamiento es el de siempre.
+    Camino común de una generación inicial y de una edición (HU-35): siempre en un
+    directorio nuevo, con la misma sanitización del artefacto, la misma declinación
+    con causa de SPEC-027 y la misma verificación determinista.
     """
-    logger.info("pipeline: validando solicitud")
-    if control is not None:
-        control.informar("validando")
-    if not texto.strip() or len(texto) > 1000:
-        raise ValueError("La descripción debe contener entre 1 y 1000 caracteres.")
-    inicio = time.perf_counter()
-    if control is not None:
-        control.informar("generando")
-    if planificar is None:
-        planificar = _planificador_con_uso(medir_uso, control)
-    logger.info("pipeline: generando programa")
-    try:
-        programa = planificar(texto)
-    except Exception as exc:
-        if not hasattr(exc, "version_modelo"):
-            exc.version_modelo = os.getenv("LLM_MODEL_VERSION") or llm.planner_model()
-        raise
-    logger.info("pipeline: programa generado")
-    version = getattr(programa, "version_modelo", None) or llm.planner_model()
-    if control is not None:
-        control.comprobar_cancelacion()
-    tiempo_generacion = time.perf_counter() - inicio
-
     salida = Path(directorio) / uuid.uuid4().hex
     salida.mkdir(parents=True, exist_ok=True)
     programa_json = salida / "programa.json"
@@ -530,4 +559,101 @@ def generar_pieza(
         familia=resultado.familia,
         programa_json=programa_json,
         version_modelo=version,
+    )
+
+
+def generar_pieza(
+    texto: str,
+    *,
+    planificar: Callable[[str], dict] | None = None,
+    directorio: Path = RUTA_SALIDA,
+    control: ControlGeneracion | None = None,
+    medir_uso: Callable[[dict], None] | None = None,
+) -> ResultadoPieza:
+    """Genera el programa desde el texto en español y construye la pieza (AC1-AC5).
+
+    Cada solicitud escribe en su propia subcarpeta de `directorio`, con
+    `programa.json` en cuanto el modelo entrega un programa y los entregables
+    cuando la pieza se construye. `medir_uso` recibe el `usage` del proveedor
+    para el seguimiento (HU-16); sin él el comportamiento es el de siempre.
+    """
+    logger.info("pipeline: validando solicitud")
+    if control is not None:
+        control.informar("validando")
+    if not texto.strip() or len(texto) > 1000:
+        raise ValueError("La descripción debe contener entre 1 y 1000 caracteres.")
+    inicio = time.perf_counter()
+    if control is not None:
+        control.informar("generando")
+    if planificar is None:
+        planificar = _planificador_con_uso(medir_uso, control)
+    logger.info("pipeline: generando programa")
+    try:
+        programa = planificar(texto)
+    except Exception as exc:
+        if not hasattr(exc, "version_modelo"):
+            exc.version_modelo = os.getenv("LLM_MODEL_VERSION") or llm.planner_model()
+        raise
+    logger.info("pipeline: programa generado")
+    version = getattr(programa, "version_modelo", None) or llm.planner_model()
+    if control is not None:
+        control.comprobar_cancelacion()
+    tiempo_generacion = time.perf_counter() - inicio
+    return _construir_programa(
+        programa,
+        directorio,
+        version=version,
+        tiempo_generacion=tiempo_generacion,
+        control=control,
+    )
+
+
+def editar_pieza(
+    programa_previo: dict,
+    instruccion: str,
+    *,
+    planificar: Callable[[str], dict] | None = None,
+    directorio: Path = RUTA_SALIDA,
+    control: ControlGeneracion | None = None,
+    medir_uso: Callable[[dict], None] | None = None,
+) -> ResultadoPieza:
+    """Aplica una instrucción de cambio al programa vigente y construye la pieza (HU-35).
+
+    Especificación: specs/036-hu-35-edicion-iterativa/spec.md
+    - RF-1 (S1): la instrucción llega al modelo de edición con el programa previo.
+    - RF-3 (S3): el programa nuevo pasa por la misma verificación determinista que
+      una generación inicial, en un directorio nuevo.
+    - RF-6 (S6): si la edición rompe la verificación, se declina con la causa de
+      SPEC-027 y no se construye nada, así que la versión anterior queda intacta.
+
+    `medir_uso` recibe el `usage` del proveedor para el seguimiento (HU-16).
+    """
+    logger.info("pipeline: validando instrucción de edición")
+    if control is not None:
+        control.informar("validando")
+    if not instruccion.strip() or len(instruccion) > 1000:
+        raise ValueError("La instrucción de cambio debe contener entre 1 y 1000 caracteres.")
+    inicio = time.perf_counter()
+    if control is not None:
+        control.informar("generando")
+    if planificar is None:
+        planificar = _planificador_edicion(programa_previo, medir_uso, control)
+    logger.info("pipeline: editando programa")
+    try:
+        programa = planificar(instruccion)
+    except Exception as exc:
+        if not hasattr(exc, "version_modelo"):
+            exc.version_modelo = os.getenv("LLM_MODEL_VERSION") or llm.planner_model()
+        raise
+    logger.info("pipeline: programa editado")
+    version = getattr(programa, "version_modelo", None) or llm.planner_model()
+    if control is not None:
+        control.comprobar_cancelacion()
+    tiempo_generacion = time.perf_counter() - inicio
+    return _construir_programa(
+        programa,
+        directorio,
+        version=version,
+        tiempo_generacion=tiempo_generacion,
+        control=control,
     )

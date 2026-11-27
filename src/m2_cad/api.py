@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager, suppress
 from dataclasses import asdict
 from datetime import date
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.exception_handlers import request_validation_exception_handler
@@ -21,7 +21,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
-from m2_cad import declinacion, seguimiento
+from m2_cad import declinacion, seguimiento, versiones
 from m2_cad.autenticacion import (
     ANONIMO,
     LimiteIntentos,
@@ -156,6 +156,61 @@ class RespuestaUso(BaseModel):
     ventana_segundos: int
 
 
+class SolicitudEdicion(BaseModel):
+    """Instrucción de cambio en español sobre la pieza previa (HU-35, RF-1)."""
+
+    instruccion: str = Field(
+        min_length=1,
+        max_length=1000,
+        description="Cambio pedido en español, aplicado sobre el programa vigente.",
+    )
+
+    @field_validator("instruccion")
+    @classmethod
+    def validar_instruccion(cls, valor: str) -> str:
+        """Rechaza instrucciones sin contenido significativo."""
+        if not valor.strip():
+            raise ValueError("La instrucción no puede estar vacía.")
+        return valor.strip()
+
+
+class VersionPieza(BaseModel):
+    """Una versión de la pieza con su programa y sus artefactos (HU-35, AC3)."""
+
+    version: int
+    hora: str
+    programa: dict[str, Any]
+    artefactos: list[str]
+    diff: list[dict[str, Any]] = []
+    prompt: str
+    prompt_hash: str
+
+
+class RespuestaVersiones(BaseModel):
+    """Historial de versiones de una solicitud, en orden ascendente (HU-35, AC3)."""
+
+    solicitud_id: str
+    versiones: list[VersionPieza]
+
+
+class RespuestaEdicion(BaseModel):
+    """Nueva versión verificada de la pieza, con el diff del programa (HU-35, AC1)."""
+
+    solicitud_id: str
+    version: int
+    prompt: str
+    programa: dict[str, Any]
+    diff: list[dict[str, Any]]
+    step: str
+    glb: str
+    bom_csv: str
+    aviso: str
+    volumen_mm3: str
+    caja_mm: str
+    tiempo_generacion_s: str
+    tiempo_construccion_s: str
+
+
 @router.get("/health")
 def health() -> dict[str, str]:
     """Comprueba que el proceso de la API está disponible (AC4: sin credenciales)."""
@@ -280,18 +335,19 @@ def ready() -> JSONResponse:
     )
 
 
-def _preparar_medicion(pipeline, medido: dict) -> Callable[[dict], None]:
+def _preparar_medicion(pipeline, medido: dict, *, prompt=None) -> Callable[[dict], None]:
     """Anota modelo, versión y prompt vigente, y devuelve el receptor del `usage` (HU-16).
 
     HU-33/AC1: la etiqueta y el hash del prompt cargado viajan con la medición para que
     queden en el registro y en la corrida de MLflow de cada solicitud.
     """
+    cargado = prompt if prompt is not None else pipeline.PROMPT_VIGENTE
     medido.update(
         modelo=pipeline.llm.planner_model(),
         version_modelo=seguimiento.version_modelo(),
         temperatura=pipeline.TEMPERATURA_LLM,
-        prompt=pipeline.PROMPT_VIGENTE.etiqueta,
-        prompt_hash=pipeline.PROMPT_VIGENTE.sha256,
+        prompt=cargado.etiqueta,
+        prompt_hash=cargado.sha256,
     )
 
     def medir_uso(uso: dict) -> None:
@@ -356,6 +412,8 @@ def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str,
     medido.update(
         familia=resultado.familia,
         artefactos=[resultado.programa_json, resultado.step, resultado.glb, resultado.bom_csv],
+        # HU-35: el programa viaja en `medido` para registrar la versión 1 sin releer disco.
+        programa=resultado.programa,
     )
     return resultado.a_respuesta()
 
@@ -401,6 +459,8 @@ def procesar_con_progreso(
     medido.update(
         familia=resultado.familia,
         artefactos=[resultado.programa_json, resultado.step, resultado.glb, resultado.bom_csv],
+        # HU-35: el programa viaja en `medido` para registrar la versión 1 sin releer disco.
+        programa=resultado.programa,
     )
     return resultado.a_respuesta()
 
@@ -640,16 +700,19 @@ def medir_solicitud(
     motivo_declinacion: str | None = None,
     error: str | None = None,
     control_uso: ControlUso | None = None,
+    params_extra: dict[str, object] | None = None,
 ) -> None:
     """Registra params, métricas, tags y artefactos, y cierra la corrida (AC2/AC3)."""
-    corrida.registrar_params(
-        modelo=medido.get("modelo"),
-        version_modelo=medido.get("version_modelo"),
-        familia=medido.get("familia"),
-        temperatura=medido.get("temperatura"),
-        prompt=medido.get("prompt"),
-        prompt_hash=medido.get("prompt_hash"),
-    )
+    params: dict[str, object] = {
+        "modelo": medido.get("modelo"),
+        "version_modelo": medido.get("version_modelo"),
+        "familia": medido.get("familia"),
+        "temperatura": medido.get("temperatura"),
+        "prompt": medido.get("prompt"),
+        "prompt_hash": medido.get("prompt_hash"),
+    }
+    params.update(params_extra or {})
+    corrida.registrar_params(**params)
     tokens_entrada = medido.get("tokens_entrada")
     tokens_salida = medido.get("tokens_salida")
     costo_usd = _costo_medido(medido, configuracion.precio_entrada, configuracion.precio_salida)
@@ -750,6 +813,9 @@ def _generar_sse(
         )
         estado = _ESTADOS_CORRIDA_SSE.get(terminal["estado"], "error")
         solicitud_id = terminal["solicitud_id"]
+        if estado == "entregada":
+            # HU-35: también una entrega SSE deja su versión 1 en el histórico.
+            _registrar_version_inicial(solicitud_id, usuario, medido)
         corrida = seguimiento.iniciar_corrida(
             configuracion.experimento_generacion,
             nombre=solicitud_id,
@@ -883,6 +949,8 @@ def _generar_json(
         raise
 
     latencia_ms = (time.perf_counter() - inicio) * 1000
+    # HU-35: la generación inicial deja su versión 1 en el histórico.
+    _registrar_version_inicial(solicitud_id, usuario, medido)
     registrar(
         texto=solicitud.texto,
         traduccion=SIN_TRADUCCION,
@@ -1009,6 +1077,316 @@ def generar(
         except BaseException:
             control.liberar_idempotencia(clave, registro)
             raise
+
+
+_SIN_VERSIONES = "No hay versiones para esa solicitud."
+_INDICE_ILEGIBLE = (
+    "El historial de versiones de esa solicitud no está disponible: "
+    "el índice guardado no se pudo leer."
+)
+_INDICE_SIN_GUARDAR = (
+    "La edición se construyó pero no se pudo guardar como versión nueva: "
+    "el historial de versiones no está disponible."
+)
+
+
+def _error_indice(exc: Exception) -> HTTPException:
+    """Traduce un índice de versiones ilegible a un error catalogado (HU-35)."""
+    logger.warning("historial de versiones ilegible: %s", exc)
+    return HTTPException(status.HTTP_409_CONFLICT, _INDICE_ILEGIBLE)
+
+
+def _historial_propio(solicitud_id: str, usuario: str) -> list[dict]:
+    """Versiones legibles y del solicitante; si no se pueden atribuir, 404 (HU-53).
+
+    Con autenticación activa un índice ilegible no se puede probar del solicitante,
+    así que responde igual que un id desconocido: un usuario nunca puede distinguir
+    el historial ajeno del inexistente (B3). En modo local no hay terceros y se
+    informa el 409 con el mensaje catalogado.
+    """
+    try:
+        guardadas = versiones.leer_versiones(solicitud_id)
+    except versiones.ErrorVersiones as exc:
+        if autenticacion_activa():
+            logger.warning("historial de versiones ilegible: %s", exc)
+            raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES) from exc
+        raise _error_indice(exc) from exc
+    if not guardadas:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES)
+    garantizar_propietario(usuario, guardadas[0].get("usuario"), _SIN_VERSIONES)
+    return guardadas
+
+
+def _registrar_version_inicial(solicitud_id: str, usuario: str, medido: dict) -> None:
+    """Deja la versión 1 de una generación recién entregada (HU-35, AC3).
+
+    Como el seguimiento, el histórico es best-effort: una entrega ya construida no
+    se cae porque el índice no se pueda escribir.
+    """
+    programa = medido.get("programa")
+    if not isinstance(programa, dict) or not programa:
+        return
+    try:
+        if versiones.ultima_version(solicitud_id) is not None:
+            return
+        versiones.registrar_version(
+            solicitud_id,
+            usuario=usuario,
+            programa=programa,
+            artefactos=[str(ruta) for ruta in (medido.get("artefactos") or [])],
+            prompt=str(medido.get("prompt") or ""),
+            prompt_hash=str(medido.get("prompt_hash") or ""),
+        )
+    except (versiones.ErrorVersiones, OSError) as exc:
+        logger.warning("no se pudo registrar la versión inicial: %s", exc)
+
+
+def _editar_json(
+    solicitud_origen: str,
+    previa: dict,
+    cuerpo: SolicitudEdicion,
+    request: Request,
+    response: Response,
+    configuracion: seguimiento.Configuracion,
+    control: ControlUso,
+    usuario: str,
+) -> RespuestaEdicion:
+    """Aplica una edición verificada y registra la versión nueva (HU-35, AC1/AC2).
+
+    La versión previa llega ya resuelta y autorizada por la ruta: así un 404 por
+    solicitud inexistente o ajena ocurre antes de reservar cupo de la ventana
+    (HU-32, R3-reserva-ventana-404).
+    """
+    # Importación diferida: el núcleo CAD (cadquery/OCP) sólo se carga al usarlo.
+    from m2_cad import pipeline as modulo_pipeline
+
+    inicio = time.perf_counter()
+    registro_id = _identificador(request)
+
+    medido: dict[str, object] = {}
+    medir_uso = _preparar_medicion(modulo_pipeline, medido, prompt=modulo_pipeline.PROMPT_EDICION)
+    corrida = seguimiento.iniciar_corrida(
+        configuracion.experimento_generacion,
+        nombre=registro_id,
+        tags={
+            "solicitud_id": registro_id,
+            "request_id": registro_id,
+            "solicitud_origen": solicitud_origen,
+            "operacion": "edicion",
+            "usuario": usuario,
+        },
+        configuracion=configuracion,
+    )
+    estado, motivo, causa, fallo = "entregada", None, None, None
+    entrada: dict | None = None
+    resultado = None
+    try:
+        resultado = modulo_pipeline.editar_pieza(
+            previa["programa"], cuerpo.instruccion, medir_uso=medir_uso
+        )
+    except modulo_pipeline.PiezaDeclinada as exc:
+        estado, motivo, causa = "declinada", exc.motivo, str(exc.causa)
+        medido.update(familia="desconocida", causa=str(exc.causa), artefactos=[exc.programa_json])
+        _anotar_detalle(exc)
+        fallo = DeclinacionSolicitud(exc.motivo, exc.programa_json, causa=exc.causa)
+    except (modulo_pipeline.ErrorGeneracion, modulo_pipeline.ErrorVerificacion) as exc:
+        estado, causa = "error", str(exc.causa)
+        medido.update(familia="desconocida", causa=str(exc.causa))
+        _anotar_detalle(exc)
+        fallo = FalloHTTP(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.mensaje, type(exc).__name__)
+    except modulo_pipeline.ModeloNoDisponible as exc:
+        estado = "error"
+        medido["familia"] = "desconocida"
+        fallo = FalloHTTP(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc), "ModeloNoDisponible")
+
+    respuesta: dict[str, object] | None = None
+    if resultado is not None:
+        medido.update(
+            familia=resultado.familia,
+            artefactos=[
+                resultado.programa_json,
+                resultado.step,
+                resultado.glb,
+                resultado.bom_csv,
+            ],
+        )
+        diff = versiones.diff_programas(previa["programa"], resultado.programa)
+        try:
+            entrada = versiones.registrar_version(
+                solicitud_origen,
+                usuario=usuario,
+                programa=resultado.programa,
+                artefactos=[str(ruta) for ruta in (medido.get("artefactos") or [])],
+                prompt=str(medido.get("prompt") or ""),
+                prompt_hash=str(medido.get("prompt_hash") or ""),
+                diff=diff,
+            )
+        except (versiones.ErrorVersiones, OSError) as exc:
+            # B2: la fila del registro, el costo y el cierre de la corrida se
+            # escriben igual antes de responder; el mensaje no habla de lectura.
+            logger.warning("no se pudo guardar la versión nueva: %s", exc)
+            estado = "error"
+            fallo = HTTPException(status.HTTP_409_CONFLICT, _INDICE_SIN_GUARDAR)
+            entrada = None
+        if entrada is not None:
+            respuesta = {
+                "solicitud_id": solicitud_origen,
+                "version": entrada["version"],
+                "prompt": str(medido.get("prompt") or ""),
+                "programa": resultado.programa,
+                "diff": diff,
+                **resultado.a_respuesta(),
+            }
+
+    latencia_ms = (time.perf_counter() - inicio) * 1000
+    registrar(
+        texto=cuerpo.instruccion,
+        traduccion=SIN_TRADUCCION,
+        resultado=respuesta,
+        latencia_ms=latencia_ms,
+        error=_texto_fallo(fallo),
+        version=seguimiento.version_modelo(),
+        ruta=obtener_ruta_registro(),
+        identificador=registro_id,
+        usuario=usuario,
+        causa=causa,
+        prompt=str(medido.get("prompt") or ""),
+        prompt_hash=str(medido.get("prompt_hash") or ""),
+    )
+    medir_solicitud(
+        corrida,
+        medido,
+        configuracion,
+        estado=estado,
+        latencia_ms=latencia_ms,
+        motivo_declinacion=motivo,
+        error=None if fallo is None else f"HTTP {fallo.status_code}",
+        control_uso=control,
+        params_extra={
+            "operacion": "edicion",
+            "solicitud_origen": solicitud_origen,
+            "version_pieza": entrada["version"] if entrada else None,
+        },
+    )
+    if fallo is not None:
+        raise fallo
+    cabeceras = _cabeceras_registro(request, registro_id)
+    response.headers.update(cabeceras)
+    response.headers["X-Download-Token"] = emitir_token(registro_id)
+    response.headers["Cache-Control"] = "no-store"
+    if str(respuesta.get("step") or ""):
+        response.headers["X-Step-URL"] = str(
+            request.url_for("descargar_step", identificador=registro_id)
+        )
+    logger.info("edición entregada como versión %s", entrada["version"])
+    assert respuesta is not None and entrada is not None
+    return RespuestaEdicion(**respuesta)
+
+
+def _texto_fallo(fallo: HTTPException | None) -> str | None:
+    """Detalle legible para la columna `error` del registro; `None` si no hubo fallo."""
+    if fallo is None:
+        return None
+    detalle = getattr(fallo, "motivo", None)
+    return str(detalle if detalle else fallo.detail)
+
+
+@router.post(
+    "/generar/{solicitud_id}/editar",
+    response_model=RespuestaEdicion,
+    responses={
+        404: {"description": "La solicitud no existe o no es del usuario."},
+        409: {
+            "description": (
+                "La clave de idempotencia ya se usó para esta edición, o el historial "
+                "de versiones guardado no se pudo leer."
+            )
+        },
+        422: {"description": "La edición no pasa la verificación; incluye la causa."},
+        429: {"description": "Límite por ventana excedido o presupuesto diario agotado."},
+    },
+)
+def editar_pieza(
+    solicitud_id: str,
+    cuerpo: SolicitudEdicion,
+    request: Request,
+    response: Response,
+    configuracion: Annotated[seguimiento.Configuracion, Depends(obtener_configuracion_seguimiento)],
+    control: Annotated[ControlUso, Depends(obtener_control_uso)],
+    usuario: Annotated[str, Depends(usuario_actual)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key", max_length=255)] = None,
+) -> RespuestaEdicion:
+    """Edita la pieza vigente de una solicitud y entrega una versión nueva (RF-1..RF-4)."""
+    try:
+        origen = versiones.validar_solicitud_id(solicitud_id)
+    except versiones.ErrorVersiones as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES) from exc
+    with contexto_solicitud(request_id=_identificador(request)):
+        logger.info("edición recibida: POST /generar/{id}/editar")
+        sesion = _sesion(request, usuario)
+        clave = _clave_idempotencia(idempotency_key)
+        if clave is not None and autenticacion_activa():
+            clave = f"{sesion}\n{clave}"
+        # La solicitud se resuelve y se autoriza ANTES de reservar cupo: un 404 no
+        # consume la ventana de uso (HU-32, R3-reserva-ventana-404).
+        previa = _historial_propio(origen, usuario)[-1]
+        repetido, reserva = control.reservar_idempotencia(
+            clave, sesion, cuerpo.instruccion, "json", origen
+        )
+        if repetido:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "La clave de idempotencia ya se usó para esta edición.",
+            )
+        try:
+            control.reservar(sesion)
+        except ErrorControlUso:
+            control.liberar_idempotencia(clave, reserva)
+            raise
+        try:
+            respuesta = _editar_json(
+                origen, previa, cuerpo, request, response, configuracion, control, usuario
+            )
+        except BaseException:
+            control.liberar_idempotencia(clave, reserva)
+            raise
+        control.confirmar_idempotencia(clave, reserva)
+        return respuesta
+
+
+@router.get(
+    "/generar/{solicitud_id}/versiones",
+    response_model=RespuestaVersiones,
+    responses={
+        404: {"description": "La solicitud no existe o no es del usuario."},
+        409: {"description": "El historial de versiones guardado no se pudo leer."},
+    },
+)
+def historial_de_versiones(
+    solicitud_id: str,
+    usuario: Annotated[str, Depends(usuario_actual)],
+) -> RespuestaVersiones:
+    """Historial de versiones de la solicitud, en orden ascendente (RF-5, AC3)."""
+    try:
+        clave = versiones.validar_solicitud_id(solicitud_id)
+    except versiones.ErrorVersiones as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES) from exc
+    guardadas = _historial_propio(clave, usuario)
+    return RespuestaVersiones(
+        solicitud_id=clave,
+        versiones=[
+            VersionPieza(
+                version=int(entrada["version"]),
+                hora=str(entrada["hora"]),
+                programa=entrada["programa"],
+                artefactos=[str(ruta) for ruta in entrada.get("artefactos") or []],
+                diff=entrada.get("diff") or [],
+                prompt=str(entrada.get("prompt") or ""),
+                prompt_hash=str(entrada.get("prompt_hash") or ""),
+            )
+            for entrada in guardadas
+        ],
+    )
 
 
 # La sesión es sólo un control de acceso: el gasto es global, no por usuario.
