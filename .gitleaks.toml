@@ -1,0 +1,17 @@
+# Configuración de gitleaks para M2 Asistente CAD (SPEC-029, HU-28, RF-2).
+#
+# `useDefault` mantiene activas todas las reglas por defecto de gitleaks 8.30.1:
+# el escaneo cubre todo el historial y no se desactiva ninguna regla.
+[extend]
+useDefault = true
+
+# Única exclusión del repositorio: `tests/fixtures/seguridad/` guarda credenciales
+# FALSAS que la suite usa para demostrar AC1 (que gitleaks sí detecta un secreto).
+# Ninguna credencial real puede vivir ahí: si aparece una, se rota, se retira del
+# historial y se trata como cualquier otro hallazgo. No hay más exclusiones: ni
+# regex, ni commits, ni exenciones de historial. Las excepciones reales se
+# declaran en `security/excepciones-secretos.toml` (ver
+# `security/politica-excepciones.md`) y quedan visibles en el log del job.
+[[allowlists]]
+description = "Fixture de pruebas con secretos falsos: AC1 de SPEC-029. Ninguna credencial real puede vivir aquí."
+paths = ['''^tests/fixtures/seguridad/''']

@@ -86,7 +86,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Pre-commit** | Ruff + higiene de archivos + bloqueo de pesos (`.gguf`, `.safetensors`, …) |
 | **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `main` |
 | **Espejo GitLab** | GitHub es la fuente de verdad; `.github/workflows/espejo-gitlab.yml` replica ramas y etiquetas en GitLab (solo lectura) vía deploy key SSH (`vars.GITLAB_MIRROR_URL`, `secrets.GITLAB_MIRROR_SSH_KEY`) |
-| **Pipeline GitLab** | `.gitlab-ci.yml` deja evidencia sobre el espejo en tres jobs: `lint` (imagen de uv 0.13.5 con el Python de `.python-version` y `make lint`), `run_test` (`vendor` + `uv sync --locked` + `make frontend-install` + `make test` sobre `node:24-bookworm`) y `build_image` (imagen Docker). Corre con push a la rama por defecto del espejo, lanzamiento manual o pipeline programado: no abre una segunda puerta de integración, que la puerta es el PR en GitHub |
+| **Pipeline GitLab** | `.gitlab-ci.yml` deja evidencia sobre el espejo en cinco jobs: `lint` (imagen de uv 0.13.5 con el Python de `.python-version` y `make lint`), `secretos` (gitleaks sobre el historial completo), `dependencias` (pip-audit sobre el export de `uv.lock`), `run_test` (`vendor` + `uv sync --locked` + `make frontend-install` + `make test` sobre `node:24-bookworm`) y `build_image` (imagen Docker). Corre con push a la rama por defecto del espejo, lanzamiento manual o pipeline programado: no abre una segunda puerta de integración, que la puerta es el PR en GitHub |
 | **Dependencias automáticas** | [Dependabot](.github/dependabot.yml) (target `main`) |
 | **Despliegue** | Docker multietapa Node/vendor/Python; Compose: `mlflow` (`:5000`) + `m2-cad` (Vue + FastAPI `:8000`), DeepSeek externo |
 
@@ -195,7 +195,8 @@ code-m2-asistente-cad/
 | GitHub Actions | CI en PRs a `main` | `.github/workflows/ci.yml` |
 | Kernel del autor | 113 pruebas dentro del contenedor `cadkit:0.1` | `make kernel-image` + `make kernel-test` |
 | Corpus dorado | Divergencia geométrica del núcleo por huella de STEP, en cada PR | `make corpus-dorado` |
-| Prompts versionados | id, versión y hash del prompt; CI falla si el texto cambia sin subir versión | `make prompts-check` |
+| Seguridad | gitleaks y pip-audit en cada PR | `make security` | SPEC-029 |
+| Prompts versionados | id, versión y hash del prompt; CI falla si el texto cambia sin subir versión | `make prompts-check` | SPEC-034 |
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
 | Servicio | Vue/FastAPI + DeepSeek externo | `make up` / `make down` |
 
@@ -215,6 +216,18 @@ texto de una versión publicada no se edita. `make prompts-check` entra en `make
 y en el job `lint` del espejo, así que un cambio de contenido sin subir `version`
 hace fallar las dos puertas (AC2); cada fila del registro y cada corrida de MLflow
 llevan `prompt` y `prompt_hash` del texto realmente enviado al modelo.
+
+El escaneo de seguridad es un paso propio más, también fuera de `make check`: descarga
+el gitleaks fijado y consulta los advisories en OSV, así que necesita red. `make security`
+valida la política de excepciones, escanea secretos y audita dependencias con las
+herramientas fijadas en `src/m2_cad/seguridad_ci.py` (gitleaks 8.30.1 y pip-audit
+2.10.1, sin `pip`), y un hallazgo bloqueante falla el job nombrando paquete, CVE,
+versión corregida o archivo, línea y regla según el caso. Las excepciones solo se
+aceptan declaradas en `security/excepciones-secretos.toml` o
+`security/excepciones-dependencias.toml`, con justificación, aprobador y fecha de
+revisión vigente (máximo 180 días); una excepción vencida vuelve a bloquear y toda
+excepción sigue visible en el repositorio y en el log del job. La política completa
+vive en [`security/politica-excepciones.md`](security/politica-excepciones.md).
 
 HU-27 define `EstadoTrabajo` en `contratos.py`, compartido por GET/DELETE de
 generaciones y documentado para el JSON `data` de SSE con `x-event-data-schema`.

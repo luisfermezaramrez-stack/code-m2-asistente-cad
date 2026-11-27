@@ -8,11 +8,14 @@ integración. Se lee el YAML como texto a propósito: no hace falta un parser pa
 comprobar estas invariantes y evita sumar una dependencia solo para la prueba.
 """
 
+import tomllib
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
 GITLAB = RAIZ / ".gitlab-ci.yml"
 GITHUB = RAIZ / ".github" / "workflows" / "ci.yml"
+SEGURIDAD = RAIZ / ".github" / "workflows" / "seguridad.yml"
+MODULO_SEGURIDAD = RAIZ / "src" / "m2_cad" / "seguridad_ci.py"
 DOCKERFILE = RAIZ / "Dockerfile"
 MAKEFILE = RAIZ / "Makefile"
 
@@ -130,3 +133,57 @@ def test_el_chequeo_de_prompts_entra_en_check_y_en_el_job_lint():
     lint = _job_gitlab("lint")
     assert "uv run --no-sync make prompts-check" in lint
     # El job `lint` del espejo cubre entonces AC2 igual que `make check` en GitHub.
+
+
+def test_los_dos_pipelines_corren_el_mismo_escaneo_de_seguridad():
+    """HU-28 (S1, S2, S7): un solo comando por escáner, igual en GitHub y GitLab."""
+    github = _texto(SEGURIDAD)
+    gitlab = _texto(GITLAB)
+
+    for texto in (github, gitlab):
+        assert "make security-secretos" in texto
+        assert "make security-dependencias" in texto
+
+
+def test_las_herramientas_de_seguridad_estan_fijadas_en_los_tres_lados():
+    """HU-28 (S6, RNF-2): gitleaks y pip-audit no se resuelven en cada corrida."""
+    for ruta in (SEGURIDAD, GITLAB, MODULO_SEGURIDAD):
+        texto = _texto(ruta)
+
+        assert "8.30.1" in texto, f"{ruta} no fija gitleaks 8.30.1"
+        assert "pip-audit==2.10.1" in texto, f"{ruta} no fija pip-audit 2.10.1"
+
+
+def test_ningun_pipeline_de_seguridad_instala_con_pip():
+    """HU-28 (S7, RNF-3): la gestión de Python pasa por uv, nunca por pip."""
+    for ruta in (SEGURIDAD, GITLAB):
+        assert "pip install" not in _texto(ruta), f"{ruta} usa pip"
+
+
+def test_los_archivos_de_excepciones_existen_y_son_listas_de_tablas():
+    """HU-28 (S4, S10): el esquema viaja documentado; la política la valida el job."""
+    for nombre in ("excepciones-secretos.toml", "excepciones-dependencias.toml"):
+        ruta = RAIZ / "security" / nombre
+
+        assert ruta.is_file(), f"falta {ruta}"
+        datos = tomllib.loads(ruta.read_text(encoding="utf-8"))
+        assert isinstance(datos.get("excepciones", []), list), f"{ruta} no usa [[excepciones]]"
+
+
+def test_cada_escaneo_valida_la_politica_de_excepciones_antes_de_correr():
+    """HU-28 (S12): una excepción incompleta no puede desbloquear un hallazgo en CI."""
+    makefile = _texto(RAIZ / "Makefile").splitlines()
+    for objetivo in ("security-secretos", "security-dependencias"):
+        linea = next(linea for linea in makefile if linea.startswith(f"{objetivo}:"))
+
+        prerequisitos = linea.split("##")[0]
+        assert "security-excepciones-validar" in prerequisitos, f"{objetivo} no valida"
+
+
+def test_el_job_de_secretos_de_gitlab_instala_git():
+    """HU-28 (S2): `gitleaks git` necesita git; la imagen de uv no lo trae."""
+    bloque = _texto(GITLAB).split("\nsecretos:")[1].split("\ndependencias:")[0]
+
+    instalaciones = [linea for linea in bloque.splitlines() if "apt-get install" in linea]
+    assert instalaciones, "el job de secretos no instala sus herramientas"
+    assert any(" git" in linea.split("--no-install-recommends")[-1] for linea in instalaciones)

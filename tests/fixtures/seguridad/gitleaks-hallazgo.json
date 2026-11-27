@@ -1,0 +1,22 @@
+[
+ {
+  "RuleID": "generic-api-key",
+  "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "StartLine": 2,
+  "EndLine": 2,
+  "StartColumn": 2,
+  "EndColumn": 60,
+  "Match": "M2_FIXTURE_API_KEY=REDACTED",
+  "Secret": "REDACTED",
+  "File": "tests/fixtures/seguridad/secreto-falso.env",
+  "SymlinkFile": "",
+  "Commit": "8857da376620f6366f77fdd276ab389a131b102a",
+  "Entropy": 4.853,
+  "Author": "Fixture HU-28",
+  "Email": "fixture@example.invalid",
+  "Date": "2026-11-27T01:32:24Z",
+  "Message": "fixture: secreto falso para AC1",
+  "Tags": [],
+  "Fingerprint": "8857da376620f6366f77fdd276ab389a131b102a:tests/fixtures/seguridad/secreto-falso.env:generic-api-key:2"
+ }
+]
