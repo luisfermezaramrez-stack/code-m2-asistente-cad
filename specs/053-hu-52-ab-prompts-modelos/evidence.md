@@ -56,6 +56,7 @@
 | `npm --prefix frontend test` / `run typecheck` / `run build` | ✅ 82 pruebas, typecheck y build correctos. |
 | CLI A/B en replay (2 casos, artefactos por variante) | ✅ `exit=0`; dos corridas simuladas, acierto 1.0, 0 cambios, reporte `ab-20261127T155118Z.md`. |
 | CLI con artefacto de otra variante | ✅ `exit=2` con mensaje que nombra el modelo/prompt divergente. |
+| CI del PR #154 | ✅ `test` (run `46029545532`, 2 m 2 s), `e2e`, `secretos`, `dependencias` y `espejo` en verde. |
 
 ### Fallo preexistente de la suite
 
@@ -90,4 +91,4 @@ el repo guarda código, prompts y documentación, no evidencia pagada ni pesos.
 - Código, pruebas y documentación completos en la rama; sin cambios sin commitear al cierre.
 - Comparación real documentada pero **no ejecutada** localmente: requiere API key y gasto
   de tokens. La evidencia disponible cubre la lógica completa con modelos simulados y replay.
-- PR #154 abierto y apuntando a `main`; pendiente de revisión y de la fusión de #151.
+- PR #154 abierto, `MERGEABLE`, con todos los checks en verde; pendiente de aprobación y de la fusión de #151 (la protección de `main` marca `BLOCKED` hasta la revisión).
