@@ -12,5 +12,5 @@ Orden de ejecución; la evidencia final vive en [evidence.md](./evidence.md).
 - [x] T4 · Añadir controles de corte, `aria-live`, atajos de teclado y estilos.
 - [x] T5 · Ampliar `tests/GlbViewer.test.ts` con AC1, AC2 y AC3 sin GPU.
 - [x] T6 · Actualizar `CONSTITUTION.md`, `README.md` e índice de specs en la misma rama.
-- [ ] T7 · Ejecutar pruebas frontend, `make check`, pre-commit y auditoría; registrar
-  `evidence.md`, abrir PR con `Closes #110` y solicitar revisión.
+- [x] T7 · Ejecutar pruebas frontend, `make check`, pre-commit y auditoría; registrar
+  `evidence.md`, abrir PR #155 con `Closes #110` y solicitar revisión.

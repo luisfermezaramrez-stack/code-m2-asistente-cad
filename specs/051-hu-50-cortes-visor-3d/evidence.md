@@ -1,7 +1,7 @@
 # Evidencia · HU-50 (SPEC-051)
 
 - **Rama**: `feature/hu-50-cortes-visor-3d` (creada desde `origin/main` @ `042adfb`).
-- **Issue**: [#110](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/110) · **PR**: pendiente de abrir (`Closes #110`).
+- **Issue**: [#110](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/110) · **PR**: [#155](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/155) (`Closes #110`), abierto para revisión, sin fusionar.
 - **Fecha**: 2026-11-27.
 - **Worktree**: `C:\Users\cetd9\AppData\Local\Temp\opencode\hu50-cortes`; se copiaron `vendor/` y `frontend/node_modules/` del checkout principal.
 - **Entorno**: checkout local Windows; `make check` con `UV_PROJECT_ENVIRONMENT` apuntando al `.venv` principal, `UV_NO_SYNC=1`, `PYTHONPATH=src` y `M2_DOWNLOAD_SECRET` efímero de 32 bytes.
@@ -67,6 +67,14 @@ uv run pre-commit run --files <archivos de HU-50>
 
 `make precommit` sobre todo el repo reformateó 7 archivos Python y 5 specs ajenos a HU-50; se revirtieron esos cambios y se volvió a ejecutar pre-commit sólo sobre los archivos de esta HU, con resultado limpio.
 
-## CI del PR
+## CI del PR #155
 
-Pendiente: PR abierto para revisión; los resultados de `titulo-pr`, `test`, `e2e`, `espejo`, `secretos` y `dependencias` se registrarán tras la primera ejecución.
+Sobre el commit de código `b7b23c42441a6e9e05e7c3fee82c02b60a99fad9` (el registro de esta evidencia se añadió en un commit documental posterior):
+
+- `test`: pass (2 m 1 s) — [run](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46033682926/job/140623583789).
+- `e2e`: pass (40 s) — [run](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46033682926/job/140623584739).
+- `dependencias`: pass (19 s) — [run](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46033682894/job/140623583535).
+- `secretos`: pass (13 s) — [run](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46033682894/job/140623583980).
+- `espejo`: pass (5 s) — [run](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/actions/runs/46033650040/job/140623472721).
+
+Revisión solicitada a `luisfermezaramrez-stack`. El PR queda abierto; no se fusiona ni se crean tags/releases.
