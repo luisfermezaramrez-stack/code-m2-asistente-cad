@@ -96,6 +96,7 @@ async function salir() {
     <nav ref="nav" class="nav" aria-label="Navegación principal" @keydown="manejarTeclado">
       <RouterLink to="/nueva-solicitud">Nueva solicitud</RouterLink>
       <RouterLink to="/historial">Historial</RouterLink>
+      <RouterLink to="/metricas">Métricas</RouterLink>
       <RouterLink to="/ajustes">Ajustes</RouterLink>
     </nav>
     <section v-if="sesion.requerido && !cargandoSesion" class="panel sesion" aria-labelledby="sesion-title">
