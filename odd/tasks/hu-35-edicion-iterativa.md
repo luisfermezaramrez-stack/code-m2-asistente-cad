@@ -129,3 +129,26 @@ historial, `06546d1` edición en el pipeline, `d847f98` rutas de `/v1` con contr
 regenerado, `d6a12e2` documentación), ~1.390 líneas autoradas sobre la punta de HU-33. Se
 entregan como una PR apilada sobre #141; al entrar HU-33 a `main` la rama se rebasa y el
 diff de la PR queda sólo con lo de esta HU. Push y PR quedan a decisión del humano.
+
+L9 — Correcciones pedidas a raíz de la revisión de la HU, en una sola tanda y sin tocar
+nada más, después del rebase sobre `main` (commits `2bc01a7`, `04d8bea`, `fa2d156`, `6c74c86`).
+
+- R3-reserva-ventana-404: la ruta `POST /v1/generar/{id}/editar` resuelve la versión previa
+  y autoriza al dueño **antes** de reservar idempotencia y cupo de ventana, así que un 404
+  (solicitud inexistente, ajena o sin historial) no consume nada; no se reimplementó
+  `ControlUso` ni se añadió API nueva. RED observado:
+  `assert 429 == 404` al repetir cuatro veces un id sin historial con
+  `limite_ventana=2`; GREEN con la prueba nueva, que además entrega una edición real
+  después de esos 404 y espera 200.
+- R3-indice-corrupto-500: un índice de versiones ilegible responde **409** con el mensaje
+  «El historial de versiones de esa solicitud no está disponible: el índice guardado no se
+  pudo leer.» en las dos rutas (lectura y escritura del índice); el 409 de `/editar` y el
+  de `/versiones` quedaron documentados en el OpenAPI, con `make api-types` y
+  `make api-contract` regenerados. RED observado: `ErrorVersiones` escapaba como 500;
+  GREEN con la prueba nueva, que corrompe el índice y espera 409 con el mensaje en las dos
+  rutas.
+- R2-002: las dos pruebas que reasignaban `pipeline.editar_pieza` a mano pasan a
+  `monkeypatch.setattr`, y se agregó una guarda que afirma que el módulo no queda parcheado
+  al terminar el archivo. La guarda nace verde (el `monkeypatch` del fixture ya restauraba
+  el valor); su sensibilidad se comprobó con una sonda que instala un parche suelto y
+  observa el fallo de la aserción.

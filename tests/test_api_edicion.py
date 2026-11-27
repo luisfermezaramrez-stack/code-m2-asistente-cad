@@ -132,7 +132,7 @@ def test_ac1_la_edicion_entrega_pieza_nueva_con_diff_y_conserva_la_anterior(
 
 
 def test_ac2_la_edicion_que_rompe_la_verificacion_declina_y_no_reemplaza(
-    cliente_editando, tmp_path
+    cliente_editando, monkeypatch
 ):
     """AC2: 422 con la causa de SPEC-027 y el historial intacto."""
     from m2_cad import declinacion, pipeline
@@ -144,7 +144,7 @@ def test_ac2_la_edicion_que_rompe_la_verificacion_declina_y_no_reemplaza(
             "part-build-error", causa=declinacion.Causa.DIMENSION_INCOHERENTE
         )
 
-    pipeline.editar_pieza = romper
+    monkeypatch.setattr(pipeline, "editar_pieza", romper)
     respuesta = cliente.post(f"/v1/generar/{origen}/editar", json={"instruccion": "hazla -5"})
 
     assert respuesta.status_code == 422
@@ -156,7 +156,9 @@ def test_ac2_la_edicion_que_rompe_la_verificacion_declina_y_no_reemplaza(
     assert [v["version"] for v in historial["versiones"]] == [1]
 
 
-def test_ac3_el_historial_lista_las_tres_versiones_en_orden(cliente_editando, tmp_path):
+def test_ac3_el_historial_lista_las_tres_versiones_en_orden(
+    cliente_editando, monkeypatch, tmp_path
+):
     """AC3: dos ediciones dejan tres versiones, cada una con programa y artefactos."""
     from m2_cad import pipeline
 
@@ -167,7 +169,7 @@ def test_ac3_el_historial_lista_las_tres_versiones_en_orden(cliente_editando, tm
         gruesos["actual"] += 5
         return _pieza(tmp_path, thick=gruesos["actual"])
 
-    pipeline.editar_pieza = editar
+    monkeypatch.setattr(pipeline, "editar_pieza", editar)
     for instruccion in ("hazla 5 mm más gruesa", "otra vez 5 mm"):
         editada = cliente.post(f"/v1/generar/{origen}/editar", json={"instruccion": instruccion})
         assert editada.status_code == 200
@@ -282,3 +284,61 @@ def test_la_idempotencia_de_la_edicion_no_duplica_la_version(cliente_editando):
     assert segunda.status_code == 409
     historial = cliente.get(f"/v1/generar/{origen}/versiones").json()
     assert [v["version"] for v in historial["versiones"]] == [1, 2]
+
+
+# --- Correcciones pedidas por la revisión de HU-35 (R3-reserva-ventana-404,
+# --- R3-indice-corrupto-500, R2-002) ----------------------------------------
+
+
+def test_los_404_no_consumen_la_ventana_de_uso(cliente_editando, monkeypatch):
+    """R3-reserva-ventana-404: repetir ids sin historial no puede acabar en 429."""
+    from m2_cad import api
+    from m2_cad.control_uso import ConfiguracionUso
+
+    cliente, origen, _ = cliente_editando
+    control = api.ControlUso(
+        ConfiguracionUso(
+            limite_ventana=2,
+            ventana_segundos=300,
+            presupuesto_diario_usd=0.0,
+        )
+    )
+    monkeypatch.setattr(api, "control_uso", control)
+    api.app.dependency_overrides[api.obtener_control_uso] = lambda: control
+    try:
+        for _ in range(4):
+            respuesta = cliente.get("/v1/generar/" + "0" * 32 + "/versiones")
+            assert respuesta.status_code == 404
+            editada = cliente.post(
+                "/v1/generar/" + "0" * 32 + "/editar", json={"instruccion": "hazla más gruesa"}
+            )
+            assert editada.status_code == 404
+
+        siguiente = cliente.post(
+            f"/v1/generar/{origen}/editar", json={"instruccion": "hazla 5 mm más gruesa"}
+        )
+        assert siguiente.status_code == 200, siguiente.json()
+    finally:
+        api.app.dependency_overrides.pop(api.obtener_control_uso, None)
+
+
+def test_un_indice_corrupto_es_un_error_catalogado(cliente_editando, tmp_path):
+    """R3-indice-corrupto-500: un índice dañado responde 409 con mensaje, no 500."""
+    cliente, origen, _ = cliente_editando
+    indice = tmp_path / "versiones" / f"{origen}.json"
+    indice.write_text("{esto no es json", encoding="utf-8")
+
+    editada = cliente.post(f"/v1/generar/{origen}/editar", json={"instruccion": "hazla más gruesa"})
+    historial = cliente.get(f"/v1/generar/{origen}/versiones")
+
+    assert editada.status_code == 409
+    assert "historial de versiones" in editada.json()["detail"]
+    assert historial.status_code == 409
+    assert "historial de versiones" in historial.json()["detail"]
+
+
+def test_el_pipeline_no_queda_parchado_tras_las_pruebas_de_edicion():
+    """R2-002: ninguna prueba deja `editar_pieza` reemplazado para las siguientes."""
+    from m2_cad import pipeline
+
+    assert pipeline.editar_pieza.__module__ == "m2_cad.pipeline"

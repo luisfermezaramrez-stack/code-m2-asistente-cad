@@ -1080,6 +1080,16 @@ def generar(
 
 
 _SIN_VERSIONES = "No hay versiones para esa solicitud."
+_INDICE_ILEGIBLE = (
+    "El historial de versiones de esa solicitud no está disponible: "
+    "el índice guardado no se pudo leer."
+)
+
+
+def _error_indice(exc: Exception) -> HTTPException:
+    """Traduce un índice de versiones ilegible a un error catalogado (HU-35)."""
+    logger.warning("historial de versiones ilegible: %s", exc)
+    return HTTPException(status.HTTP_409_CONFLICT, _INDICE_ILEGIBLE)
 
 
 def _registrar_version_inicial(solicitud_id: str, usuario: str, medido: dict) -> None:
@@ -1108,6 +1118,7 @@ def _registrar_version_inicial(solicitud_id: str, usuario: str, medido: dict) ->
 
 def _editar_json(
     solicitud_origen: str,
+    previa: dict,
     cuerpo: SolicitudEdicion,
     request: Request,
     response: Response,
@@ -1115,16 +1126,17 @@ def _editar_json(
     control: ControlUso,
     usuario: str,
 ) -> RespuestaEdicion:
-    """Aplica una edición verificada y registra la versión nueva (HU-35, AC1/AC2)."""
+    """Aplica una edición verificada y registra la versión nueva (HU-35, AC1/AC2).
+
+    La versión previa llega ya resuelta y autorizada por la ruta: así un 404 por
+    solicitud inexistente o ajena ocurre antes de reservar cupo de la ventana
+    (HU-32, R3-reserva-ventana-404).
+    """
     # Importación diferida: el núcleo CAD (cadquery/OCP) sólo se carga al usarlo.
     from m2_cad import pipeline as modulo_pipeline
 
     inicio = time.perf_counter()
     registro_id = _identificador(request)
-    previa = versiones.ultima_version(solicitud_origen)
-    if previa is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES)
-    garantizar_propietario(usuario, previa.get("usuario"), _SIN_VERSIONES)
 
     medido: dict[str, object] = {}
     medir_uso = _preparar_medicion(modulo_pipeline, medido, prompt=modulo_pipeline.PROMPT_EDICION)
@@ -1174,15 +1186,18 @@ def _editar_json(
             ],
         )
         diff = versiones.diff_programas(previa["programa"], resultado.programa)
-        entrada = versiones.registrar_version(
-            solicitud_origen,
-            usuario=usuario,
-            programa=resultado.programa,
-            artefactos=[str(ruta) for ruta in (medido.get("artefactos") or [])],
-            prompt=str(medido.get("prompt") or ""),
-            prompt_hash=str(medido.get("prompt_hash") or ""),
-            diff=diff,
-        )
+        try:
+            entrada = versiones.registrar_version(
+                solicitud_origen,
+                usuario=usuario,
+                programa=resultado.programa,
+                artefactos=[str(ruta) for ruta in (medido.get("artefactos") or [])],
+                prompt=str(medido.get("prompt") or ""),
+                prompt_hash=str(medido.get("prompt_hash") or ""),
+                diff=diff,
+            )
+        except (versiones.ErrorVersiones, OSError) as exc:
+            raise _error_indice(exc) from exc
         respuesta = {
             "solicitud_id": solicitud_origen,
             "version": entrada["version"],
@@ -1250,7 +1265,12 @@ def _texto_fallo(fallo: HTTPException | None) -> str | None:
     response_model=RespuestaEdicion,
     responses={
         404: {"description": "La solicitud no existe o no es del usuario."},
-        409: {"description": "La clave de idempotencia ya se usó para esta edición."},
+        409: {
+            "description": (
+                "La clave de idempotencia ya se usó para esta edición, o el historial "
+                "de versiones guardado no se pudo leer."
+            )
+        },
         422: {"description": "La edición no pasa la verificación; incluye la causa."},
         429: {"description": "Límite por ventana excedido o presupuesto diario agotado."},
     },
@@ -1276,6 +1296,15 @@ def editar_pieza(
         clave = _clave_idempotencia(idempotency_key)
         if clave is not None and autenticacion_activa():
             clave = f"{sesion}\n{clave}"
+        # La solicitud se resuelve y se autoriza ANTES de reservar cupo: un 404 no
+        # consume la ventana de uso (HU-32, R3-reserva-ventana-404).
+        try:
+            previa = versiones.ultima_version(origen)
+        except versiones.ErrorVersiones as exc:
+            raise _error_indice(exc) from exc
+        if previa is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES)
+        garantizar_propietario(usuario, previa.get("usuario"), _SIN_VERSIONES)
         repetido, reserva = control.reservar_idempotencia(
             clave, sesion, cuerpo.instruccion, "json", origen
         )
@@ -1291,7 +1320,7 @@ def editar_pieza(
             raise
         try:
             respuesta = _editar_json(
-                origen, cuerpo, request, response, configuracion, control, usuario
+                origen, previa, cuerpo, request, response, configuracion, control, usuario
             )
         except BaseException:
             control.liberar_idempotencia(clave, reserva)
@@ -1303,7 +1332,10 @@ def editar_pieza(
 @router.get(
     "/generar/{solicitud_id}/versiones",
     response_model=RespuestaVersiones,
-    responses={404: {"description": "La solicitud no existe o no es del usuario."}},
+    responses={
+        404: {"description": "La solicitud no existe o no es del usuario."},
+        409: {"description": "El historial de versiones guardado no se pudo leer."},
+    },
 )
 def historial_de_versiones(
     solicitud_id: str,
@@ -1314,7 +1346,10 @@ def historial_de_versiones(
         clave = versiones.validar_solicitud_id(solicitud_id)
     except versiones.ErrorVersiones as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES) from exc
-    guardadas = versiones.leer_versiones(clave)
+    try:
+        guardadas = versiones.leer_versiones(clave)
+    except versiones.ErrorVersiones as exc:
+        raise _error_indice(exc) from exc
     if not guardadas:
         raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES)
     garantizar_propietario(usuario, guardadas[0].get("usuario"), _SIN_VERSIONES)

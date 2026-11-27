@@ -525,7 +525,7 @@ export type EditarPiezaV1GenerarSolicitudIdEditarPostErrors = {
      */
     404: unknown;
     /**
-     * La clave de idempotencia ya se usó para esta edición.
+     * La clave de idempotencia ya se usó para esta edición, o el historial de versiones guardado no se pudo leer.
      */
     409: unknown;
     /**
@@ -564,6 +564,10 @@ export type HistorialDeVersionesV1GenerarSolicitudIdVersionesGetErrors = {
      * La solicitud no existe o no es del usuario.
      */
     404: unknown;
+    /**
+     * El historial de versiones guardado no se pudo leer.
+     */
+    409: unknown;
     /**
      * Validation Error
      */
