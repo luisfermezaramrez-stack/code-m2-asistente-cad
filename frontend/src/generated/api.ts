@@ -82,6 +82,70 @@ export type HttpValidationError = {
 };
 
 /**
+ * RespuestaEdicion
+ *
+ * Nueva versión verificada de la pieza, con el diff del programa (HU-35, AC1).
+ */
+export type RespuestaEdicion = {
+    /**
+     * Aviso
+     */
+    aviso: string;
+    /**
+     * Bom Csv
+     */
+    bom_csv: string;
+    /**
+     * Caja Mm
+     */
+    caja_mm: string;
+    /**
+     * Diff
+     */
+    diff: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Glb
+     */
+    glb: string;
+    /**
+     * Programa
+     */
+    programa: {
+        [key: string]: unknown;
+    };
+    /**
+     * Prompt
+     */
+    prompt: string;
+    /**
+     * Solicitud Id
+     */
+    solicitud_id: string;
+    /**
+     * Step
+     */
+    step: string;
+    /**
+     * Tiempo Construccion S
+     */
+    tiempo_construccion_s: string;
+    /**
+     * Tiempo Generacion S
+     */
+    tiempo_generacion_s: string;
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Volumen Mm3
+     */
+    volumen_mm3: string;
+};
+
+/**
  * RespuestaUso
  *
  * Gasto acumulado del día y topes vigentes (HU-32, RF-5).
@@ -115,6 +179,36 @@ export type RespuestaUso = {
      * Ventana Segundos
      */
     ventana_segundos: number;
+};
+
+/**
+ * RespuestaVersiones
+ *
+ * Historial de versiones de una solicitud, en orden ascendente (HU-35, AC3).
+ */
+export type RespuestaVersiones = {
+    /**
+     * Solicitud Id
+     */
+    solicitud_id: string;
+    /**
+     * Versiones
+     */
+    versiones: Array<VersionPieza>;
+};
+
+/**
+ * SolicitudEdicion
+ *
+ * Instrucción de cambio en español sobre la pieza previa (HU-35, RF-1).
+ */
+export type SolicitudEdicion = {
+    /**
+     * Instruccion
+     *
+     * Cambio pedido en español, aplicado sobre el programa vigente.
+     */
+    instruccion: string;
 };
 
 /**
@@ -157,6 +251,46 @@ export type ValidationError = {
      * Error Type
      */
     type: string;
+};
+
+/**
+ * VersionPieza
+ *
+ * Una versión de la pieza con su programa y sus artefactos (HU-35, AC3).
+ */
+export type VersionPieza = {
+    /**
+     * Artefactos
+     */
+    artefactos: Array<string>;
+    /**
+     * Diff
+     */
+    diff?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Hora
+     */
+    hora: string;
+    /**
+     * Programa
+     */
+    programa: {
+        [key: string]: unknown;
+    };
+    /**
+     * Prompt
+     */
+    prompt: string;
+    /**
+     * Prompt Hash
+     */
+    prompt_hash: string;
+    /**
+     * Version
+     */
+    version: number;
 };
 
 export type IniciarSesionV1AuthLoginPostData = {
@@ -366,6 +500,86 @@ export type GenerarV1GenerarPostResponses = {
 };
 
 export type GenerarV1GenerarPostResponse = GenerarV1GenerarPostResponses[keyof GenerarV1GenerarPostResponses];
+
+export type EditarPiezaV1GenerarSolicitudIdEditarPostData = {
+    body: SolicitudEdicion;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Solicitud Id
+         */
+        solicitud_id: string;
+    };
+    query?: never;
+    url: '/v1/generar/{solicitud_id}/editar';
+};
+
+export type EditarPiezaV1GenerarSolicitudIdEditarPostErrors = {
+    /**
+     * La solicitud no existe o no es del usuario.
+     */
+    404: unknown;
+    /**
+     * La clave de idempotencia ya se usó para esta edición.
+     */
+    409: unknown;
+    /**
+     * La edición no pasa la verificación; incluye la causa.
+     */
+    422: unknown;
+    /**
+     * Límite por ventana excedido o presupuesto diario agotado.
+     */
+    429: unknown;
+};
+
+export type EditarPiezaV1GenerarSolicitudIdEditarPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: RespuestaEdicion;
+};
+
+export type EditarPiezaV1GenerarSolicitudIdEditarPostResponse = EditarPiezaV1GenerarSolicitudIdEditarPostResponses[keyof EditarPiezaV1GenerarSolicitudIdEditarPostResponses];
+
+export type HistorialDeVersionesV1GenerarSolicitudIdVersionesGetData = {
+    body?: never;
+    path: {
+        /**
+         * Solicitud Id
+         */
+        solicitud_id: string;
+    };
+    query?: never;
+    url: '/v1/generar/{solicitud_id}/versiones';
+};
+
+export type HistorialDeVersionesV1GenerarSolicitudIdVersionesGetErrors = {
+    /**
+     * La solicitud no existe o no es del usuario.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type HistorialDeVersionesV1GenerarSolicitudIdVersionesGetError = HistorialDeVersionesV1GenerarSolicitudIdVersionesGetErrors[keyof HistorialDeVersionesV1GenerarSolicitudIdVersionesGetErrors];
+
+export type HistorialDeVersionesV1GenerarSolicitudIdVersionesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: RespuestaVersiones;
+};
+
+export type HistorialDeVersionesV1GenerarSolicitudIdVersionesGetResponse = HistorialDeVersionesV1GenerarSolicitudIdVersionesGetResponses[keyof HistorialDeVersionesV1GenerarSolicitudIdVersionesGetResponses];
 
 export type HealthV1HealthGetData = {
     body?: never;

@@ -102,6 +102,85 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "RespuestaEdicion": {
+        "description": "Nueva versión verificada de la pieza, con el diff del programa (HU-35, AC1).",
+        "properties": {
+          "aviso": {
+            "title": "Aviso",
+            "type": "string"
+          },
+          "bom_csv": {
+            "title": "Bom Csv",
+            "type": "string"
+          },
+          "caja_mm": {
+            "title": "Caja Mm",
+            "type": "string"
+          },
+          "diff": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Diff",
+            "type": "array"
+          },
+          "glb": {
+            "title": "Glb",
+            "type": "string"
+          },
+          "programa": {
+            "additionalProperties": true,
+            "title": "Programa",
+            "type": "object"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "solicitud_id": {
+            "title": "Solicitud Id",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          },
+          "tiempo_construccion_s": {
+            "title": "Tiempo Construccion S",
+            "type": "string"
+          },
+          "tiempo_generacion_s": {
+            "title": "Tiempo Generacion S",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "volumen_mm3": {
+            "title": "Volumen Mm3",
+            "type": "string"
+          }
+        },
+        "required": [
+          "solicitud_id",
+          "version",
+          "prompt",
+          "programa",
+          "diff",
+          "step",
+          "glb",
+          "bom_csv",
+          "aviso",
+          "volumen_mm3",
+          "caja_mm",
+          "tiempo_generacion_s",
+          "tiempo_construccion_s"
+        ],
+        "title": "RespuestaEdicion",
+        "type": "object"
+      },
       "RespuestaUso": {
         "description": "Gasto acumulado del día y topes vigentes (HU-32, RF-5).",
         "properties": {
@@ -145,6 +224,45 @@
           "ventana_segundos"
         ],
         "title": "RespuestaUso",
+        "type": "object"
+      },
+      "RespuestaVersiones": {
+        "description": "Historial de versiones de una solicitud, en orden ascendente (HU-35, AC3).",
+        "properties": {
+          "solicitud_id": {
+            "title": "Solicitud Id",
+            "type": "string"
+          },
+          "versiones": {
+            "items": {
+              "$ref": "#/components/schemas/VersionPieza"
+            },
+            "title": "Versiones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "solicitud_id",
+          "versiones"
+        ],
+        "title": "RespuestaVersiones",
+        "type": "object"
+      },
+      "SolicitudEdicion": {
+        "description": "Instrucción de cambio en español sobre la pieza previa (HU-35, RF-1).",
+        "properties": {
+          "instruccion": {
+            "description": "Cambio pedido en español, aplicado sobre el programa vigente.",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Instruccion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instruccion"
+        ],
+        "title": "SolicitudEdicion",
         "type": "object"
       },
       "SolicitudGenerar": {
@@ -202,6 +320,58 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VersionPieza": {
+        "description": "Una versión de la pieza con su programa y sus artefactos (HU-35, AC3).",
+        "properties": {
+          "artefactos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Artefactos",
+            "type": "array"
+          },
+          "diff": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Diff",
+            "type": "array"
+          },
+          "hora": {
+            "title": "Hora",
+            "type": "string"
+          },
+          "programa": {
+            "additionalProperties": true,
+            "title": "Programa",
+            "type": "object"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "prompt_hash": {
+            "title": "Prompt Hash",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "hora",
+          "programa",
+          "artefactos",
+          "prompt",
+          "prompt_hash"
+        ],
+        "title": "VersionPieza",
         "type": "object"
       }
     }
@@ -528,6 +698,118 @@
           }
         },
         "summary": "Generar"
+      }
+    },
+    "/v1/generar/{solicitud_id}/editar": {
+      "post": {
+        "description": "Edita la pieza vigente de una solicitud y entrega una versión nueva (RF-1..RF-4).",
+        "operationId": "editar_pieza_v1_generar__solicitud_id__editar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "solicitud_id",
+            "required": true,
+            "schema": {
+              "title": "Solicitud Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudEdicion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaEdicion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La solicitud no existe o no es del usuario."
+          },
+          "409": {
+            "description": "La clave de idempotencia ya se usó para esta edición."
+          },
+          "422": {
+            "description": "La edición no pasa la verificación; incluye la causa."
+          },
+          "429": {
+            "description": "Límite por ventana excedido o presupuesto diario agotado."
+          }
+        },
+        "summary": "Editar Pieza"
+      }
+    },
+    "/v1/generar/{solicitud_id}/versiones": {
+      "get": {
+        "description": "Historial de versiones de la solicitud, en orden ascendente (RF-5, AC3).",
+        "operationId": "historial_de_versiones_v1_generar__solicitud_id__versiones_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "solicitud_id",
+            "required": true,
+            "schema": {
+              "title": "Solicitud Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaVersiones"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La solicitud no existe o no es del usuario."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Historial De Versiones"
       }
     },
     "/v1/health": {
