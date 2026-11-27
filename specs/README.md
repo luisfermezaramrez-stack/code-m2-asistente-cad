@@ -75,7 +75,7 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [045](045-hu-44-banco-ci-replay/) | HU-44 · Evaluación continua del banco con respuestas grabadas | 2 | Juan Camilo | #104 | #151 | Spec-first | En revisión |
 | [046](046-hu-45-cola-persistente/) | HU-45 · Cola persistente de trabajos y worker | 2 | Juan Camilo | #105 | #132 | Spec-first | En revisión |
 | [047](047-hu-46-alertas-regresion/) | HU-46 · Alertas de regresión de calidad | 3 | Juan Camilo | #106 | #152 | Spec-first | En revisión (opcional) |
-| [048](048-hu-47-despliegue-nube/) | HU-47 · Despliegue en la nube | 3 | Carlos | #107 | — | Spec-first | Implementada localmente; publicación pendiente |
+| [048](048-hu-47-despliegue-nube/) | HU-47 · Despliegue en la nube | 3 | Carlos | #107 | #156 | Spec-first | En revisión; publicación pendiente |
 | [049](049-hu-48-materiales-tolerancias-bom/) | HU-48 · Materiales, tolerancias y BOM con costos | 3 | Luis Meza | #108 | — | Spec-first | Propuesta (opcional) |
 | [050](050-hu-49-plantillas-parametrizadas/) | HU-49 · Plantillas parametrizadas de piezas | 3 | Luis Meza | #109 | — | Spec-first | Propuesta (opcional) |
 | [051](051-hu-50-cortes-visor-3d/) | HU-50 · Cortes y secciones en el visor 3D | 3 | Carlos | #110 | #155 | Spec-first | En revisión |

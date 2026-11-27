@@ -1,7 +1,7 @@
 # Evidencia · HU-47 (SPEC-048)
 
 - **Rama**: `feature/hu-47-despliegue-nube` (creada desde `origin/main` @ `fcac0ce`).
-- **Issue**: [#107](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/107) · **PR**: pendiente de apertura.
+- **Issue**: [#107](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/107) · **PR**: [#156](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/156) (`Closes #107`), abierto para revisión, sin fusionar.
 - **Fecha**: 2026-11-27.
 - **Worktree**: `C:\Users\cetd9\AppData\Local\Temp\opencode\hu47-cloud`; se copiaron `vendor/` y `frontend/node_modules/` del worktree HU-50.
 - **Entorno**: checkout local Windows; `make check` con `UV_PROJECT_ENVIRONMENT` apuntando al `.venv` principal, `UV_NO_SYNC=1`, `PYTHONPATH=src` y `M2_DOWNLOAD_SECRET` efímero.
@@ -76,4 +76,4 @@ No se fijó `PYTHONIOENCODING=utf-8` en la corrida final: en Windows esa variabl
 4. Valores reales de `DEEPSEEK_API_KEY`, `M2_DOWNLOAD_SECRET`, `M2_AUTH_SECRET` y `M2_AUTH_USERS` en el gestor del proveedor.
 5. Credenciales de usuario y presupuesto autorizado para la prueba de generación real.
 
-No se crearon cuentas, dominios, certificados, secretos reales ni despliegues; no se fusionó esta rama ni se crearon etiquetas o releases.
+Revisión solicitada a `luisfermezaramrez-stack`. No se crearon cuentas, dominios, certificados, secretos reales ni despliegues; no se fusionó esta rama ni se crearon etiquetas o releases.
