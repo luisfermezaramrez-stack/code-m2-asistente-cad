@@ -155,6 +155,13 @@ licencia.
 | python-solvespace | ≥ 3.0 |
 | llama.cpp (heredado) | 0.9.0-dev (commit f4777f9, backend CUDA) — servidor GGUF (Q6_K) |
 | constraint-kit | repositorio del autor (sin modificar) |
+| Release | `v1.0.1` — `CHANGELOG.md` generado desde Conventional Commits (HU-55) |
+
+Los releases se cortan desde `main` después de la CI: `feat` sube la versión menor,
+`fix`/`perf` la de parche y `BREAKING CHANGE` o `!:` la mayor. Un cambio incompatible
+del contrato `/v1` (HU-31) fuerza versión mayor. `make release-dry-run` muestra la
+propuesta sin crear etiquetas ni publicar; `make release-check` comprueba que la etiqueta,
+`pyproject.toml` y `CHANGELOG.md` coinciden.
 
 ## Instalación y uso
 

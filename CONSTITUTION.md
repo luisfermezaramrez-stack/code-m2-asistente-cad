@@ -85,7 +85,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Testing** | `pytest` + cobertura **≥ 70 %** de `src/m2_cad` (umbral en `pyproject.toml`) |
 | **Lint / Formato** | [Ruff](https://docs.astral.sh/ruff/) — reglas `E, F, I, B`, `line-length = 100` |
 | **Pre-commit** | Ruff + higiene de archivos + bloqueo de pesos (`.gguf`, `.safetensors`, …) |
-| **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `main` |
+| **CI/CD** | GitHub Actions (`.github/workflows/ci.yml`) en PRs y pushes a `main`; valida títulos convencionales y publica releases desde `main` tras `test`/`e2e` (HU-55) |
 | **Espejo GitLab** | GitHub es la fuente de verdad; `.github/workflows/espejo-gitlab.yml` replica ramas y etiquetas en GitLab (solo lectura) vía deploy key SSH (`vars.GITLAB_MIRROR_URL`, `secrets.GITLAB_MIRROR_SSH_KEY`) |
 | **Pipeline GitLab** | `.gitlab-ci.yml` deja evidencia sobre el espejo en seis jobs: `lint` (imagen de uv 0.13.5 con el Python de `.python-version` y `make lint`), `secretos` (gitleaks sobre el historial completo), `dependencias` (pip-audit sobre el export de `uv.lock`), `run_test` (`vendor` + `uv sync --locked` + `make frontend-install` + `make test` sobre `node:24-bookworm`), `e2e` (Playwright/Chromium sobre el build real con backend simulado, HU-41) y `build_image` (imagen Docker). Corre con push a la rama por defecto del espejo, lanzamiento manual o pipeline programado: no abre una segunda puerta de integración, que la puerta es el PR en GitHub |
 | **Dependencias automáticas** | [Dependabot](.github/dependabot.yml) (target `main`) |
@@ -119,6 +119,7 @@ code-m2-asistente-cad/
 │   ├── seguimiento.py          # MLflow: una corrida por solicitud y por caso del banco (HU-16)
 │   ├── observabilidad.py       # logs JSON, request_id/job_id y redacción de secretos (HU-24)
 │   ├── contrato_api.py         # carga y compara el OpenAPI v1 congelado (HU-31)
+│   ├── releases.py             # versión semántica y changelog desde commits (HU-55)
 │   └── web.py                  # Vue/estáticos, CORS restringido y errores JSON
 ├── frontend/src/design/        # tokens.css y resolución de tema del frontend
 ├── frontend/e2e/               # E2E de Playwright con backend simulado (HU-41)
@@ -143,6 +144,7 @@ code-m2-asistente-cad/
 ├── README.md                   # puerta de entrada pública
 ├── CONTRIBUTING.md             # guía de contribución
 ├── CODE_OF_CONDUCT.md          # código de conducta
+├── CHANGELOG.md                # entradas de release generadas desde commits (HU-55)
 ├── Makefile                    # interfaz de comandos (`make help`)
 ├── pyproject.toml              # metadatos y dependencias (uv)
 ├── uv.lock                     # lockfile determinista (versionado)
@@ -337,6 +339,12 @@ rechazar con 403 al cliente de la API aunque `/health` responda correctamente.
 - **Estrategia:** `main` es la única rama de integración; **toda rama de trabajo sale
   de `main`** y vuelve por pull request. Las entregas son etiquetas anotadas sobre
   `main`. Un `Closes #N` en la PR cierra la issue al fusionar.
+- **Releases:** el job `release` corre sólo en `push` a `main` después de `test`/`e2e`.
+  Calcula la versión con Conventional Commits (`feat` → menor, `fix`/`perf` → parche,
+  `BREAKING CHANGE`/`!:` → mayor; cambio incompatible de `/v1` → mayor), actualiza
+  `CHANGELOG.md` y `pyproject.toml`, crea la etiqueta anotada `vX.Y.Z` y publica el
+  GitHub Release con esas notas. `make release-dry-run` y `make release-check` permiten
+  validar el flujo sin publicar (HU-55).
 - **Nombres de rama:** `feature/hu-XX-tema` (una rama por historia de usuario);
   utilidades con `fix/...`, `docs/...`, `chore/...`.
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) —
@@ -401,6 +409,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-27 | HU-26: `declinacion.py` concentra el catálogo cerrado de causas, el mensaje legible y la tabla que traduce los códigos del verificador; el registro gana la columna `causa` y MLflow la etiqueta `causa_declinacion`; la causa no viaja en el cuerpo de `/v1` | Un motivo en texto libre no explica la declinación al usuario ni sirve como dimensión de métricas; asignar la causa en el origen evita heurísticas sobre texto y conserva el contrato HTTP y los tipos del frontend |
 | 2026-11-26 | HU-38: `vue-router` da URL propia a nueva solicitud, historial y ajustes; `App.vue` es el shell, `useGeneration.ts` recupera borrador y timeout, y `web.py` sirve esas vistas sin relajar el 404 JSON de API y `/assets` | Compartir o reabrir una vista concreta sin perder su estado, conservando el flujo SSE y la navegación por teclado; los estados nuevos del shell se distinguen con componentes presentacionales y la ruta comodín |
 | 2026-11-27 | HU-37: `GET /v1/registros` lista sólo las solicitudes propias con campos mínimos y filtros en el servidor; el estado se deriva en el backend con precedencia documentada y `GET /v1/registros/{id}` emite `X-Download-Token` tras sesión y propiedad; `/historial` deja de leer `?estado=` y la reapertura vive en `/historial/:identificador` | Consultar y reabrir solicitudes sin copia autoritativa en el cliente ni recorrer ids, y descargar el STEP pasado el reinicio sin relajar `exigir_token`; derivar el estado sólo en el backend evita que la misma regla viva en Python y en TypeScript |
+| 2026-11-27 | HU-55: releases automáticos desde `main` con versión semántica y `CHANGELOG.md` generados por `releases.py`; el job `release` de CI publica sólo tras `test`/`e2e`, con modo seco y verificación en `make check` | Cumplir SPEC-056 sin redactar notas a mano ni publicar desde PRs/forks, manteniendo `pyproject.toml`, etiqueta y changelog coherentes y respetando la decisión de `main` de SPEC-058 |
 
 ## 10. Notas y tareas pendientes
 
