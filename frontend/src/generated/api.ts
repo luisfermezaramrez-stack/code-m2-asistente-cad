@@ -82,34 +82,74 @@ export type HttpValidationError = {
 };
 
 /**
- * RegistroResumen
+ * PanoramaMetricas
  *
- * Solicitud registrada tal como la muestra el historial (HU-37, RF-1/RF-2).
+ * Panorama de uso, calidad y costo en una ventana (HU-51, SPEC-052, AC1).
  *
- * Sólo los campos que la vista necesita: ni prompt, ni usuario, ni rutas de
- * artefactos ni datos de la fila completa (S6).
+ * `disponible: false` es un estado degradado explícito: la fuente (MLflow) no
+ * está accesible, así que los agregados vienen vacíos y `motivo` lo explica.
  */
-export type RegistroResumen = {
+export type PanoramaMetricas = {
     /**
-     * Estado
+     * Costo Usd
      */
-    estado: 'construida' | 'declinada' | 'error' | 'desconocida';
+    costo_usd: number;
     /**
-     * Hora
+     * Declinaciones Por Causa
      */
-    hora: string;
+    declinaciones_por_causa: {
+        [key: string]: number;
+    };
     /**
-     * Id
+     * Declinadas
      */
-    id: string;
+    declinadas: number;
+    /**
+     * Desde
+     */
+    desde: string;
+    /**
+     * Disponible
+     */
+    disponible: boolean;
+    /**
+     * Entregadas
+     */
+    entregadas: number;
+    /**
+     * Entregadas Por Familia
+     */
+    entregadas_por_familia: {
+        [key: string]: number;
+    };
+    /**
+     * Errores
+     */
+    errores: number;
+    /**
+     * Generado En
+     */
+    generado_en: string;
+    /**
+     * Hasta
+     */
+    hasta: string;
+    /**
+     * Latencia Media Ms
+     */
+    latencia_media_ms?: number | null;
+    /**
+     * Mlflow Ui
+     */
+    mlflow_ui: string;
     /**
      * Motivo
      */
     motivo?: string | null;
     /**
-     * Texto
+     * Solicitudes
      */
-    texto: string;
+    solicitudes: number;
 };
 
 /**
@@ -174,18 +214,6 @@ export type RespuestaEdicion = {
      * Volumen Mm3
      */
     volumen_mm3: string;
-};
-
-/**
- * RespuestaRegistros
- *
- * Listado de solicitudes propias registradas (HU-37, AC3).
- */
-export type RespuestaRegistros = {
-    /**
-     * Registros
-     */
-    registros: Array<RegistroResumen>;
 };
 
 /**
@@ -648,6 +676,36 @@ export type HealthV1HealthGetResponses = {
 
 export type HealthV1HealthGetResponse = HealthV1HealthGetResponses[keyof HealthV1HealthGetResponses];
 
+export type PanoramaMetricasV1MetricasGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Horas
+         */
+        horas?: number;
+    };
+    url: '/v1/metricas';
+};
+
+export type PanoramaMetricasV1MetricasGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PanoramaMetricasV1MetricasGetError = PanoramaMetricasV1MetricasGetErrors[keyof PanoramaMetricasV1MetricasGetErrors];
+
+export type PanoramaMetricasV1MetricasGetResponses = {
+    /**
+     * Panorama o estado degradado explícito.
+     */
+    200: PanoramaMetricas;
+};
+
+export type PanoramaMetricasV1MetricasGetResponse = PanoramaMetricasV1MetricasGetResponses[keyof PanoramaMetricasV1MetricasGetResponses];
+
 export type ReadyV1ReadyGetData = {
     body?: never;
     path?: never;
@@ -661,40 +719,6 @@ export type ReadyV1ReadyGetResponses = {
      */
     200: unknown;
 };
-
-export type ListarRegistrosV1RegistrosGetData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Resultado
-         */
-        resultado?: 'construida' | 'declinada' | 'error' | 'desconocida' | null;
-        /**
-         * Texto
-         */
-        texto?: string | null;
-    };
-    url: '/v1/registros';
-};
-
-export type ListarRegistrosV1RegistrosGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ListarRegistrosV1RegistrosGetError = ListarRegistrosV1RegistrosGetErrors[keyof ListarRegistrosV1RegistrosGetErrors];
-
-export type ListarRegistrosV1RegistrosGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: RespuestaRegistros;
-};
-
-export type ListarRegistrosV1RegistrosGetResponse = ListarRegistrosV1RegistrosGetResponses[keyof ListarRegistrosV1RegistrosGetResponses];
 
 export type ConsultarRegistroV1RegistrosIdentificadorGetData = {
     body?: never;

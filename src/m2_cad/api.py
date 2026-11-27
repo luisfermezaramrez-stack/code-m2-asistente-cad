@@ -10,7 +10,7 @@ import uuid
 from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
 from dataclasses import asdict
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -30,7 +30,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
-from m2_cad import declinacion, seguimiento, versiones
+from m2_cad import declinacion, metricas, seguimiento, versiones
 from m2_cad.autenticacion import (
     ANONIMO,
     LimiteIntentos,
@@ -163,6 +163,29 @@ class RespuestaUso(BaseModel):
     presupuesto_diario_usd: float
     limite_solicitudes_ventana: int
     ventana_segundos: int
+
+
+class PanoramaMetricas(BaseModel):
+    """Panorama de uso, calidad y costo en una ventana (HU-51, SPEC-052, AC1).
+
+    `disponible: false` es un estado degradado explícito: la fuente (MLflow) no
+    está accesible, así que los agregados vienen vacíos y `motivo` lo explica.
+    """
+
+    disponible: bool
+    motivo: str | None = None
+    desde: datetime
+    hasta: datetime
+    solicitudes: int
+    entregadas: int
+    entregadas_por_familia: dict[str, int]
+    declinadas: int
+    errores: int
+    declinaciones_por_causa: dict[str, int]
+    latencia_media_ms: float | None = None
+    costo_usd: float
+    mlflow_ui: str
+    generado_en: datetime
 
 
 class SolicitudEdicion(BaseModel):
@@ -1544,6 +1567,25 @@ def consultar_uso(
     if _usa_cola_persistente():
         _conciliar_gasto_cola(cola, control)
     return RespuestaUso(**control.gasto_acumulado())
+
+
+@router.get(
+    "/metricas",
+    response_model=PanoramaMetricas,
+    dependencies=[Depends(usuario_actual)],
+    responses={200: {"description": "Panorama o estado degradado explícito."}},
+)
+def panorama_metricas(
+    configuracion: Annotated[seguimiento.Configuracion, Depends(obtener_configuracion_seguimiento)],
+    horas: Annotated[int, Query(ge=1, le=metricas.HORAS_MAXIMAS)] = metricas.HORAS_POR_DEFECTO,
+) -> PanoramaMetricas:
+    """Agregados de uso, calidad y costo de las últimas `horas` (HU-51, RF-1).
+
+    Si el seguimiento está desactivado o MLflow no responde, responde **200** con
+    `disponible: false` y el motivo: nunca un 500 (RNF-2).
+    """
+    return PanoramaMetricas(**metricas.panorama(configuracion, horas=horas))
+
 
 
 @router.get("/generaciones/{solicitud_id}", response_model=EstadoTrabajo)
