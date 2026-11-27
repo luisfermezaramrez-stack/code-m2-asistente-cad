@@ -128,9 +128,7 @@ def test_declinacion_cierra_la_corrida_con_motivo(tmp_path, monkeypatch):
     motivo = "los ensamblajes de varias piezas están fuera del alcance."
 
     def declinar(texto, medir_uso=None):
-        exc = pipeline.PiezaDeclinada(
-            motivo, causa=declinacion.Causa.DIMENSION_INCOHERENTE
-        )
+        exc = pipeline.PiezaDeclinada(motivo, causa=declinacion.Causa.DIMENSION_INCOHERENTE)
         exc.programa_json = tmp_path / "programa.json"
         raise exc
 

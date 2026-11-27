@@ -82,7 +82,7 @@ async function submit() {
       </section>
       <section class="panel" aria-labelledby="preview-title">
         <h2 id="preview-title">Vista 3D</h2>
-        <GlbViewer v-if="glb" :key="glb.url" :url="glb.url" :token="downloadToken" />
+        <GlbViewer v-if="glb" :key="glb.url" :url="glb.url" :token="downloadToken" :caja-mm="job?.resultado?.caja_mm" />
         <div v-else class="viewport">
           <h3>{{ job?.estado === 'verificado' ? 'Vista 3D no disponible' : 'Aún no hay una pieza' }}</h3>
           <p class="muted">{{ job?.estado === 'verificado' ? 'Puedes descargar el STEP si está disponible, aunque no exista una vista 3D.' : 'El modelo aparecerá cuando la pieza esté lista y exista un archivo de vista 3D.' }}</p>
