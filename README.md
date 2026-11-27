@@ -291,6 +291,32 @@ registra 30/30 conformes y 10/10 declinaciones; la revisión humana de forma sig
 `/dsl/check`, latencia media y tokens. Con `--precio-entrada` y `--precio-salida`
 (USD por millón de tokens) también calcula el costo estimado.
 
+### Evaluación continua sin tokens (HU-44)
+
+`make bench-replay` corre los 40 casos del banco con el pipeline real, pero sustituye la
+respuesta del modelo por `data/banco_replay.json`: artefacto versionado que identifica cada
+respuesta por la clave canónica de la caché de HU-25 y declara el prompt `planner-v1` y su
+hash (SPEC-034). No usa red, API key, GPU ni tokens, y falla si la aceptación baja del
+umbral. Es el paso `Banco en replay con respuestas grabadas` de CI.
+
+```bash
+make bench-replay                                  # umbral 1.0; salida 1 si acierto < umbral
+make bench-replay UMBRAL=0.95                      # umbral configurable
+uv run --no-sync python -B scripts/verify_banco_replay.py --solo-verificar
+uv run --no-sync python -B scripts/verify_banco_replay.py --grabar   # regraba con proveedor real; gasta tokens
+```
+
+El resumen en `outputs/banco-replay/` añade `modo`, `prompt_version`, `origen` y `umbral`.
+Un artefacto ausente, con otro prompt o con menos de 40 respuestas aborta con salida 2 y
+nunca llama al modelo como fallback. Las respuestas sembradas son referencias derivadas del
+banco (`origen: referencia-banco`); `--grabar` las sustituye por respuestas del proveedor
+(`origen: proveedor`) cuando hay `DEEPSEEK_API_KEY`.
+
+La corrida **real** queda fuera de CI: `.github/workflows/banco-baseline.yml` la ejecuta
+cada lunes 03:17 UTC y bajo `workflow_dispatch`, con `DEEPSEEK_API_KEY` y
+`MLFLOW_TRACKING_URI` (`vars.MLFLOW_TRACKING_URI`). Registra el experimento
+`m2-cad-banco` en MLflow y publica el CSV/JSON como artefacto del workflow.
+
 ### Seguimiento de experimentos (MLflow, HU-16)
 
 Cada solicitud y cada corrida del banco queda en MLflow (params, métricas y

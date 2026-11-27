@@ -1,0 +1,253 @@
+{
+  "version": 1,
+  "prompt": {
+    "id": "planner",
+    "version": 1,
+    "sha256": "b64b187dd7b365c37ff7dad4150ecca69eccd3e4a12470c595f63d3b0a41b6d3",
+    "etiqueta": "planner-v1"
+  },
+  "modelo": "deepseek-v4-pro",
+  "origen": "referencia-banco",
+  "respuestas": [
+    {
+      "id": "HU02-P01",
+      "clave": "8d276ddea61f84cd1da8203cf90c61d0b3ce86a76bf0027b73b06caa6645a8dd",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bolt_circle\": 0, \"bolt_count\": 0, \"bolt_d\": 0, \"boss_d\": 0, \"boss_h\": 0, \"depth\": 30, \"thick\": 5, \"width\": 40}, \"type\": \"plate\"}]}"
+    },
+    {
+      "id": "HU02-P02",
+      "clave": "5eea1b6c0126f2257de371bf4b03b67ddaa7e036c0d55e304cc641f88dfa7cde",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bolt_circle\": 30, \"bolt_count\": 4, \"bolt_d\": 4, \"boss_d\": 0, \"boss_h\": 0, \"depth\": 50, \"thick\": 6, \"width\": 60}, \"type\": \"plate\"}]}"
+    },
+    {
+      "id": "HU02-P03",
+      "clave": "f848c34a68025c6def41fa2126d9a54bf9db80d0b1f7aa6734b11d6691484eb0",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bolt_circle\": 40, \"bolt_count\": 4, \"bolt_d\": 6, \"boss_d\": 20, \"boss_h\": 4, \"depth\": 60, \"thick\": 8, \"width\": 80}, \"type\": \"plate\"}]}"
+    },
+    {
+      "id": "HU02-P04",
+      "clave": "4c4dab80d8a2d536482cfcbe13ac8ed1b14507a8567311ec92ba3312361f3761",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bolt_circle\": 50, \"bolt_count\": 6, \"bolt_d\": 6, \"boss_d\": 0, \"boss_h\": 0, \"depth\": 80, \"thick\": 10, \"width\": 100}, \"type\": \"plate\"}]}"
+    },
+    {
+      "id": "HU02-P05",
+      "clave": "2a070ea7038831c4d007e8e4215af8ddc1d1c1cdef70fe7b1da80ae3ccd3a9d5",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bolt_circle\": 70, \"bolt_count\": 8, \"bolt_d\": 5, \"boss_d\": 24, \"boss_h\": 5, \"depth\": 100, \"thick\": 6, \"width\": 120}, \"type\": \"plate\"}]}"
+    },
+    {
+      "id": "HU02-P06",
+      "clave": "9d6d8fc02f542259356b15148723b9f96ae232e347c27c7260b2d2a77e3db6dd",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"base_length\": 40, \"bend_radius\": 0, \"flange_length\": 25, \"thickness\": 2, \"width\": 30}, \"type\": \"sheet_bracket\"}]}"
+    },
+    {
+      "id": "HU02-P07",
+      "clave": "fe09669067633e9fa19a2f910df9bebc1c4323c7a2d275f8a939ebc678327235",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"base_length\": 50, \"bend_radius\": 0, \"flange_length\": 35, \"thickness\": 3, \"width\": 40}, \"type\": \"sheet_bracket\"}]}"
+    },
+    {
+      "id": "HU02-P08",
+      "clave": "76e933b47c55948b1d95e8cac61470dc56ce7ad5c4d9951cfd90594a21329b87",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"base_length\": 60, \"bend_radius\": 0, \"flange_length\": 40, \"thickness\": 4, \"width\": 45}, \"type\": \"sheet_bracket\"}]}"
+    },
+    {
+      "id": "HU02-P09",
+      "clave": "e6c2bea79904224ecba9af7bfd2fb28c806dc5910e1b36a85ae5e796e548dedf",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"base_length\": 70, \"bend_radius\": 0, \"flange_length\": 45, \"thickness\": 2.5, \"width\": 50}, \"type\": \"sheet_bracket\"}]}"
+    },
+    {
+      "id": "HU02-P10",
+      "clave": "498057e314413ebd7d1203009f8c4ceef27eada24ffeff27a2eca10145f7b5d7",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"base_length\": 80, \"bend_radius\": 0, \"flange_length\": 60, \"thickness\": 5, \"width\": 60}, \"type\": \"sheet_bracket\"}]}"
+    },
+    {
+      "id": "HU02-P11",
+      "clave": "2dda9c206a0499337c149769305a8f6657eb6d94b83a664d40912406824e287e",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bottom_d\": 40, \"bottom_w\": 40, \"height\": 30, \"top_d\": 24}, \"type\": \"adapter\"}]}"
+    },
+    {
+      "id": "HU02-P12",
+      "clave": "367e924324d62c2f0b6c301333f9e25c1f6d7786547335f1d0bb9c223443606b",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bottom_d\": 40, \"bottom_w\": 50, \"height\": 35, \"top_d\": 30}, \"type\": \"adapter\"}]}"
+    },
+    {
+      "id": "HU02-P13",
+      "clave": "96acadb8a6f92c082cdc66ab4dedf64ae0590ad5a066f3a34a4ddcb8bb2fdce5",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bottom_d\": 50, \"bottom_w\": 60, \"height\": 40, \"top_d\": 32}, \"type\": \"adapter\"}]}"
+    },
+    {
+      "id": "HU02-P14",
+      "clave": "0c9b97887b6c5fbb78a62c57fc020bfd1fa6c19579b0164e6f917944fdf72fed",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bottom_d\": 60, \"bottom_w\": 70, \"height\": 50, \"top_d\": 40}, \"type\": \"adapter\"}]}"
+    },
+    {
+      "id": "HU02-P15",
+      "clave": "7fd3a7b85fcb58bb5ac0a8bd4eacaf81d6bf5667c525722aabe2da2d465aac97",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bottom_d\": 70, \"bottom_w\": 80, \"height\": 60, \"top_d\": 45}, \"type\": \"adapter\"}]}"
+    },
+    {
+      "id": "HU02-P16",
+      "clave": "fc80c454b03cb1b261b244bd67c76f8cb25e7817824057b595623e196205c5a0",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"flange_class\": 150, \"kind\": \"blind\", \"nps\": \"1\"}, \"type\": \"flange\"}]}"
+    },
+    {
+      "id": "HU02-P17",
+      "clave": "1b3cf4b77f601970d7dad438e2a9965d34d727202493b15c2108d8bd5bf84a2c",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"flange_class\": 150, \"kind\": \"blind\", \"nps\": \"2\"}, \"type\": \"flange\"}]}"
+    },
+    {
+      "id": "HU02-P18",
+      "clave": "8f8095c61b09c7f00bd38f3f29cf24e12cb1e502b8b663e762ededa0c42ddec4",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"flange_class\": 150, \"kind\": \"slip_on\", \"nps\": \"1\"}, \"type\": \"flange\"}]}"
+    },
+    {
+      "id": "HU02-P19",
+      "clave": "ec6c0e7b425f5a10793c7912e95e76a1bf220cfd3f5e9f2a08478cee6d234128",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"flange_class\": 150, \"kind\": \"weld_neck\", \"nps\": \"1\"}, \"type\": \"flange\"}]}"
+    },
+    {
+      "id": "HU02-P20",
+      "clave": "15f080133e7ef2ff738926458603c5e6e508a688c2e13f55e6d2ddba4706b0ee",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"flange_class\": 300, \"kind\": \"blind\", \"nps\": \"1\"}, \"type\": \"flange\"}]}"
+    },
+    {
+      "id": "HU02-P21",
+      "clave": "237b6ecbfbdd1d6c5b6e2c96014363504e95a2d105e873a2284ecba5ae316e40",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bore_d\": 10, \"height\": 10, \"outer_d\": 20}, \"type\": \"spacer\"}]}"
+    },
+    {
+      "id": "HU02-P22",
+      "clave": "771444c1812e93dcc390a3d72cdf66961c32d40c0469660ecd5aaba26b7733d6",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bore_d\": 6, \"height\": 8, \"outer_d\": 16}, \"type\": \"spacer\"}]}"
+    },
+    {
+      "id": "HU02-P23",
+      "clave": "26e22dfdd0ea6fbbae205391fa2271488543fd6e567560d75a2c50194201ad11",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bore_d\": 8, \"height\": 15, \"outer_d\": 24}, \"type\": \"spacer\"}]}"
+    },
+    {
+      "id": "HU02-P24",
+      "clave": "08bde4d556480900932359bb417f121c9218fef06932503dd0ec3df108b2b08e",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bore_d\": 12, \"height\": 20, \"outer_d\": 30}, \"type\": \"spacer\"}]}"
+    },
+    {
+      "id": "HU02-P25",
+      "clave": "6068c50d35d8a0da1d61feaba337c270e865ae8d7a30c09d1eecc4f0bc35ea9d",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"bore_d\": 16, \"height\": 25, \"outer_d\": 40}, \"type\": \"spacer\"}]}"
+    },
+    {
+      "id": "HU02-P26",
+      "clave": "414968e9e7256a73546554fc00ef4a9febdb61e61540b36a493e0f9975520066",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"fastener_type\": \"iso4762\", \"length\": 10, \"simple\": true, \"size\": \"M3-0.5\"}, \"type\": \"screw\"}]}"
+    },
+    {
+      "id": "HU02-P27",
+      "clave": "7bb27568f1028674c06d04f5674fdb0df6b85c130d7cbebb6c9c9275e85e0c61",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"fastener_type\": \"iso4762\", \"length\": 12, \"simple\": true, \"size\": \"M4-0.7\"}, \"type\": \"screw\"}]}"
+    },
+    {
+      "id": "HU02-P28",
+      "clave": "4681f116260f8d2c14ad0513d23abf5b0aaa7ac0d692c577e7504bc028846262",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"fastener_type\": \"iso4762\", \"length\": 16, \"simple\": true, \"size\": \"M5-0.8\"}, \"type\": \"screw\"}]}"
+    },
+    {
+      "id": "HU02-P29",
+      "clave": "9214e21e7ecfcaf88c3bb75cfd26e1c4428fd1a30c639a32d5c226c3c25e2094",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"fastener_type\": \"iso4762\", \"length\": 20, \"simple\": true, \"size\": \"M6-1\"}, \"type\": \"screw\"}]}"
+    },
+    {
+      "id": "HU02-P30",
+      "clave": "0a5834458b1ce2cf794e1da7693311876eeeadc89005f0d64091fd038d492791",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"mates\": [], \"parts\": [{\"id\": \"p\", \"material\": \"steel\", \"params\": {\"fastener_type\": \"iso4762\", \"length\": 25, \"simple\": true, \"size\": \"M8-1.25\"}, \"type\": \"screw\"}]}"
+    },
+    {
+      "id": "HU02-N01",
+      "clave": "29f2d49af846311f96c722eb599117a0f512fa3b05e568c378b67afc5318f8a2",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"unsupported\": \"El cálculo y la certificación estructural están fuera del alcance.\"}"
+    },
+    {
+      "id": "HU02-N02",
+      "clave": "a529dfd16cd6f05aeff597f8e296d9675c2d9e0a485b4ecb87dcfd7de1b58d60",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"unsupported\": \"La verificación y certificación NSR-10 están fuera del alcance.\"}"
+    },
+    {
+      "id": "HU02-N03",
+      "clave": "3364e738a0585c33f32b337252521564f5f9a880b5bac15739410f9a5c1b8c6a",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"unsupported\": \"La verificación y certificación RETIE están fuera del alcance.\"}"
+    },
+    {
+      "id": "HU02-N04",
+      "clave": "293c2d980b3a7b9a1e2900478767dc63f8548dfee6a21d9f10178f44554e36ab",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"unsupported\": \"La generación Revit/BIM está fuera del alcance.\"}"
+    },
+    {
+      "id": "HU02-N05",
+      "clave": "90c112c869c1c963d10643aa79bb35e905b40773ec1499110ecb38ce01502259",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"unsupported\": \"La entrada por imagen y la reconstrucción desde fotografías están fuera del alcance.\"}"
+    },
+    {
+      "id": "HU02-N06",
+      "clave": "5e9a249587c31becec0c4e99178cfd5840c37ae9c5790b2330e31c4e2f1e6b8d",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"unsupported\": \"Los ensamblajes de varias piezas están fuera del alcance del producto.\"}"
+    },
+    {
+      "id": "HU02-N07",
+      "clave": "8f26b5944766d29032ce1b62934da3c05b9a94cc4861cdc4704145a0d3b96567",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"unsupported\": \"El reentrenamiento del modelo está fuera del alcance.\"}"
+    },
+    {
+      "id": "HU02-N08",
+      "clave": "cf2b9c8138a243d70044857c7464b4f2898c333db317fcbd3d96c19e2386ac14",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"unsupported\": \"La autenticación y gestión de usuarios están fuera del alcance.\"}"
+    },
+    {
+      "id": "HU02-N09",
+      "clave": "b44e1cee58abea2822b125165c95c919618eb8426932ed107ccd6268a727f0ce",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"unsupported\": \"La concurrencia de solicitudes está fuera del alcance.\"}"
+    },
+    {
+      "id": "HU02-N10",
+      "clave": "02913fd9bcc4d1e163841a2c9187328ee15eade66ccd53c329d1c8b00cbd93dc",
+      "prompt_version": "planner-v1",
+      "contenido": "{\"unsupported\": \"El análisis estructural y la certificación de deformaciones están fuera del alcance.\"}"
+    }
+  ]
+}

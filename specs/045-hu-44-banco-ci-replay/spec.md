@@ -7,7 +7,9 @@
 - **Depende de**: [SPEC-026](../026-hu-25-reintentos-cache-llm/spec.md),
   [SPEC-034](../034-hu-33-prompts-versionados/spec.md)
 - **Rama**: `feature/hu-44-banco-ci-replay`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: Spec-first · implementada en `feature/hu-44-banco-ci-replay`, en revisión en
+  [PR #151](https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/151);
+  `plan.md` y `tasks.md` se redactaron al tomar la HU
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §5
 
 ## Problema y contexto

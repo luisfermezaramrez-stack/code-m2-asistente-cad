@@ -112,6 +112,7 @@ code-m2-asistente-cad/
 │   ├── versiones.py           # historial de versiones de la pieza por solicitud (HU-35)
 │   ├── llm_resiliente.py       # reintentos, plazo total y caché del LLM (HU-25)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
+│   ├── banco_replay.py         # respuestas grabadas/versionadas del banco, sin red (HU-44)
 │   ├── evaluacion.py           # evaluador HTTP HU-07: reporte por familia y enlaces CSV/STEP
 │   ├── registro.py             # registro CSV con exclusión de PII (HU-06) y lector del historial (HU-37)
 │   ├── trabajos.py             # SSE, registro en memoria y cancelación cooperativa
@@ -127,16 +128,17 @@ code-m2-asistente-cad/
 ├── tests/                      # pytest: dataset, banco, pipeline, API, registro, seguimiento, SSE, web
 ├── data/
 │   ├── test_cases.csv          # banco de 40 solicitudes
+│   ├── banco_replay.json       # respuestas grabadas del banco con versión de prompt (HU-44)
 │   ├── registro.csv            # registro de solicitudes (ignorado en git)
 │   └── versiones/              # índice de versiones por solicitud (ignorado en git)
 ├── contracts/                  # contrato OpenAPI v1 congelado (HU-31)
 ├── outputs/                    # entregables por solicitud (uuid/; ignorado en git)
 ├── mlruns/ · mlflow.db         # seguimiento local de MLflow (ignorados en git)
 ├── specs/                      # specs SDD 001–023 (Spec Kit, Retroactiva, Spec-first); índice en specs/README.md
-├── scripts/                    # fetch-model, verify-serve, vendor, cloud (Lambda/Vast.ai)
+├── scripts/                    # fetch-model, verify-serve, vendor, cloud y verify_banco_replay.py (HU-44)
 ├── docs/                       # documentación, sistema de diseño, runbook operativo, política de versionado y diagrama
 ├── vendor/                     # constraint-kit (gitignored; restaurar con `make vendor`)
-├── .github/                    # CI, labels, Dependabot, plantillas de PR e issues
+├── .github/                    # CI, banco real programado (HU-44), labels, Dependabot, plantillas
 ├── .opencode/rules/            # reglas para agentes (tgrep)
 ├── AGENTS.md                   # contexto para agentes LLM
 ├── CONSTITUTION.md             # este archivo — verdad central
@@ -199,6 +201,8 @@ code-m2-asistente-cad/
 | GitHub Actions | CI en PRs a `main` | `.github/workflows/ci.yml` |
 | Kernel del autor | 113 pruebas dentro del contenedor `cadkit:0.1` | `make kernel-image` + `make kernel-test` |
 | Corpus dorado | Divergencia geométrica del núcleo por huella de STEP, en cada PR | `make corpus-dorado` |
+| Banco en replay | Aceptación del banco con respuestas grabadas, sin red, key ni tokens, en cada PR | `make bench-replay` | SPEC-045 |
+| Baseline real del banco | Corrida pagada semanal con registro en MLflow y artefactos | `.github/workflows/banco-baseline.yml` | SPEC-045 |
 | Seguridad | gitleaks y pip-audit en cada PR | `make security` | SPEC-029 |
 | Prompts versionados | id, versión y hash del prompt; CI falla si el texto cambia sin subir versión | `make prompts-check` | SPEC-034 |
 | Frontend | Vitest, TypeScript y build | `make frontend-check` |
@@ -219,7 +223,13 @@ HU-40 (SPEC-041) la misma suite inyecta axe-core y audita nueva solicitud, resul
 historial y ajustes en claro y oscuro, además del flujo completo por teclado: una
 violación crítica, seria o de contraste falla CI sin nueva puerta de integración. El corpus dorado es un paso propio fuera de `make check`: compara el
 núcleo determinista contra huellas congeladas de STEP (`make corpus-dorado`, SPEC-024) y
-falla nombrando el caso y las huellas esperada y obtenida.
+falla nombrando el caso y las huellas esperada y obtenida. El banco en replay también es un
+paso propio de CI (`make bench-replay`, SPEC-045): sustituye sólo la respuesta del modelo por
+`data/banco_replay.json`, valida que la versión del prompt siga siendo la grabada y falla con
+salida 1 si el acierto baja del umbral (1.0 por defecto) o con salida 2 si el artefacto no
+cubre los 40 casos. Nunca llama al proveedor como fallback. La corrida real, que sí gasta
+tokens, vive en `.github/workflows/banco-baseline.yml` (lunes 03:17 UTC y ejecución manual),
+con MLflow y artefactos; no forma parte de la puerta de integración.
 
 HU-33 versiona los prompts como artefactos: `prompts/planner-v1.txt` guarda el texto
 exacto del planificador y `prompts/manifest.toml` declara su id, versión y `sha256`;
@@ -409,6 +419,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-27 | HU-37: `GET /v1/registros` lista sólo las solicitudes propias con campos mínimos y filtros en el servidor; el estado se deriva en el backend con precedencia documentada y `GET /v1/registros/{id}` emite `X-Download-Token` tras sesión y propiedad; `/historial` deja de leer `?estado=` y la reapertura vive en `/historial/:identificador` | Consultar y reabrir solicitudes sin copia autoritativa en el cliente ni recorrer ids, y descargar el STEP pasado el reinicio sin relajar `exigir_token`; derivar el estado sólo en el backend evita que la misma regla viva en Python y en TypeScript |
 | 2026-11-27 | HU-39: `viewerMedidas.ts` separa `caja_mm`, unidades y direcciones de vista; `GlbViewer.vue` usa `OrthographicCamera`, cotas y PNG reproducible con `preserveDrawingBuffer` + re-render | Revisar la pieza desde tres vistas canónicas con el mismo encuadre, medir contra la caja verificada y exportar la vista sin GPU real; las cotas nunca se leen del CSV y los controles/atajos de HU-16 permanecen |
 | 2026-11-27 | HU-54: sitio MkDocs sobre staging generado desde los Markdown versionados, navegación con el runbook y workflow de GitHub Pages desde `main` | MkDocs exige `docs_dir` hijo de la config, así que el staging conserva las rutas y enlaces originales sin duplicar documentos; `--strict` convierte enlaces rotos en fallo de CI |
+| 2026-11-27 | HU-44: `banco_replay.py` y `data/banco_replay.json` fijan 40 respuestas con versión de prompt; `llm_resiliente.clave_cuerpo()` comparte la clave canónica sin credenciales y `pipeline.cuerpo_planificador()` evita definir dos veces la petición; CI corre `make bench-replay` y un workflow programado registra el baseline real en MLflow | Detectar caídas de aceptación en cada PR sin pagar tokens ni abrir red; separar la puerta barata de la corrida real, y hacer explícita cualquier divergencia de prompt/modelo en vez de buscar el proveedor como fallback |
 
 ## 10. Notas y tareas pendientes
 
@@ -422,6 +433,9 @@ git push -u origin feature/hu-XX-tema
 - [x] HU-05, 07, 10–13 y 15 cerradas; entrega `v1.0` publicada en `main` (HU-20, ver `specs/`).
 - [x] Inyectar la configuración del modelo en el contenedor `m2-cad` (`DEEPSEEK_API_KEY`, `LLM_MODEL`; HU-14).
 - [x] HU-25 (reintentos y caché del LLM, SPEC-026) implementada y corregida tras la revisión del PR #126; validación integral en Docker pendiente.
+- [x] HU-44 (evaluación continua del banco, SPEC-045) implementada en la rama
+  `feature/hu-44-banco-ci-replay`: replay en CI, baseline real programado y evidencia en
+  `specs/045-hu-44-banco-ci-replay/evidence.md`.
 - [ ] Mantener la cobertura ≥ 70 % al añadir módulos.
 - [x] Regenerar el diagrama de arquitectura (`docs/arquitectura.*`) con Archify sin la API Gemini ni llama.cpp (HU-19, PR #69).
 
