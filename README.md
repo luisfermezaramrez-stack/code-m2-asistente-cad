@@ -49,7 +49,7 @@ y obtiene, sin redactar prompts en inglés ni usar la consola:
 | Salida | Formato | Uso |
 | --- | --- | --- |
 | Modelo | STEP (ISO 10303) | Abrir en cualquier CAD |
-| Vista 3D | GLB | Visualizar en el navegador |
+| Vista 3D | GLB | Visualizar en el navegador, con vistas ortogonales, cotas y captura PNG |
 | Lista de materiales | CSV | Corte / compra |
 
 Si la pieza no se puede construir, el asistente declina con un motivo en
@@ -101,6 +101,8 @@ licencia.
    trazable (texto, resultado, latencia y versión del modelo).
 4. **Navegación** por URLs propias (`/nueva-solicitud`, `/historial` y `/ajustes`),
    con borrador y tema recuperables al abrir la vista en otra pestaña (HU-38).
+5. **Revisión** de la pieza en el navegador con vistas frontal, superior y lateral,
+   cotas tomadas de `caja_mm`, unidades mm/pulgadas y captura PNG (HU-39).
 
 ## Estructura
 
