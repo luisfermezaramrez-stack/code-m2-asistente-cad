@@ -3,7 +3,7 @@
 Fecha: 2026-11-27
 Issue: https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/issues/115
 Rama: `feature/hu-55-releases-automaticos` (worktree aislado desde `origin/main` `267964e`)
-PR: pendiente
+PR: https://github.com/luisfermezaramrez-stack/code-m2-asistente-cad/pull/153
 
 ## Spec-first y dependencias
 
