@@ -349,6 +349,28 @@ mide estabilidad del pipeline y del prompt, no calidad del proveedor en una corr
 Actualizarlo nunca es implícito: exige `--autor`, `--motivo` y `--corrida-origen`, y deja
 `historial` en el propio JSON.
 
+### Comparación A/B de prompts y modelos (HU-52)
+
+`make ab` corre el mismo banco con dos variantes —prompt versionado (SPEC-034) y modelo—
+y registra una corrida por variante en el experimento `m2-cad-ab` de MLflow, con
+`comparacion_id`, versión y hash del prompt, modelo y versión del modelo. El reporte en
+`outputs/ab/` compara por familia (piezas conformes, declinaciones correctas, errores
+silenciosos, latencia, tokens y costo) y lista los casos que cambiaron de resultado.
+`planner-v2.txt` es una variante registrada no vigente: `planner-v1` sigue siendo la que
+usa el pipeline.
+
+```bash
+# Real: gasta tokens y no corre en CI.
+make ab AB_ARGS="--modelo-b deepseek-v3 --precio-entrada 0.1 --precio-salida 0.4"
+
+# Replay: sin red, API key ni tokens; cada variante con sus respuestas grabadas.
+make ab-replay AB_ARGS="--replay-a data/banco_replay.json --replay-b data/banco_replay-v2.json"
+```
+
+La temperatura y el banco son los mismos para A y B (`RNF-2`). Un artefacto de replay
+ajeno al prompt o al modelo de su variante se rechaza antes de correr (salida `2`). La
+comparación **no promueve** variantes: la decisión es explícita (`RNF-3`).
+
 ### Seguimiento de experimentos (MLflow, HU-16)
 
 Cada solicitud y cada corrida del banco queda en MLflow (params, métricas y

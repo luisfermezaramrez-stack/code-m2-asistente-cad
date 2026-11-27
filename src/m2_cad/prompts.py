@@ -204,6 +204,28 @@ def cargar(id_prompt: str = PROMPT_VIGENTE, *, raiz: Path | None = None) -> Prom
     return _prompt_de(vigentes[0], base)
 
 
+def cargar_version(id_prompt: str, version: int, *, raiz: Path | None = None) -> Prompt:
+    """Carga una versión concreta registrada, vigente o no (SPEC-053, HU-52).
+
+    `cargar()` sigue siendo el único acceso del pipeline a la versión vigente; este
+    cargador es aditivo y lo usan sólo las comparaciones A/B, que necesitan evaluar
+    dos versiones sin cambiar `vigente` en el manifiesto.
+    """
+    if isinstance(version, bool) or not isinstance(version, int):
+        raise ErrorPrompt(f"La versión pedida para «{id_prompt}» debe ser un entero.")
+    base = _raiz(raiz)
+    encontradas = [
+        entrada
+        for entrada in _entradas(cargar_manifiesto(raiz=base), base)
+        if entrada.get("id") == id_prompt and entrada.get("version") == version
+    ]
+    if not encontradas:
+        raise ErrorPrompt(f"El manifiesto no declara {id_prompt}-v{version} ({base / MANIFIESTO}).")
+    if len(encontradas) > 1:
+        raise ErrorPrompt(f"El manifiesto declara {id_prompt}-v{version} más de una vez.")
+    return _prompt_de(encontradas[0], base)
+
+
 def listar(*, raiz: Path | None = None) -> list[Prompt]:
     """Carga todas las entradas del manifiesto, vigentes o no, con su hash validado."""
     base = _raiz(raiz)

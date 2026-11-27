@@ -48,8 +48,17 @@ def prompt_actual() -> dict:
     }
 
 
-def cargar(ruta: Path = DEFAULT_PATH) -> dict:
-    """Lee y valida el artefacto; nunca lanza una excepción de formato sin contexto."""
+def cargar(
+    ruta: Path = DEFAULT_PATH,
+    *,
+    prompt_esperado: dict | None = None,
+    modelo_esperado: str | None = None,
+) -> dict:
+    """Lee y valida el artefacto; nunca lanza una excepción de formato sin contexto.
+
+    SPEC-053 (HU-52) puede pasar la identidad de la variante y el modelo esperados;
+    por defecto se comprueba contra el prompt vigente y el modelo configurado.
+    """
     try:
         datos = json.loads(Path(ruta).read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
@@ -74,7 +83,7 @@ def cargar(ruta: Path = DEFAULT_PATH) -> dict:
         raise ErrorReplay(
             f"El artefacto no declara la identidad del prompt ({', '.join(CLAVES_PROMPT)})."
         )
-    actual = prompt_actual()
+    actual = prompt_esperado or prompt_actual()
     for clave in CLAVES_PROMPT:
         if prompt[clave] != actual[clave]:
             raise ErrorReplay(
@@ -120,10 +129,16 @@ def clave_de(fila: dict) -> str:
     return llm_resiliente.clave_cuerpo(cuerpo, URL_REPLAY)
 
 
-def preparar(filas: list[dict], ruta: Path = DEFAULT_PATH) -> dict:
+def preparar(
+    filas: list[dict],
+    ruta: Path = DEFAULT_PATH,
+    *,
+    prompt_esperado: dict | None = None,
+    modelo_esperado: str | None = None,
+) -> dict:
     """Valida cobertura y modelo antes de permitir una sola respuesta del replay."""
-    datos = cargar(ruta)
-    modelo = llm.planner_model()
+    datos = cargar(ruta, prompt_esperado=prompt_esperado, modelo_esperado=modelo_esperado)
+    modelo = modelo_esperado or llm.planner_model()
     if datos["modelo"] != modelo:
         raise ErrorReplay(
             f"El artefacto se grabó con el modelo {datos['modelo']!r} y ahora está configurado "
