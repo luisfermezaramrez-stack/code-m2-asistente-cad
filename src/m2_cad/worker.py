@@ -65,6 +65,8 @@ def registrar_terminal(
         identificador=trabajo["id"],
         usuario=trabajo.get("usuario") or ANONIMO,
         causa=medido.get("causa"),
+        prompt=medido.get("prompt"),
+        prompt_hash=medido.get("prompt_hash"),
     )
     corrida = seguimiento.iniciar_corrida(
         configuracion.experimento_generacion,

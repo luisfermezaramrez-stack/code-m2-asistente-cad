@@ -106,6 +106,8 @@ lint:
     # placeholders ({{#if PACKAGE}}) que no son TOML válido.
     # --no-sync evita que "uv run" vuelva a sincronizar el entorno.
     - uv run --no-sync make lint
+    # HU-33/AC2: el espejo también falla si un prompt cambió sin subir su versión.
+    - uv run --no-sync make prompts-check
     - uv run --no-sync ruff format --check src tests
 
 # -----------------------------------------------------------------------------

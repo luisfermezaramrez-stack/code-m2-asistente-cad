@@ -4,7 +4,7 @@
 .PHONY: help install lock vendor test cov lint format check \
         precommit-install precommit build up down clean bench bench-report worker \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup \
-        corpus-dorado \
+        corpus-dorado prompts-check \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
         mlflow api-types api-types-check api-contract api-contract-check hash-clave
 
@@ -36,6 +36,9 @@ kernel-test: kernel-image ## Corre las 113 pruebas del kernel en el contenedor d
 corpus-dorado: ## HU-23: compara el núcleo determinista con el corpus dorado (sin GPU ni red)
 	uv run --no-sync python -B scripts/verify_corpus_dorado.py
 
+prompts-check: ## HU-33: verifica que ningún prompt cambió sin subir su versión
+	uv run --no-project python -B scripts/verify_prompts.py
+
 bench: ## HU-14 AC7: corre el banco HU-02 contra el modelo (gasta tokens; IDS=...)
 	uv run python -m m2_cad.banco $(if $(IDS),--ids $(IDS))
 
@@ -52,7 +55,7 @@ lint: ## Ruff con reglas E, F, I, B
 format: ## Aplica ruff format
 	uv run ruff format src tests
 
-check: lint api-contract-check api-types-check frontend-check cov ## Ruff, contratos, SPA y cobertura (CI)
+check: lint prompts-check api-contract-check api-types-check frontend-check cov ## Ruff, contratos, SPA y cobertura (CI)
 
 worker: ## HU-45: consume la cola persistente en un proceso separado de la API
 	uv run --no-sync python -m m2_cad.worker

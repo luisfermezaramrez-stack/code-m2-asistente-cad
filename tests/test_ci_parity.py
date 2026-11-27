@@ -14,10 +14,33 @@ RAIZ = Path(__file__).resolve().parents[1]
 GITLAB = RAIZ / ".gitlab-ci.yml"
 GITHUB = RAIZ / ".github" / "workflows" / "ci.yml"
 DOCKERFILE = RAIZ / "Dockerfile"
+MAKEFILE = RAIZ / "Makefile"
 
 
 def _texto(ruta: Path) -> str:
     return ruta.read_text(encoding="utf-8")
+
+
+def _dependencias(nombre: str, makefile: str) -> list[str]:
+    """Dependencias declaradas en la primera regla `nombre:` del Makefile."""
+    for linea in makefile.splitlines():
+        if linea.startswith(f"{nombre}:"):
+            return linea.split(":", 1)[1].split()
+    return []
+
+
+def _job_gitlab(nombre: str) -> str:
+    """Bloque YAML de un job de primer nivel (hasta la siguiente clave top-level)."""
+    bloque: list[str] = []
+    dentro = False
+    for linea in _texto(GITLAB).splitlines():
+        if linea.startswith(f"{nombre}:"):
+            dentro = True
+        elif dentro and linea and not linea.startswith((" ", "#")):
+            break
+        if dentro:
+            bloque.append(linea)
+    return "\n".join(bloque)
 
 
 def test_uv_esta_fijado_igual_en_los_tres_lados():
@@ -84,3 +107,26 @@ def test_los_dos_pipelines_generan_la_clave_efimera_de_descargas():
     """HU-36: 44 pruebas de descargas exigen M2_DOWNLOAD_SECRET en cada corrida."""
     assert "M2_DOWNLOAD_SECRET" in _texto(GITHUB)
     assert "M2_DOWNLOAD_SECRET" in _texto(GITLAB)
+
+
+def test_el_chequeo_de_prompts_entra_en_check_y_en_el_job_lint():
+    """HU-33/AC2/RF-5: el mismo chequeo corre en los dos pipelines.
+
+    GitHub lo ejecuta dentro de `make check`; el espejo, dentro del job `lint`.
+    Así un cambio de prompt sin subir su versión bloquea las dos puertas.
+    """
+    makefile = _texto(MAKEFILE)
+
+    assert "prompts-check" in _dependencias("check", makefile)
+    assert "prompts-check:" in makefile
+    # El objetivo ejecuta el verificador offline (sin red, sin entorno del proyecto).
+    cuerpo = next(
+        linea
+        for linea in makefile.split("prompts-check:", 1)[1].splitlines()
+        if "scripts/verify_prompts.py" in linea
+    )
+    assert "uv run --no-project python -B scripts/verify_prompts.py" in cuerpo
+
+    lint = _job_gitlab("lint")
+    assert "uv run --no-sync make prompts-check" in lint
+    # El job `lint` del espejo cubre entonces AC2 igual que `make check` en GitHub.
