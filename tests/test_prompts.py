@@ -428,3 +428,16 @@ def test_cargar_rechaza_una_entrada_mal_formada(tmp_path):
 
     with pytest.raises(prompts.ErrorPrompt, match="sha256"):
         prompts.cargar(raiz=raiz)
+
+
+def test_la_imagen_copia_los_artefactos_que_el_pipeline_lee_al_importar():
+    """El prompt se carga al importar el pipeline: la imagen debe traerlo (HU-10)."""
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1]
+    dockerfile = (raiz / "Dockerfile").read_text(encoding="utf-8")
+
+    for directorio in ("prompts", "data"):
+        assert f"COPY {directorio} ./{directorio}" in dockerfile, (
+            f"la imagen no copia {directorio}/ y el módulo lo lee en tiempo de import"
+        )

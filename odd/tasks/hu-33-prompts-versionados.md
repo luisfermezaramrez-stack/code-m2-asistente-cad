@@ -128,3 +128,10 @@ documentación), ~1.157 líneas autoradas. El cambio es una sola unidad de compo
 —prompt como artefacto, su trazabilidad y su puerta de CI— con las pruebas y la
 documentación al lado, así que se entrega como una PR de la HU, no encadenada. Push y PR
 quedan a decisión del humano.
+
+L10 — Defecto de integración encontrado al verificar el empaquetado: como el prompt se carga
+al importar `m2_cad.pipeline`, la imagen Docker (que copiaba `src`, `data` y el kernel, pero
+no `prompts/`) fallaba al arrancar con `ErrorPrompt: No se encontró el manifiesto de prompts`.
+Corregido con `COPY prompts ./prompts` y una prueba que compara el `Dockerfile` con los
+directorios que el paquete lee en tiempo de import (`tests/test_prompts.py::test_la_imagen_copia_los_artefactos_que_el_pipeline_lee_al_importar`), observada en rojo antes del
+arreglo. Después del arreglo: `make check` 574 pruebas, cobertura 92,46 %.
