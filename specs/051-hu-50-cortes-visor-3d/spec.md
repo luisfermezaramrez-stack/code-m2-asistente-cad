@@ -6,7 +6,7 @@
 - **Responsable**: Carlos Eduardo Trujillo
 - **Depende de**: [SPEC-040](../040-hu-39-visor-ortogonal-medidas/spec.md)
 - **Rama**: `feature/hu-50-cortes-visor-3d`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: Spec-first · implementada en la rama de la HU; `plan.md`, `tasks.md` y `evidence.md` documentan la entrega
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
 - **Auditoría**: corregida según
   [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
@@ -14,9 +14,8 @@
 ## Problema y contexto
 
 El visor 3D (`frontend/src/GlbViewer.vue`) carga el GLB con `GLTFLoader` y permite orbitar
-con `OrbitControls` sobre una cámara en perspectiva (`frontend/src/GlbViewer.vue:67-70`).
-No permite ver el interior de la pieza: agujeros pasantes, espesores de pared o resaltes
-sólo se aprecian desde fuera.
+con `OrbitControls` sobre una cámara ortográfica desde SPEC-040. No permite ver el interior
+de la pieza: agujeros pasantes, espesores de pared o resaltes sólo se aprecian desde fuera.
 
 El ítem 27 del borrador ("Visor 3D") se partió en dos: vistas ortogonales, medidas y
 captura (SPEC-040) y cortes (esta spec), que reutiliza las vistas y la herramienta de

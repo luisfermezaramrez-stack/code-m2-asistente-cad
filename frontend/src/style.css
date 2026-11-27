@@ -58,7 +58,11 @@ summary { cursor: pointer; min-height: var(--control-min); padding-block: var(--
 .download span { color: var(--color-muted); font-size: var(--text-small); }
 .model-canvas { width: 100%; min-width: 0; background: var(--color-viewer-background); border-radius: var(--radius-small); }
 .model-canvas canvas { display: block; width: 100%; height: var(--preview-height); }
-.viewer-actions button { font-size: var(--text-small); }
+.viewer-actions button, .cortes button { font-size: var(--text-small); }
+.cortes { align-items: center; padding: var(--space-3); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-small); background: var(--color-surface-subtle); }
+.cortes label { margin: 0; font-size: var(--text-small); }
+.cortes input[type='range'] { width: auto; min-width: 16ch; flex: 1 1 16ch; padding: 0; accent-color: var(--color-accent); }
+.cortes p { width: 100%; margin: 0; }
 button[aria-pressed='true'] { background: var(--color-accent); color: var(--color-on-accent); }
 .medidas { margin-top: var(--space-4); }
 .medidas select { width: auto; min-width: 12ch; margin-bottom: var(--space-3); }

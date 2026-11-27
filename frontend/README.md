@@ -103,6 +103,10 @@ operables por teclado. Se liberan renderer, controles, geometrías, materiales,
 texturas y peticiones al cambiar de modelo o desmontar. No hay autorrotación.
 Los GLB con recursos externos referenciados no se admiten: el visor no consulta
 terceros. Si WebGL no está disponible, muestra un mensaje y conserva descargas.
+El corte (HU-50) usa planos locales de three.js y una tapa con stencil calculada en el
+cliente: permite elegir X/Y/Z con los botones o las teclas 4/5/6, mover el plano con el
+deslizador o `[`/`]`, invertirlo con `I` y desactivarlo con `C`. El estado se anuncia en
+una región viva y la sección se mantiene al capturar PNG o cambiar de vista.
 
 ## Evidencia y servicios simulados
 
