@@ -236,3 +236,76 @@ def test_el_catalogo_solo_crece_agregando_causas():
     for causa in declinacion.Causa:
         assert causa.value == causa.value.lower()
         assert " " not in causa.value
+
+
+def test_ac1_los_casos_declinados_del_corpus_dorado_reciben_causa():
+    """AC1: los casos `declina` del corpus real (SPEC-024) tienen causa del catálogo."""
+    from m2_cad import corpus_dorado
+
+    casos = [caso for caso in corpus_dorado.cargar_corpus() if caso["resultado"] == "declina"]
+
+    assert casos, "el corpus dorado no declara casos de declinación"
+    for caso in casos:
+        declinada = _declinacion_de(corpus_dorado.programa_de_caso(caso))
+        assert isinstance(declinada.causa, declinacion.Causa), caso["id"]
+
+
+def test_el_detalle_tecnico_se_conserva_en_el_log(tmp_path, monkeypatch, caplog):
+    """RF-5: el detalle técnico queda para diagnóstico, fuera del mensaje y del registro."""
+    import logging
+
+    pytest.importorskip("cadquery")
+    from m2_cad import api
+
+    detalle = "part-build-error at parts[0].params: bore 20 > outer_d 10"
+
+    def fallar(texto, **kwargs):
+        raise pipeline.ErrorVerificacion(
+            detalle, causa=declinacion.Causa.DIMENSION_INCOHERENTE
+        )
+
+    monkeypatch.setenv("LLM_BASE_URL", "http://llama:8080")
+    monkeypatch.setattr(pipeline, "generar_pieza", fallar)
+
+    with caplog.at_level(logging.WARNING), pytest.raises(api.FalloHTTP) as excinfo:
+        api.procesar_con_pipeline("Espaciador con agujero grande", {})
+
+    assert detalle not in str(excinfo.value.detail)
+    assert detalle in caplog.text
+
+
+def test_el_worker_registra_la_causa_del_trabajo_declinado(tmp_path):
+    """AC3 en la cola persistente: la fila del worker lleva la causa estructurada."""
+    from datetime import UTC, datetime
+
+    from m2_cad import seguimiento, worker
+
+    ruta = tmp_path / "registro.csv"
+    trabajo = {
+        "id": "trabajo-1",
+        "texto": "Ensamble de dos bridas",
+        "creado_en": datetime.now(UTC).isoformat(),
+        "usuario": "ana",
+        "request_id": "req-1",
+    }
+    terminal = {
+        "solicitud_id": "trabajo-1",
+        "estado": "declinado",
+        "motivo": "la solicitud está fuera del catálogo del asistente",
+        "codigo_http": 422,
+    }
+
+    worker.registrar_terminal(
+        trabajo,
+        terminal,
+        {"causa": "familia_no_soportada"},
+        seguimiento.Configuracion(activo=False),
+        ruta,
+    )
+
+    import csv
+
+    with ruta.open(newline="", encoding="utf-8") as archivo:
+        fila = next(csv.DictReader(archivo))
+    assert fila["causa"] == "familia_no_soportada"
+    assert fila["error"] == terminal["motivo"]

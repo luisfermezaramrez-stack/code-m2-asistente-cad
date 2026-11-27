@@ -255,6 +255,34 @@ def test_migra_un_registro_anterior_sin_perder_filas(tmp_path, columnas):
     assert filas[0]["causa"] == "ninguna"
 
 
+def test_un_registro_vacio_se_reconstruye(tmp_path):
+    """Un CSV de 0 bytes no rompe el alta: se reescribe la cabecera."""
+    ruta = tmp_path / "registro.csv"
+    ruta.write_bytes(b"")
+
+    fila = registrar(
+        texto="Placa", traduccion="no aplica", resultado=None, latencia_ms=1, ruta=ruta
+    )
+
+    assert fila["causa"] == "ninguna"
+    assert len(leer_registro(ruta)) == 1
+
+
+def test_una_causa_fuera_del_catalogo_se_rechaza(tmp_path):
+    """S13: una causa nueva entra al catálogo, nunca como texto libre."""
+    ruta = tmp_path / "registro.csv"
+
+    with pytest.raises(ValueError, match="no es una causa del catálogo"):
+        registrar(
+            texto="Brida",
+            traduccion="no aplica",
+            resultado=None,
+            latencia_ms=1,
+            causa="porque sí",
+            ruta=ruta,
+        )
+
+
 def test_una_cabecera_desconocida_no_se_migra(tmp_path):
     """La migración sólo añade columnas al final; no reordena ni inventa."""
     from m2_cad.registro import _asegurar_columnas

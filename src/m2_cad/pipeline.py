@@ -58,7 +58,6 @@ CATALOGO = {
     "pipe": "tubo",
 }
 # HU-26: el prefijo y el catálogo de causas viven en `declinacion` (una sola fuente).
-PREFIJO_DECLINACION = declinacion.PREFIJO
 
 # Prompt de sistema para DeepSeek (HU-14): el modelo no está afinado para el DSL
 # de constraint-kit, así que el prompt describe los parámetros de cada tipo del

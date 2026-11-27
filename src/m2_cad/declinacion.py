@@ -73,6 +73,20 @@ QUE_HARIA_FALTA = {
 }
 
 
+def normalizar(valor: object) -> str:
+    """Valida una causa antes de persistirla: el catálogo es cerrado (RF-1, S13).
+
+    Un valor ajeno al catálogo no se guarda como texto libre: es un defecto de quien
+    llama y debe verse, no convertirse en una dimensión de métricas inválida.
+    """
+    texto = NINGUNA if valor is None else str(valor).strip()
+    if not texto:
+        return NINGUNA
+    if texto != NINGUNA and texto not in {causa.value for causa in Causa}:
+        raise ValueError(f"«{texto}» no es una causa del catálogo de declinación.")
+    return texto
+
+
 def causa_de_informe(informe: dict) -> Causa:
     """Traduce el informe del verificador a una causa del catálogo (RF-2).
 

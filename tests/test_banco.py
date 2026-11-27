@@ -113,6 +113,11 @@ def test_evaluar_caso(tmp_path, fila, generar, estado, correcto):
     assert registro["estado"] == estado
     assert registro["correcto"] is correcto
     assert registro["id"] == fila["id"]
+    if estado == "declinada":
+        # HU-26/AC1: la declinación del banco lleva su causa del catálogo.
+        assert registro["causa"] == "familia_no_soportada"
+    else:
+        assert registro["causa"] == "ninguna"
 
 
 def test_modelo_no_disponible_detiene_el_banco(tmp_path):

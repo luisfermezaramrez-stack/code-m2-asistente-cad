@@ -16,6 +16,7 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+from m2_cad import declinacion
 from m2_cad.autenticacion import ANONIMO
 from m2_cad.declinacion import NINGUNA
 from m2_cad.persistencia_registro import _bloqueo, _publicar_bytes, anexar_sin_duplicar
@@ -71,14 +72,20 @@ def _asegurar_columnas(ruta: Path) -> None:
             actuales = lector.fieldnames or []
             if actuales == CAMPOS:
                 return
-            if actuales != CAMPOS[: len(actuales)]:
-                raise ValueError("La cabecera del registro no coincide con CAMPOS.")
-            nuevas = CAMPOS[len(actuales) :]
-            if any(clave not in _DEFECTOS_NUEVAS for clave in nuevas):
-                raise ValueError("La cabecera del registro no coincide con CAMPOS.")
-            filas = [
-                {**fila, **{clave: _DEFECTOS_NUEVAS[clave] for clave in nuevas}} for fila in lector
-            ]
+            if not actuales:
+                # HU-36: un registro vacío (0 bytes) se reconstruye con su cabecera.
+                filas: list[dict[str, str]] = []
+                nuevas: list[str] = []
+            else:
+                if actuales != CAMPOS[: len(actuales)]:
+                    raise ValueError("La cabecera del registro no coincide con CAMPOS.")
+                nuevas = CAMPOS[len(actuales) :]
+                if any(clave not in _DEFECTOS_NUEVAS for clave in nuevas):
+                    raise ValueError("La cabecera del registro no coincide con CAMPOS.")
+                filas = [
+                    {**fila, **{clave: _DEFECTOS_NUEVAS[clave] for clave in nuevas}}
+                    for fila in lector
+                ]
         salida = io.StringIO(newline="")
         escritor = csv.DictWriter(salida, fieldnames=CAMPOS)
         escritor.writeheader()
@@ -126,7 +133,7 @@ def registrar(
         "error": _a_valor_conocido(error, "ninguno"),
         "version": _a_valor_conocido(version, "desconocida"),
         "usuario": _a_valor_conocido(usuario, ANONIMO),
-        "causa": _a_valor_conocido(causa, NINGUNA),
+        "causa": declinacion.normalizar(causa),
     }
 
     destino = Path(ruta).resolve()

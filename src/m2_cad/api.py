@@ -227,7 +227,7 @@ class DeclinacionSolicitud(HTTPException):
         motivo: str,
         programa_json: Path | None = None,
         *,
-        causa: declinacion.Causa = declinacion.Causa.FAMILIA_NO_SOPORTADA,
+        causa: declinacion.Causa,
     ) -> None:
         super().__init__(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -300,6 +300,20 @@ def _preparar_medicion(pipeline, medido: dict) -> Callable[[dict], None]:
     return medir_uso
 
 
+def _anotar_detalle(exc: Exception) -> None:
+    """Conserva el detalle técnico de una declinación para diagnóstico (RF-5).
+
+    Se registra en el log estructurado —redactado por HU-24— y nunca se muestra como
+    mensaje ni se escribe en el registro consultable: el usuario no debe leer jerga.
+    """
+    detalle = getattr(exc, "detalle", None)
+    logger.warning(
+        "declinación con causa %s; detalle técnico: %s",
+        getattr(exc, "causa", None),
+        detalle or "sin detalle",
+    )
+
+
 def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str, str]:
     """Genera la pieza con el pipeline CAD (HU-04) y traduce sus errores a HTTP.
 
@@ -319,9 +333,11 @@ def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str,
         medido.update(
             familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa)
         )
+        _anotar_detalle(exc)
         raise DeclinacionSolicitud(exc.motivo, exc.programa_json, causa=exc.causa) from exc
     except (pipeline.ErrorGeneracion, pipeline.ErrorVerificacion) as exc:
         medido.update(familia="desconocida", causa=str(exc.causa))
+        _anotar_detalle(exc)
         raise FalloHTTP(
             status.HTTP_422_UNPROCESSABLE_CONTENT, exc.mensaje, type(exc).__name__
         ) from exc
@@ -364,9 +380,11 @@ def procesar_con_progreso(
         medido.update(
             familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa)
         )
+        _anotar_detalle(exc)
         raise SolicitudDeclinada(exc.motivo) from exc
     except (pipeline.ErrorGeneracion, pipeline.ErrorVerificacion) as exc:
         medido.update(familia="desconocida", causa=str(exc.causa))
+        _anotar_detalle(exc)
         raise FalloHTTP(422, exc.mensaje, type(exc).__name__) from exc
     except pipeline.ModeloNoDisponible as exc:
         medido["familia"] = "desconocida"
