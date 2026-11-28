@@ -28,9 +28,9 @@ from fastapi import (
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StrictFloat, StrictInt, field_validator
 
-from m2_cad import declinacion, metricas, seguimiento, versiones
+from m2_cad import declinacion, metricas, plantillas, seguimiento, versiones
 from m2_cad.autenticacion import (
     ANONIMO,
     LimiteIntentos,
@@ -241,6 +241,80 @@ class RespuestaEdicion(BaseModel):
     caja_mm: str
     tiempo_generacion_s: str
     tiempo_construccion_s: str
+
+
+class ParametroPlantilla(BaseModel):
+    """Parámetro ajustable de una plantilla, con unidad y rango válido (HU-49, RF-1)."""
+
+    nombre: str
+    etiqueta: str
+    unidad: str
+    defecto: int | float
+    minimo: int | float
+    maximo: int | float
+    entero: bool = False
+    valores: list[int | float] | None = None
+
+
+class PlantillaPublica(BaseModel):
+    """Plantilla visible para el usuario: sin propietario ni programa DSL (HU-49)."""
+
+    id: str
+    nombre: str
+    descripcion: str
+    tipo: str
+    familia: str
+    origen: Literal["catalogo", "guardada"]
+    parametros: list[ParametroPlantilla]
+
+
+class RespuestaPlantillas(BaseModel):
+    """Catálogo versionado seguido de las plantillas guardadas del usuario (HU-49)."""
+
+    plantillas: list[PlantillaPublica]
+
+
+class SolicitudInstancia(BaseModel):
+    """Valores de los parámetros; los omitidos toman su valor por defecto (HU-49, RF-2)."""
+
+    # Estrictos: «"6"» o «true» no se convierten en números en silencio.
+    valores: dict[str, StrictInt | StrictFloat] = Field(
+        default_factory=dict,
+        description="Valor por nombre de parámetro; se valida contra su rango antes de construir.",
+    )
+
+
+class SolicitudGuardarPlantilla(BaseModel):
+    """Solicitud entregada que se guarda como plantilla del usuario (HU-49, RF-3)."""
+
+    solicitud_id: str = Field(description="Id de una solicitud entregada del usuario.")
+    nombre: str = Field(description="Nombre de la plantilla, de 1 a 80 caracteres.")
+
+
+class FirmaGeometrica(BaseModel):
+    """Firma geométrica del núcleo (`dsl.signature`) de la pieza construida (HU-49, AC3)."""
+
+    volume: float
+    area: float
+    bbox_sorted: list[float]
+    n_solids: int
+    n_faces: int
+    n_edges: int
+
+
+class RespuestaInstancia(BaseModel):
+    """Pieza construida desde una plantilla, sin modelo, con su firma (HU-49, AC1)."""
+
+    solicitud_id: str
+    step: str
+    glb: str
+    bom_csv: str
+    aviso: str
+    volumen_mm3: str
+    caja_mm: str
+    tiempo_generacion_s: str
+    tiempo_construccion_s: str
+    firma: FirmaGeometrica
 
 
 @router.get("/health")
@@ -1564,6 +1638,244 @@ def historial_de_versiones(
             for entrada in guardadas
         ],
     )
+
+
+_PLANTILLA_INEXISTENTE = "La plantilla no existe."
+_INDICE_PLANTILLAS_ILEGIBLE = (
+    "Las plantillas guardadas no están disponibles: el índice no se pudo leer."
+)
+
+
+def _frase(mensaje: str) -> str:
+    """Mensaje de dominio con mayúscula inicial, listo para mostrarse al usuario."""
+    return mensaje[:1].upper() + mensaje[1:]
+
+
+def _plantilla_publica(entrada: dict[str, Any], origen: str) -> PlantillaPublica:
+    """Forma pública de una plantilla: nunca expone `usuario` ni `programa` (HU-49, S7)."""
+    return PlantillaPublica(
+        id=str(entrada["id"]),
+        nombre=str(entrada.get("nombre") or ""),
+        descripcion=str(entrada.get("descripcion") or ""),
+        tipo=str(entrada.get("tipo") or ""),
+        familia=str(entrada.get("familia") or ""),
+        origen=origen,
+        parametros=[
+            ParametroPlantilla(
+                nombre=str(parametro["nombre"]),
+                etiqueta=str(parametro.get("etiqueta") or parametro["nombre"]),
+                unidad=str(parametro.get("unidad") or "mm"),
+                defecto=parametro["defecto"],
+                minimo=parametro["minimo"],
+                maximo=parametro["maximo"],
+                entero=bool(parametro.get("entero", False)),
+                valores=parametro.get("valores") or None,
+            )
+            for parametro in plantillas.parametros_de(entrada).values()
+        ],
+    )
+
+
+@router.get(
+    "/plantillas",
+    response_model=RespuestaPlantillas,
+    responses={409: {"description": "El índice de plantillas guardadas no se pudo leer."}},
+)
+def listar_plantillas(
+    usuario: Annotated[str, Depends(usuario_actual)],
+) -> RespuestaPlantillas:
+    """Catálogo versionado y, después, las plantillas guardadas del usuario (HU-49, RF-1).
+
+    Las guardadas por otro usuario no aparecen (S7); ninguna plantilla expone su
+    propietario ni su programa DSL.
+    """
+    catalogo = [
+        _plantilla_publica(entrada, "catalogo") for entrada in plantillas.cargar_catalogo().values()
+    ]
+    try:
+        guardadas = plantillas.listar_guardadas(usuario)
+    except plantillas.ErrorPlantilla as exc:
+        logger.warning("índice de plantillas ilegible: %s", exc)
+        raise HTTPException(status.HTTP_409_CONFLICT, _INDICE_PLANTILLAS_ILEGIBLE) from exc
+    return RespuestaPlantillas(
+        plantillas=catalogo + [_plantilla_publica(entrada, "guardada") for entrada in guardadas]
+    )
+
+
+def _construir_plantilla(programa: dict, medido: dict) -> Any:
+    """Construye el programa de una plantilla y traduce sus errores a HTTP (HU-49, RF-2).
+
+    Mismo criterio que `procesar_con_pipeline`: declinación y verificación fallida
+    responden 422 con el mensaje legible; la causa queda en `medido` para el registro.
+    """
+    # Importación diferida: el núcleo CAD (cadquery/OCP) solo se carga al usarlo.
+    from m2_cad import pipeline
+
+    try:
+        return pipeline.construir_desde_programa(programa)
+    except pipeline.PiezaDeclinada as exc:
+        medido["causa"] = str(exc.causa)
+        _anotar_detalle(exc)
+        raise DeclinacionSolicitud(exc.motivo, exc.programa_json, causa=exc.causa) from exc
+    except (pipeline.ErrorGeneracion, pipeline.ErrorVerificacion) as exc:
+        medido["causa"] = str(exc.causa)
+        _anotar_detalle(exc)
+        raise FalloHTTP(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, exc.mensaje, type(exc).__name__
+        ) from exc
+
+
+@router.post(
+    "/plantillas/{plantilla_id}/instanciar",
+    response_model=RespuestaInstancia,
+    responses={
+        404: {"description": "La plantilla no existe o es de otro usuario."},
+        422: {
+            "description": (
+                "Parámetro desconocido, no numérico o fuera de rango (antes de construir), "
+                "o pieza que no pasa la verificación determinista."
+            )
+        },
+    },
+)
+def instanciar_plantilla(
+    plantilla_id: str,
+    solicitud: SolicitudInstancia,
+    request: Request,
+    response: Response,
+    control: Annotated[ControlUso, Depends(obtener_control_uso)],
+    usuario: Annotated[str, Depends(usuario_actual)],
+) -> RespuestaInstancia:
+    """Instancia una plantilla y entrega la pieza sin llamar al modelo (HU-49, AC1/AC2).
+
+    Especificación: specs/050-hu-49-plantillas-parametrizadas/spec.md
+    - RF-4 (S3): la plantilla y los valores se validan **antes** de construir; un valor
+      fuera de rango responde 422 nombrando el parámetro y su rango.
+    - RF-2 (S2): el programa pasa por el mismo camino de construcción que el flujo por
+      texto; la pieza queda en el registro y como versión 1 del historial (HU-35), así
+      que también puede guardarse como plantilla.
+    - RNF-1 (S6): no hay LLM ni tokens, así que no consume el presupuesto diario ni
+      abre una corrida MLflow. Construir CAD sí cuesta CPU: una instancia válida ocupa
+      el límite por ventana de la sesión (HU-32) con `control.reservar_ventana`.
+    """
+    try:
+        plantilla = plantillas.obtener(plantilla_id, usuario)
+    except plantillas.ErrorPlantilla as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, _PLANTILLA_INEXISTENTE) from exc
+    try:
+        programa = plantillas.instanciar(plantilla, solicitud.valores)
+    except plantillas.ErrorParametro as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, _frase(str(exc))) from exc
+    control.reservar_ventana(_sesion(request, usuario))
+
+    solicitud_id = _identificador(request)
+    texto = f"plantilla {plantilla_id}: {solicitud.valores}"
+    cabeceras = _cabeceras_registro(request, solicitud_id)
+    medido: dict[str, Any] = {}
+    with contexto_solicitud(request_id=solicitud_id):
+        logger.info("solicitud recibida: POST /plantillas/{id}/instanciar")
+        inicio = time.perf_counter()
+        try:
+            resultado = _construir_plantilla(programa, medido)
+        except HTTPException as exc:
+            registrar(
+                texto=texto,
+                traduccion=SIN_TRADUCCION,
+                resultado=None,
+                latencia_ms=(time.perf_counter() - inicio) * 1000,
+                error=str(exc.detail),
+                version="plantilla",
+                ruta=obtener_ruta_registro(),
+                identificador=solicitud_id,
+                usuario=usuario,
+                causa=medido.get("causa"),
+            )
+            exc.headers = {**(exc.headers or {}), **cabeceras}
+            raise
+        except Exception as exc:
+            registrar(
+                texto=texto,
+                traduccion=SIN_TRADUCCION,
+                resultado=None,
+                latencia_ms=(time.perf_counter() - inicio) * 1000,
+                error=type(exc).__name__,
+                version="plantilla",
+                ruta=obtener_ruta_registro(),
+                identificador=solicitud_id,
+                usuario=usuario,
+            )
+            logger.warning("instancia de plantilla en error (%s)", type(exc).__name__)
+            raise HTTPException(500, "Fallo técnico del pipeline.", headers=cabeceras) from exc
+
+        respuesta = resultado.a_respuesta()
+        # HU-35: la pieza deja su versión 1, así se puede ver y guardar como plantilla.
+        _registrar_version_inicial(
+            solicitud_id,
+            usuario,
+            {
+                "programa": resultado.programa,
+                "artefactos": [
+                    ruta
+                    for ruta in (
+                        resultado.programa_json,
+                        resultado.step,
+                        resultado.glb,
+                        resultado.bom_csv,
+                    )
+                    if ruta is not None
+                ],
+            },
+        )
+        registrar(
+            texto=texto,
+            traduccion=SIN_TRADUCCION,
+            resultado=respuesta,
+            latencia_ms=(time.perf_counter() - inicio) * 1000,
+            version="plantilla",
+            ruta=obtener_ruta_registro(),
+            identificador=solicitud_id,
+            usuario=usuario,
+        )
+        response.headers.update(cabeceras)
+        response.headers["X-Download-Token"] = emitir_token(solicitud_id)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Step-URL"] = str(
+            request.url_for("descargar_step", identificador=solicitud_id)
+        )
+        logger.info("plantilla instanciada")
+    return RespuestaInstancia(
+        **respuesta, solicitud_id=solicitud_id, firma=FirmaGeometrica(**resultado.firma)
+    )
+
+
+@router.post(
+    "/plantillas",
+    response_model=PlantillaPublica,
+    responses={
+        404: {"description": "La solicitud no existe o no es del usuario."},
+        409: {"description": "El historial de versiones guardado no se pudo leer."},
+        422: {"description": "Nombre inválido o tipo de pieza sin plantilla de catálogo."},
+    },
+)
+def guardar_plantilla(
+    solicitud: SolicitudGuardarPlantilla,
+    usuario: Annotated[str, Depends(usuario_actual)],
+) -> PlantillaPublica:
+    """Guarda la última versión de una solicitud propia como plantilla (HU-49, RF-3/AC3).
+
+    Reutiliza el programa DSL del historial de HU-35; una solicitud ajena responde 404
+    igual que una inexistente (S7). La plantilla queda a nombre del usuario.
+    """
+    try:
+        clave = versiones.validar_solicitud_id(solicitud.solicitud_id)
+    except versiones.ErrorVersiones as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES) from exc
+    version = _historial_propio(clave, usuario)[-1]
+    try:
+        guardada = plantillas.guardar(usuario, solicitud.nombre, version["programa"])
+    except plantillas.ErrorPlantilla as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, _frase(str(exc))) from exc
+    return _plantilla_publica(guardada, "guardada")
 
 
 # La sesión es sólo un control de acceso: el gasto es global, no por usuario.

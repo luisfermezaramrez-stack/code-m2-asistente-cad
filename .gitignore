@@ -51,6 +51,9 @@ data/backups/
 data/cola.json
 data/versiones/
 
+# ===== HU-49: plantillas guardadas por los usuarios (con propietario) =====
+data/plantillas.json
+
 # ===== Archify (carpeta de trabajo del diagrama; la fuente versionada es docs/arquitectura.json) =====
 .archify/
 
