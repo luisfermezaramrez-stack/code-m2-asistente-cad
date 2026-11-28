@@ -95,4 +95,5 @@ entregan en un solo PR. Issues y PR se registran al abrirlos.
 | --- | --- | --- | --- | --- | --- |
 | [059](059-hu-58-login-primera-pantalla/) | HU-58 · El login como primera pantalla y el tema sol/luna | — | — | Spec-first | Implementada en local; PR pendiente |
 | [060](060-hu-59-retirar-metricas-ajustes/) | HU-59 · Retirar «Métricas» y «Ajustes» de la interfaz | — | — | Spec-first | Implementada en local; PR pendiente |
-| [061](061-hu-60-card-proceso-bajo-descripcion/) | HU-60 · La card de proceso bajo la descripción de la pieza | — | — | Spec-first | Implementada en local; PR pendiente |
+| [061](061-hu-60-card-proceso-bajo-descripcion/) | HU-60 · La card de proceso compacta bajo la acción de generar | — | — | Spec-first | Implementada en local; PR pendiente |
+| [062](062-hu-61-sin-aviso-profesional/) | HU-61 · Sin aviso profesional persistente en el shell | — | — | Spec-first | Implementada en local; PR pendiente |

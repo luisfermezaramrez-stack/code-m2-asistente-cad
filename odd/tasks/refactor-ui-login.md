@@ -24,6 +24,14 @@ Las specs formales viven en `specs/059`, `specs/060` y `specs/061`.
   como contrato de la API (…): la retirada es de interfaz, no de backend.» (SPEC-060, RF-5)
 - **S7** — «la card de proceso debe quedar inmediatamente debajo de donde se describe la
   pieza» (pedido del usuario, L1). (SPEC-061, RF-1)
+- **S8** — «quiero insertar de manera compacta la card de proceso debajo del boton de generar
+  pieza» (pedido del usuario, L4). La card vive dentro del panel «Describe tu pieza», después
+  de las acciones, sin borde ni fondo de panel propio y con título de menor jerarquía visual.
+  (SPEC-061, RF-1 y RF-2, segunda iteración)
+- **S9** — «eliminar este label "Diseño preliminar: requiere revisión profesional / La
+  verificación geométrica no certifica resistencia ni cumplimiento normativo."» (pedido del
+  usuario, L4). El shell deja de mostrarlo; la marca preliminar sigue en el campo `aviso` de
+  la API. (SPEC-062, RF-1 y RF-2)
 
 ## Tasks
 
@@ -31,8 +39,9 @@ Las specs formales viven en `specs/059`, `specs/060` y `specs/061`.
 | --- | --- | --- | --- |
 | T1 | S1, S2, S3 | in-line | `feat(hu-58): pantalla de acceso como primera vista y tema sol/luna` |
 | T2 | S4, S5, S6 | in-line | `refactor(hu-59): retirar Métricas y Ajustes de la interfaz` |
-| T3 | S7 | in-line | `refactor(hu-60): mover la card de proceso bajo la descripción` |
-| T4 | S1-S7 | in-line | `test(hu-58-60): cubrir acceso, menú y orden del panel de proceso` |
+| T3 | S7, S8 | in-line | `refactor(hu-60): mover la card de proceso bajo la descripción` |
+| T4 | S1-S9 | in-line | `test(hu-58-60): cubrir acceso, menú y orden del panel de proceso` |
+| T5 | S9 | in-line | `refactor(hu-61): retirar el aviso profesional del shell` |
 
 ## Log
 
@@ -47,3 +56,7 @@ Las specs formales viven en `specs/059`, `specs/060` y `specs/061`.
   las historias en el GitHub Project quedan en espera del visto bueno sobre la vista local.
 - **L3**: decisión del responsable sobre «Métricas»: se borra la vista y sus pruebas; el
   endpoint `/v1/metricas` permanece en la API (S6).
+- **L4**: «ademas eliminar este label "Diseño preliminar: requiere revisión profesional / La
+  verificación geométrica no certifica resistencia ni cumplimiento normativo." / quiero
+  insertar de manera compacta la card de proceso debajo del boton de generar pieza» — segunda
+  iteración de diseño tras ver la vista local (S8, S9).
