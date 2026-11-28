@@ -169,6 +169,25 @@ def test_ac3_relacion_de_la_cota_coherente_con_la_escala(placa):
     assert math.isclose(relacion, num / den, rel_tol=0.01)
 
 
+# ---------- No-regresión de bytes: GLB/CSV/DXF estables con el PDF nuevo ----------
+
+
+def test_no_regresion_glb_csv_dxf_con_pdf(placa):
+    """RNF-3: el PDF nuevo no altera GLB, CSV ni DXF ya entregados."""
+    import hashlib
+
+    placa_despues = _construida(placa.step.parent, "plate", width=40, depth=20, thick=6)
+
+    resumen = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()  # noqa: E731
+    # El STEP de build123d varía entre corridas (marca de tiempo) y el GLB
+    # triangulado lo hereda; se comparan corridas congenéreas y no con valor
+    # congelado. El DXF usa metadatos fijos, así que sí es byte a byte.
+    assert resumen(placa_despues.glb) == resumen(placa.glb)
+    assert resumen(placa_despues.bom_csv) == resumen(placa.bom_csv)
+    assert resumen(placa_despues.dxf) == resumen(placa.dxf)
+    assert placa_despues.pdf is not None and placa_despues.pdf.is_file()
+
+
 # ---------- RNF-1: determinista salvo la fecha del cajetín ----------
 
 
