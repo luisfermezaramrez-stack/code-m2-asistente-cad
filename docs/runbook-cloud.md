@@ -34,7 +34,7 @@ Sólo se listan nombres; los valores se inyectan desde el entorno del proveedor.
 | --- | --- | --- |
 | `M2_IMAGE` | Imagen inmutable de API y worker | etiqueta o digest; nunca `latest` |
 | `M2_DOMAIN` | Sitio TLS y origen CORS | hostname sin esquema, puerto ni comodín |
-| `M2_TLS_EMAIL` | Correo de administración para Caddy | dirección válida |
+| `M2_TLS_EMAIL` | Correo de administración para Caddy | obligatorio: vacío deja el Caddyfile inválido |
 | `DEEPSEEK_API_KEY` | Llamadas al modelo (HU-14) | gestor de secretos; length ≥ 8 |
 | `M2_DOWNLOAD_SECRET` | Firma de descargas (HU-36) | gestor de secretos; length ≥ 32 |
 | `M2_AUTH_SECRET` | Firma de la cookie (HU-53) | gestor de secretos; length ≥ 32 |
@@ -43,8 +43,11 @@ Sólo se listan nombres; los valores se inyectan desde el entorno del proveedor.
 | `M2_LOG_LEVEL` | Nivel de logging estructurado | valor por defecto `INFO` |
 | `MLFLOW_TRACKING_ENABLED` | Seguimiento opcional | por defecto `0` en la nube |
 
-La API fuerza `M2_AUTH_ENABLED=1`, `M2_AUTH_COOKIE_SECURE=1`, `M2_COLA_HABILITADA=1`
-y `M2_CORS_ORIGINS=https://$M2_DOMAIN`. El worker comparte la cola y los artefactos
+La API fuerza `M2_AUTH_ENABLED=1`, `M2_AUTH_COOKIE_SECURE=1`, `M2_COLA_HABILITADA=1`,
+`M2_CORS_ORIGINS=https://$M2_DOMAIN` y `FORWARDED_ALLOW_IPS=*`: la API no publica
+puertos de host, así que sólo la alcanzan Caddy y el worker de la red interna; el
+`X-Forwarded-For` de Caddy da la IP real que usa el límite de intentos de login.
+El worker comparte la cola y los artefactos
 mediante los volúmenes `m2-cad-data` y `m2-cad-outputs`. Caddy escucha en `80/443`,
 termina TLS y no publica el puerto `8000` de la API.
 

@@ -50,6 +50,7 @@ def revisar_estructura() -> list[str]:
         "name: m2-cad-cloud",
         "image: ${M2_IMAGE:?Defina M2_IMAGE}",
         "M2_CORS_ORIGINS: https://${M2_DOMAIN:?Defina M2_DOMAIN}",
+        "M2_TLS_EMAIL: ${M2_TLS_EMAIL:?Defina M2_TLS_EMAIL}",
         'M2_AUTH_ENABLED: "1"',
         'M2_AUTH_COOKIE_SECURE: "1"',
         'M2_COLA_HABILITADA: "1"',
@@ -67,6 +68,8 @@ def revisar_estructura() -> list[str]:
     worker = bloque_servicio(compose, "m2-cad-worker")
     if not api or not worker:
         errores.append("docker-compose.cloud.yml: faltan los servicios m2-cad y m2-cad-worker")
+    if 'FORWARDED_ALLOW_IPS: "*"' not in api:
+        errores.append("m2-cad debe confiar en X-Forwarded-For de Caddy (FORWARDED_ALLOW_IPS)")
     if "ports:" in api:
         errores.append("m2-cad no debe publicar puertos de host; Caddy termina TLS")
     if "m2_cad.worker" not in worker:
