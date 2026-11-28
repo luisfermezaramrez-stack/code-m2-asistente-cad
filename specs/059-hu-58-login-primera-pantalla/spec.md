@@ -4,7 +4,7 @@
 - **Historia**: #164 (HU-58) · 2 SP · Etiquetas: frontend, refactor, UX
 - **Responsable**: Luis Meza
 - **Rama**: `refactor/hu-58-60-interfaz-login` (HU-58, HU-59 y HU-60 en un solo PR)
-- **Estado**: Spec-first · implementada en local, pendiente de PR
+- **Estado**: Spec-first · en revisión (PR #170)
 - **Supera**: el requisito de shell de [SPEC-039](../039-hu-38-app-shell/spec.md) sobre el
   formulario de acceso dentro de la cabecera y el de [SPEC-054](../054-hu-53-autenticacion/spec.md)
   sobre el acceso conviviendo con la vista.

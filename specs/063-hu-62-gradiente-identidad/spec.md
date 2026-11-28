@@ -4,7 +4,7 @@
 - **Historia**: #168 (HU-62) · 1 SP · Etiquetas: frontend, refactor, UX
 - **Responsable**: Luis Meza
 - **Rama**: `refactor/hu-58-60-interfaz-login` (HU-58 a HU-62 en un solo PR)
-- **Estado**: Spec-first · implementada en local, pendiente de PR
+- **Estado**: Spec-first · en revisión (PR #170)
 - **Extiende**: la paleta de [SPEC-035](../035-hu-34-sistema-diseno-v2/spec.md) con un gradiente
   de identidad; no cambia ningún color existente.
 

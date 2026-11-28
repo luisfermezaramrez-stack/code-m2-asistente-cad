@@ -4,7 +4,7 @@
 - **Historia**: #166 (HU-60) · 2 SP · Etiquetas: frontend, refactor, UX
 - **Responsable**: Luis Meza
 - **Rama**: `refactor/hu-58-60-interfaz-login` (HU-58 a HU-61 en un solo PR)
-- **Estado**: Spec-first · implementada en local, pendiente de PR
+- **Estado**: Spec-first · en revisión (PR #170)
 - **Ajusta**: el layout de paneles de [SPEC-039](../039-hu-38-app-shell/spec.md) en la vista de
   nueva solicitud. Quinta iteración tras la revisión visual.
 
