@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from m2_cad import api, corpus_dorado, pipeline, plantillas, seguimiento
+from m2_cad import api, control_uso, corpus_dorado, pipeline, plantillas, seguimiento
 
 PROGRAMA = {
     "parts": [
@@ -251,3 +251,33 @@ def test_el_flujo_por_texto_y_las_versiones_siguen_igual(tmp_path, monkeypatch):
     assert historial.status_code == 200
     assert historial.json()["versiones"][0]["programa"]["parts"][0]["type"] == "plate"
     assert cliente.get("/v1/health").status_code == 200
+
+
+@pytest.mark.parametrize("valor", ["6", True])
+def test_la_api_no_convierte_textos_ni_booleanos_en_numeros(valor):
+    cliente = TestClient(api.app)
+
+    respuesta = cliente.post(
+        "/v1/plantillas/placa-con-agujeros/instanciar", json={"valores": {"thick": valor}}
+    )
+
+    assert respuesta.status_code == 422
+
+
+def test_instanciar_respeta_el_limite_por_ventana_de_la_sesion(monkeypatch):
+    """Sin LLM no hay gasto, pero construir CAD sí ocupa la ventana por sesión (HU-32)."""
+    control = control_uso.ControlUso(
+        control_uso.ConfiguracionUso(limite_ventana=1, ventana_segundos=60)
+    )
+    api.app.dependency_overrides[api.obtener_control_uso] = lambda: control
+    cliente = TestClient(api.app)
+    ruta = "/v1/plantillas/espaciador/instanciar"
+    try:
+        invalida = cliente.post(ruta, json={"valores": {"outer_d": -1}}).status_code
+        primera = cliente.post(ruta, json={}).status_code
+        segunda = cliente.post(ruta, json={}).status_code
+    finally:
+        api.app.dependency_overrides.pop(api.obtener_control_uso, None)
+
+    assert invalida == 422, "un parámetro inválido se rechaza sin ocupar la ventana"
+    assert (primera, segunda) == (200, 429)

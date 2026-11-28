@@ -28,7 +28,7 @@ from fastapi import (
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StrictFloat, StrictInt, field_validator
 
 from m2_cad import declinacion, metricas, plantillas, seguimiento, versiones
 from m2_cad.autenticacion import (
@@ -277,7 +277,8 @@ class RespuestaPlantillas(BaseModel):
 class SolicitudInstancia(BaseModel):
     """Valores de los parámetros; los omitidos toman su valor por defecto (HU-49, RF-2)."""
 
-    valores: dict[str, int | float] = Field(
+    # Estrictos: «"6"» o «true» no se convierten en números en silencio.
+    valores: dict[str, StrictInt | StrictFloat] = Field(
         default_factory=dict,
         description="Valor por nombre de parámetro; se valida contra su rango antes de construir.",
     )
@@ -1742,6 +1743,7 @@ def instanciar_plantilla(
     solicitud: SolicitudInstancia,
     request: Request,
     response: Response,
+    control: Annotated[ControlUso, Depends(obtener_control_uso)],
     usuario: Annotated[str, Depends(usuario_actual)],
 ) -> RespuestaInstancia:
     """Instancia una plantilla y entrega la pieza sin llamar al modelo (HU-49, AC1/AC2).
@@ -1752,9 +1754,9 @@ def instanciar_plantilla(
     - RF-2 (S2): el programa pasa por el mismo camino de construcción que el flujo por
       texto; la pieza queda en el registro y como versión 1 del historial (HU-35), así
       que también puede guardarse como plantilla.
-    - RNF-1 (S6): no hay LLM ni tokens, por eso **no** pasa por `control.reservar`
-      (límite por ventana y presupuesto diario del modelo) ni abre una corrida MLflow:
-      no hay uso del proveedor que medir.
+    - RNF-1 (S6): no hay LLM ni tokens, así que no consume el presupuesto diario ni
+      abre una corrida MLflow. Construir CAD sí cuesta CPU: una instancia válida ocupa
+      el límite por ventana de la sesión (HU-32) con `control.reservar_ventana`.
     """
     try:
         plantilla = plantillas.obtener(plantilla_id, usuario)
@@ -1764,6 +1766,7 @@ def instanciar_plantilla(
         programa = plantillas.instanciar(plantilla, solicitud.valores)
     except plantillas.ErrorParametro as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, _frase(str(exc))) from exc
+    control.reservar_ventana(_sesion(request, usuario))
 
     solicitud_id = _identificador(request)
     texto = f"plantilla {plantilla_id}: {solicitud.valores}"

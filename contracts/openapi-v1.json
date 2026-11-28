@@ -1401,7 +1401,7 @@
     },
     "/v1/plantillas/{plantilla_id}/instanciar": {
       "post": {
-        "description": "Instancia una plantilla y entrega la pieza sin llamar al modelo (HU-49, AC1/AC2).\n\nEspecificación: specs/050-hu-49-plantillas-parametrizadas/spec.md\n- RF-4 (S3): la plantilla y los valores se validan **antes** de construir; un valor\n  fuera de rango responde 422 nombrando el parámetro y su rango.\n- RF-2 (S2): el programa pasa por el mismo camino de construcción que el flujo por\n  texto; la pieza queda en el registro y como versión 1 del historial (HU-35), así\n  que también puede guardarse como plantilla.\n- RNF-1 (S6): no hay LLM ni tokens, por eso **no** pasa por `control.reservar`\n  (límite por ventana y presupuesto diario del modelo) ni abre una corrida MLflow:\n  no hay uso del proveedor que medir.",
+        "description": "Instancia una plantilla y entrega la pieza sin llamar al modelo (HU-49, AC1/AC2).\n\nEspecificación: specs/050-hu-49-plantillas-parametrizadas/spec.md\n- RF-4 (S3): la plantilla y los valores se validan **antes** de construir; un valor\n  fuera de rango responde 422 nombrando el parámetro y su rango.\n- RF-2 (S2): el programa pasa por el mismo camino de construcción que el flujo por\n  texto; la pieza queda en el registro y como versión 1 del historial (HU-35), así\n  que también puede guardarse como plantilla.\n- RNF-1 (S6): no hay LLM ni tokens, así que no consume el presupuesto diario ni\n  abre una corrida MLflow. Construir CAD sí cuesta CPU: una instancia válida ocupa\n  el límite por ventana de la sesión (HU-32) con `control.reservar_ventana`.",
         "operationId": "instanciar_plantilla_v1_plantillas__plantilla_id__instanciar_post",
         "parameters": [
           {

@@ -237,3 +237,26 @@ def test_verificar_detecta_valores_permitidos_fuera_del_rango(tmp_path):
     problemas = plantillas.verificar(roto)
 
     assert any("flange_class" in problema for problema in problemas)
+
+
+def test_un_entero_enorme_se_rechaza_como_parametro_y_no_como_fallo():
+    placa = plantillas.cargar_catalogo()["placa-con-agujeros"]
+
+    with pytest.raises(plantillas.ErrorParametro) as info:
+        plantillas.instanciar(placa, {"width": 10**400})
+
+    assert "width" in str(info.value)
+
+
+def test_una_brida_guardada_hereda_los_valores_permitidos_del_catalogo():
+    programa = plantillas.instanciar(plantillas.cargar_catalogo()["brida"])
+
+    parametros = {p["nombre"]: p for p in plantillas.derivar_parametros(programa)}
+
+    clase = parametros["flange_class"]
+    assert clase["valores"] == [150, 300, 400, 600, 900, 1500, 2500]
+    assert clase["unidad"] == "u"
+    assert clase["entero"] is True
+    assert clase["defecto"] == 150
+    with pytest.raises(plantillas.ErrorParametro):
+        plantillas.instanciar({"programa": programa, "parametros": [clase]}, {"flange_class": 200})

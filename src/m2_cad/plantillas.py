@@ -257,7 +257,12 @@ def _valor_valido(nombre: str, especificacion: dict[str, Any], crudo: Any) -> in
         raise ErrorParametro(
             f"el parámetro «{nombre}» ({etiqueta}) debe ser un número en {unidad}; recibí {crudo!r}"
         )
-    valor = float(crudo)
+    try:
+        valor = float(crudo)
+    except OverflowError as exc:
+        raise ErrorParametro(
+            f"el parámetro «{nombre}» ({etiqueta}) está fuera de cualquier rango válido"
+        ) from exc
     if especificacion.get("entero") and not valor.is_integer():
         raise ErrorParametro(
             f"el parámetro «{nombre}» ({etiqueta}) debe ser un entero; recibí {crudo:g}"
@@ -309,10 +314,17 @@ def derivar_parametros(programa: dict[str, Any]) -> list[dict[str, Any]]:
     valor por defecto es el original sin redondear, así que instanciar sin cambios
     reproduce la misma pieza (AC3).
     """
-    params = _tipo_de_la_parte(programa).get("params")
+    parte = _tipo_de_la_parte(programa)
+    params = parte.get("params")
+    discretos = _parametros_discretos(str(parte.get("type", "")))
     derivados: list[dict[str, Any]] = []
     for nombre, valor in (params or {}).items():
         if isinstance(valor, bool) or not isinstance(valor, (int, float)) or valor <= 0:
+            continue
+        if nombre in discretos and valor in discretos[nombre]["valores"]:
+            # Un valor discreto (p. ej. la clase ASME de una brida) hereda la lista
+            # permitida del catálogo: un ±50 % aceptaría valores que el núcleo rechaza.
+            derivados.append({**discretos[nombre], "defecto": valor})
             continue
         contador = nombre in CONTADORES
         if contador:
@@ -333,6 +345,21 @@ def derivar_parametros(programa: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     return derivados
+
+
+def _parametros_discretos(tipo: str) -> dict[str, dict[str, Any]]:
+    """Parámetros con `valores` permitidos que declara el catálogo para ese tipo."""
+    try:
+        catalogo = cargar_catalogo()
+    except ErrorPlantilla:
+        return {}
+    return {
+        nombre: deepcopy(especificacion)
+        for plantilla in catalogo.values()
+        if plantilla.get("tipo") == tipo
+        for nombre, especificacion in parametros_de(plantilla).items()
+        if especificacion.get("valores")
+    }
 
 
 def _leer_indice(destino: Path) -> dict[str, Any]:
