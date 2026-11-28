@@ -191,6 +191,8 @@ class ResultadoPieza:
     familia: str = ""
     programa_json: Path | None = None
     version_modelo: str = "desconocida"
+    #: Firma geométrica del núcleo (`dsl.signature`), para HU-49 (AC3).
+    firma: dict | None = None
     #: Plano DXF de vistas ortogonales (SPEC-043); None en dobles de prueba.
     dxf: Path | None = None
 
@@ -449,6 +451,7 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
         tiempo_construccion_s=duracion,
         familia=familia_de_programa(programa),
         programa_json=Path(directorio) / "programa.json",
+        firma=firma,
         dxf=Path(directorio) / f"{NOMBRE_PIEZA}.dxf",
     )
     plano_dxf.escribir(resultado_t, resultado_t.dxf)
@@ -686,6 +689,27 @@ def _construir_programa(
         familia=resultado.familia,
         programa_json=programa_json,
         version_modelo=version,
+        # HU-49 (AC3): la firma geométrica viaja hasta la API. El DXF no se propaga
+        # aquí a propósito: `/generar` conserva su cuerpo de respuesta (HU-35, RNF-2).
+        firma=resultado.firma,
+    )
+
+
+def construir_desde_programa(programa: dict, *, directorio: Path = RUTA_SALIDA) -> ResultadoPieza:
+    """Construye una pieza a partir de un programa DSL ya armado, sin el modelo (HU-49).
+
+    Especificación: specs/050-hu-49-plantillas-parametrizadas/spec.md
+    - RF-2 (S2): el programa de una plantilla pasa por el mismo camino que el de una
+      generación por texto (`validar_catalogo`, verificación determinista, exportación).
+    - RNF-1 (S6): no consulta al LLM, así que no gasta tokens; el tiempo de generación
+      es cero.
+    """
+    return _construir_programa(
+        programa,
+        directorio,
+        version="plantilla",
+        tiempo_generacion=0.0,
+        control=None,
     )
 
 

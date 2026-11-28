@@ -89,6 +89,48 @@
         "title": "EstadoTrabajo",
         "type": "object"
       },
+      "FirmaGeometrica": {
+        "description": "Firma geométrica del núcleo (`dsl.signature`) de la pieza construida (HU-49, AC3).",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "number"
+          },
+          "bbox_sorted": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Bbox Sorted",
+            "type": "array"
+          },
+          "n_edges": {
+            "title": "N Edges",
+            "type": "integer"
+          },
+          "n_faces": {
+            "title": "N Faces",
+            "type": "integer"
+          },
+          "n_solids": {
+            "title": "N Solids",
+            "type": "integer"
+          },
+          "volume": {
+            "title": "Volume",
+            "type": "number"
+          }
+        },
+        "required": [
+          "volume",
+          "area",
+          "bbox_sorted",
+          "n_solids",
+          "n_faces",
+          "n_edges"
+        ],
+        "title": "FirmaGeometrica",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -200,6 +242,143 @@
           "generado_en"
         ],
         "title": "PanoramaMetricas",
+        "type": "object"
+      },
+      "ParametroPlantilla": {
+        "description": "Parámetro ajustable de una plantilla, con unidad y rango válido (HU-49, RF-1).",
+        "properties": {
+          "defecto": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Defecto"
+          },
+          "entero": {
+            "default": false,
+            "title": "Entero",
+            "type": "boolean"
+          },
+          "etiqueta": {
+            "title": "Etiqueta",
+            "type": "string"
+          },
+          "maximo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Maximo"
+          },
+          "minimo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Minimo"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "unidad": {
+            "title": "Unidad",
+            "type": "string"
+          },
+          "valores": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valores"
+          }
+        },
+        "required": [
+          "nombre",
+          "etiqueta",
+          "unidad",
+          "defecto",
+          "minimo",
+          "maximo"
+        ],
+        "title": "ParametroPlantilla",
+        "type": "object"
+      },
+      "PlantillaPublica": {
+        "description": "Plantilla visible para el usuario: sin propietario ni programa DSL (HU-49).",
+        "properties": {
+          "descripcion": {
+            "title": "Descripcion",
+            "type": "string"
+          },
+          "familia": {
+            "title": "Familia",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "origen": {
+            "enum": [
+              "catalogo",
+              "guardada"
+            ],
+            "title": "Origen",
+            "type": "string"
+          },
+          "parametros": {
+            "items": {
+              "$ref": "#/components/schemas/ParametroPlantilla"
+            },
+            "title": "Parametros",
+            "type": "array"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "descripcion",
+          "tipo",
+          "familia",
+          "origen",
+          "parametros"
+        ],
+        "title": "PlantillaPublica",
         "type": "object"
       },
       "RegistroResumen": {
@@ -327,6 +506,81 @@
         "title": "RespuestaEdicion",
         "type": "object"
       },
+      "RespuestaInstancia": {
+        "description": "Pieza construida desde una plantilla, sin modelo, con su firma (HU-49, AC1).",
+        "properties": {
+          "aviso": {
+            "title": "Aviso",
+            "type": "string"
+          },
+          "bom_csv": {
+            "title": "Bom Csv",
+            "type": "string"
+          },
+          "caja_mm": {
+            "title": "Caja Mm",
+            "type": "string"
+          },
+          "firma": {
+            "$ref": "#/components/schemas/FirmaGeometrica"
+          },
+          "glb": {
+            "title": "Glb",
+            "type": "string"
+          },
+          "solicitud_id": {
+            "title": "Solicitud Id",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          },
+          "tiempo_construccion_s": {
+            "title": "Tiempo Construccion S",
+            "type": "string"
+          },
+          "tiempo_generacion_s": {
+            "title": "Tiempo Generacion S",
+            "type": "string"
+          },
+          "volumen_mm3": {
+            "title": "Volumen Mm3",
+            "type": "string"
+          }
+        },
+        "required": [
+          "solicitud_id",
+          "step",
+          "glb",
+          "bom_csv",
+          "aviso",
+          "volumen_mm3",
+          "caja_mm",
+          "tiempo_generacion_s",
+          "tiempo_construccion_s",
+          "firma"
+        ],
+        "title": "RespuestaInstancia",
+        "type": "object"
+      },
+      "RespuestaPlantillas": {
+        "description": "Catálogo versionado seguido de las plantillas guardadas del usuario (HU-49).",
+        "properties": {
+          "plantillas": {
+            "items": {
+              "$ref": "#/components/schemas/PlantillaPublica"
+            },
+            "title": "Plantillas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "plantillas"
+        ],
+        "title": "RespuestaPlantillas",
+        "type": "object"
+      },
       "RespuestaRegistros": {
         "description": "Listado de solicitudes propias registradas (HU-37, AC3).",
         "properties": {
@@ -443,6 +697,49 @@
           "texto"
         ],
         "title": "SolicitudGenerar",
+        "type": "object"
+      },
+      "SolicitudGuardarPlantilla": {
+        "description": "Solicitud entregada que se guarda como plantilla del usuario (HU-49, RF-3).",
+        "properties": {
+          "nombre": {
+            "description": "Nombre de la plantilla, de 1 a 80 caracteres.",
+            "title": "Nombre",
+            "type": "string"
+          },
+          "solicitud_id": {
+            "description": "Id de una solicitud entregada del usuario.",
+            "title": "Solicitud Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "solicitud_id",
+          "nombre"
+        ],
+        "title": "SolicitudGuardarPlantilla",
+        "type": "object"
+      },
+      "SolicitudInstancia": {
+        "description": "Valores de los parámetros; los omitidos toman su valor por defecto (HU-49, RF-2).",
+        "properties": {
+          "valores": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "description": "Valor por nombre de parámetro; se valida contra su rango antes de construir.",
+            "title": "Valores",
+            "type": "object"
+          }
+        },
+        "title": "SolicitudInstancia",
         "type": "object"
       },
       "ValidationError": {
@@ -1042,6 +1339,110 @@
           }
         },
         "summary": "Panorama Metricas"
+      }
+    },
+    "/v1/plantillas": {
+      "get": {
+        "description": "Catálogo versionado y, después, las plantillas guardadas del usuario (HU-49, RF-1).\n\nLas guardadas por otro usuario no aparecen (S7); ninguna plantilla expone su\npropietario ni su programa DSL.",
+        "operationId": "listar_plantillas_v1_plantillas_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaPlantillas"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "El índice de plantillas guardadas no se pudo leer."
+          }
+        },
+        "summary": "Listar Plantillas"
+      },
+      "post": {
+        "description": "Guarda la última versión de una solicitud propia como plantilla (HU-49, RF-3/AC3).\n\nReutiliza el programa DSL del historial de HU-35; una solicitud ajena responde 404\nigual que una inexistente (S7). La plantilla queda a nombre del usuario.",
+        "operationId": "guardar_plantilla_v1_plantillas_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudGuardarPlantilla"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlantillaPublica"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La solicitud no existe o no es del usuario."
+          },
+          "409": {
+            "description": "El historial de versiones guardado no se pudo leer."
+          },
+          "422": {
+            "description": "Nombre inválido o tipo de pieza sin plantilla de catálogo."
+          }
+        },
+        "summary": "Guardar Plantilla"
+      }
+    },
+    "/v1/plantillas/{plantilla_id}/instanciar": {
+      "post": {
+        "description": "Instancia una plantilla y entrega la pieza sin llamar al modelo (HU-49, AC1/AC2).\n\nEspecificación: specs/050-hu-49-plantillas-parametrizadas/spec.md\n- RF-4 (S3): la plantilla y los valores se validan **antes** de construir; un valor\n  fuera de rango responde 422 nombrando el parámetro y su rango.\n- RF-2 (S2): el programa pasa por el mismo camino de construcción que el flujo por\n  texto; la pieza queda en el registro y como versión 1 del historial (HU-35), así\n  que también puede guardarse como plantilla.\n- RNF-1 (S6): no hay LLM ni tokens, por eso **no** pasa por `control.reservar`\n  (límite por ventana y presupuesto diario del modelo) ni abre una corrida MLflow:\n  no hay uso del proveedor que medir.",
+        "operationId": "instanciar_plantilla_v1_plantillas__plantilla_id__instanciar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plantilla_id",
+            "required": true,
+            "schema": {
+              "title": "Plantilla Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudInstancia"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaInstancia"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La plantilla no existe o es de otro usuario."
+          },
+          "422": {
+            "description": "Parámetro desconocido, no numérico o fuera de rango (antes de construir), o pieza que no pasa la verificación determinista."
+          }
+        },
+        "summary": "Instanciar Plantilla"
       }
     },
     "/v1/ready": {
