@@ -99,3 +99,4 @@ entregan en un solo PR. Issues y PR se registran al abrirlos.
 | [062](062-hu-61-sin-aviso-profesional/) | HU-61 · Sin aviso profesional persistente en el shell | #167 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
 | [063](063-hu-62-gradiente-identidad/) | HU-62 · Gradiente de identidad del asistente CAD | #168 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
 | [064](064-hu-63-plantillas-y-atajo-visor/) | HU-63 · Plantillas legibles, sección en cards y atajo al visor 3D | #169 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
+| [065](065-hu-64-sin-atajo-visor/) | HU-64 · Quitar el atajo «Ver la pieza en el visor 3D» | #173 | — | Spec-first | Implementada en local; PR pendiente |

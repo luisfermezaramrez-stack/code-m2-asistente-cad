@@ -9,7 +9,6 @@ const flow = useGenerationContext()
 const { description, timeoutSeconds, job, stages, artifacts, busy, checking, cancelling, loadingFiles,
   message, inputError, filesError, disconnected, canCancel, canCheck, downloadToken } = flow
 const input = ref<HTMLTextAreaElement>()
-const visor = ref<HTMLElement | null>(null)
 const labels: Record<Stage, string> = {
   iniciando: 'Esperando información', validando: 'Validando solicitud', generando: 'Generando pieza',
   verificado: 'Pieza verificada', declinado: 'Solicitud declinada', error: 'No se pudo completar',
@@ -31,15 +30,6 @@ async function submit() {
   await nextTick()
   if (inputError.value) input.value?.focus()
   await run
-}
-
-// Un solo clic lleva al visor 3D y le deja el foco para seguir con el teclado.
-function verVisor(evento: MouseEvent) {
-  evento.preventDefault()
-  const seccion = visor.value
-  if (!seccion) return
-  seccion.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-  seccion.focus()
 }
 </script>
 
@@ -67,7 +57,6 @@ function verVisor(evento: MouseEvent) {
           <button v-if="busy" type="button" @click="flow.stopWaiting">Interrumpir espera</button>
           <button v-if="canCheck" type="button" :disabled="checking" @click="flow.refresh">{{ checking ? 'Consultando estado…' : 'Actualizar estado' }}</button>
         </div>
-        <p v-if="busy || job" class="ver-visor"><a href="#vista-3d" @click="verVisor">Ver la pieza en el visor 3D</a></p>
       </section>
       <section class="panel proceso" aria-labelledby="process-title">
         <h2 id="process-title">Proceso</h2>
@@ -89,7 +78,7 @@ function verVisor(evento: MouseEvent) {
         <p v-if="!stages.length && !busy && !disconnected" class="muted">Escribe una descripción para comenzar.</p>
       </section>
     </div>
-    <section id="vista-3d" ref="visor" class="panel" aria-labelledby="preview-title" tabindex="-1">
+    <section class="panel" aria-labelledby="preview-title">
       <h2 id="preview-title">Vista 3D</h2>
       <GlbViewer v-if="glb" :key="glb.url" :url="glb.url" :token="downloadToken" :caja-mm="job?.resultado?.caja_mm" />
       <div v-else class="viewport">
