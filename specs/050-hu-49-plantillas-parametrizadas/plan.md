@@ -157,3 +157,12 @@ AC1: 60 × 50 × 6 mm + `bolt_d`/`bolt_circle`/`bolt_count`), `sheet_bracket`, `
 `familia = "tornillería"` (mapeo explícito de `dataset.py:238-240`). `extrusion` y `pipe`
 quedan fuera del catálogo inicial porque no tienen familia en el banco: se anotan como
 seguimiento, no se inventan.
+
+## Aprobación
+
+**Aprobado por el humano tal cual el 28 de noviembre de 2026:** (a) `data/plantillas.toml`
+con `make plantillas-check`; (b) `data/plantillas.json` gitignored, con el propietario en
+cada entrada, escritura atómica bajo el bloqueo de `persistencia_registro` y 404 para
+plantillas ajenas; (c) todos los `params` numéricos expuestos con rango derivado de ±50 % y
+el resto fijo; (d) seis plantillas, una por familia del banco. La implementación arranca con
+esta aprobación (AC1 del encargo original).

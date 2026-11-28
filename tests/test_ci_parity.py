@@ -213,6 +213,22 @@ def test_la_tabla_de_materiales_entra_en_check_y_en_el_espejo():
     assert (RAIZ / "data" / "materiales.toml").is_file()
 
 
+def test_el_catalogo_de_plantillas_entra_en_check_y_en_el_espejo():
+    """HU-49/RNF-3: el catálogo es un archivo de datos verificado en las dos puertas."""
+    makefile = _texto(MAKEFILE)
+
+    assert "plantillas-check" in _dependencias("check", makefile)
+    assert "plantillas-check:" in makefile
+    cuerpo = next(
+        linea
+        for linea in makefile.split("plantillas-check:", 1)[1].splitlines()
+        if "scripts/verify_plantillas.py" in linea
+    )
+    assert "uv run --no-project python -B scripts/verify_plantillas.py" in cuerpo
+    assert "uv run --no-sync make plantillas-check" in _job_gitlab("lint")
+    assert (RAIZ / "data" / "plantillas.toml").is_file()
+
+
 def test_la_configuracion_cloud_entra_en_check_y_en_el_espejo():
     """HU-47/RNF-3: la misma validación sin red corre en las dos puertas."""
     makefile = _texto(MAKEFILE)
