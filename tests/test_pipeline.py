@@ -216,8 +216,17 @@ def test_construir_pieza_entrega_step_glb_csv(tmp_path):
 
     with open(resultado.bom_csv, encoding="utf-8") as archivo:
         filas = list(csv.reader(archivo))
-    assert filas[0] == ["part_type", "qty", "total_mass_g", "unit_mass_g"]
+    assert filas[0] == [
+        "part_type",
+        "qty",
+        "total_mass_g",
+        "unit_mass_g",
+        "material",
+        "unit_cost_usd",
+        "total_cost_usd",
+    ]
     assert filas[1][:2] == ["spacer", "1"]
+    assert filas[1][4] == "steel"
 
 
 def test_construir_pieza_rechaza_programa_invalido(tmp_path):

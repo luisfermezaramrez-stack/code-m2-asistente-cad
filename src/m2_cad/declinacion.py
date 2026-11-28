@@ -14,6 +14,8 @@ Aquí viven, en un solo lugar y sin duplicarse en el pipeline ni en la API:
   `constraint-kit.dsl.check` a una causa. Nunca clasifica texto libre.
 
 Especificación: specs/027-hu-26-declinacion-legible/spec.md
+HU-48 (SPEC-049, RF-5) agrega `MATERIAL_NO_SOPORTADO`: el material pedido está fuera del
+catálogo cerrado del planificador y el motivo debe nombrarlo.
 """
 
 from enum import StrEnum
@@ -32,6 +34,7 @@ class Causa(StrEnum):
     """Causa de una declinación; cada solicitud rechazada tiene exactamente una."""
 
     FAMILIA_NO_SOPORTADA = "familia_no_soportada"
+    MATERIAL_NO_SOPORTADO = "material_no_soportado"
     DIMENSION_INCOHERENTE = "dimension_incoherente"
     VERIFICACION_FALLIDA = "verificacion_fallida"
     FUERA_DE_TOLERANCIA = "fuera_de_tolerancia"
@@ -42,6 +45,7 @@ class Causa(StrEnum):
 # códigos: el usuario no conoce el lenguaje interno ni el verificador.
 MOTIVO = {
     Causa.FAMILIA_NO_SOPORTADA: "la solicitud está fuera del catálogo del asistente",
+    Causa.MATERIAL_NO_SOPORTADO: "el material que pediste no está entre los soportados",
     Causa.DIMENSION_INCOHERENTE: "las medidas que pediste no forman una pieza construible",
     Causa.VERIFICACION_FALLIDA: "la pieza no superó la revisión geométrica con las medidas dadas",
     Causa.FUERA_DE_TOLERANCIA: "la pieza no coincide con el catálogo dentro de la tolerancia",
@@ -53,6 +57,10 @@ QUE_HARIA_FALTA = {
     Causa.FAMILIA_NO_SOPORTADA: (
         "Para aceptarla, pide una sola pieza de las familias del catálogo, "
         "con sus medidas en milímetros."
+    ),
+    Causa.MATERIAL_NO_SOPORTADO: (
+        "Para aceptarla, indica el material de la pieza con uno de los nombres del "
+        "catálogo soportado."
     ),
     Causa.DIMENSION_INCOHERENTE: (
         "Para aceptarla, revisa las medidas en milímetros para que formen una pieza "
