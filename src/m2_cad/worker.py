@@ -22,6 +22,7 @@ from m2_cad import seguimiento
 from m2_cad.autenticacion import ANONIMO
 from m2_cad.cola_trabajos import ColaTrabajos
 from m2_cad.control import ControlGeneracion, GeneracionCancelada, SolicitudDeclinada
+from m2_cad.errores_publicos import motivo_publico
 from m2_cad.observabilidad import contexto_solicitud
 from m2_cad.registro import SIN_TRADUCCION, registrar
 
@@ -148,11 +149,16 @@ def ejecutar(
                 "motivo": str(exc.detail),
                 "codigo_http": exc.status_code,
             }
-        except Exception:
-            logger.exception("Fallo en el worker %s", identificador)
+        except Exception as exc:
+            # Un fallo conocido trae su motivo; lo desconocido sigue siendo genérico.
+            conocido = motivo_publico(exc)
+            if conocido is None:
+                logger.exception("Fallo en el worker %s", identificador)
+            else:
+                logger.warning("Fallo conocido en el worker %s: %s", identificador, conocido)
             terminal = {
                 "estado": "error",
-                "motivo": "No fue posible completar la generación.",
+                "motivo": conocido or "No fue posible completar la generación.",
                 "codigo_http": 500,
             }
 
