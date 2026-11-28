@@ -100,6 +100,30 @@ def test_el_pipeline_de_gitlab_valida_cada_push_y_solo_main_publica_y_despliega(
     assert "$DO_HOST" in _job_gitlab("deploy").split("rules:", 1)[1].split("\n  cache:")[0]
 
 
+def test_run_pipeline_desde_la_web_puede_volver_a_desplegar():
+    """Tras cambiar una variable en GitLab, "Run pipeline" crea un pipeline con deploy.
+
+    Las reglas de los jobs se evalúan al crear el pipeline: reintentar uno viejo no
+    agrega el deploy, así que sin esta regla haría falta un push nuevo a `main`.
+    """
+    workflow = _job_gitlab("workflow")
+
+    assert '$CI_PIPELINE_SOURCE == "web"' in workflow
+    assert '$CI_PIPELINE_SOURCE == "push"' in workflow
+
+
+def test_el_deploy_no_depende_del_salto_final_de_la_clave_ssh():
+    """GitLab escribe la variable File tal cual: sin salto final, ssh no carga la clave."""
+    deploy = _job_gitlab("deploy")
+    ejecutado = "\n".join(
+        linea for linea in deploy.splitlines() if not linea.lstrip().startswith("#")
+    )
+
+    assert 'printf \'%s\\n\' "$(cat "$SSH_PRIVATE_KEY")" > "$DEPLOY_KEY"' in ejecutado
+    assert "-i $DEPLOY_KEY" in ejecutado
+    assert "-i $SSH_PRIVATE_KEY" not in ejecutado
+
+
 def test_la_imagen_se_verifica_sana_antes_de_publicarse():
     """El smoke espera el HEALTHCHECK de `/v1/health` y la SPA antes del push."""
     build = _job_gitlab("build_image")
