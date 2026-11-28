@@ -173,8 +173,10 @@ def test_s6_el_listado_exige_sesion_y_solo_muestra_filas_propias(tmp_path, monke
     monkeypatch.setattr(api, "RUTA_DEFAULT", ruta)
     monkeypatch.setenv("M2_AUTH_ENABLED", "1")
     monkeypatch.setenv("M2_AUTH_SECRET", secrets.token_hex(32))
-    hashes = {usuario: hash_clave(clave) for usuario, clave in
-              {"ana": CLAUBE_ANA, "bob": CLAVE_BOB}.items()}
+    hashes = {
+        usuario: hash_clave(clave)
+        for usuario, clave in {"ana": CLAUBE_ANA, "bob": CLAVE_BOB}.items()
+    }
     monkeypatch.setenv("M2_AUTH_USERS", json.dumps(hashes))
     monkeypatch.setenv("M2_AUTH_COOKIE_SECURE", "0")
     monkeypatch.setenv("M2_DOWNLOAD_SECRET", secrets.token_hex(32))
@@ -185,10 +187,24 @@ def test_s6_el_listado_exige_sesion_y_solo_muestra_filas_propias(tmp_path, monke
     )
     api.app.dependency_overrides[api.obtener_limite_login] = lambda: LimiteIntentos()
     try:
-        registrar(texto="placa de ana", traduccion=SIN_TRADUCCION, resultado={"step": "a.step"},
-                  latencia_ms=1, identificador="3" * 32, ruta=ruta, usuario="ana")
-        registrar(texto="placa de bob", traduccion=SIN_TRADUCCION, resultado={"step": "b.step"},
-                  latencia_ms=1, identificador="4" * 32, ruta=ruta, usuario="bob")
+        registrar(
+            texto="placa de ana",
+            traduccion=SIN_TRADUCCION,
+            resultado={"step": "a.step"},
+            latencia_ms=1,
+            identificador="3" * 32,
+            ruta=ruta,
+            usuario="ana",
+        )
+        registrar(
+            texto="placa de bob",
+            traduccion=SIN_TRADUCCION,
+            resultado={"step": "b.step"},
+            latencia_ms=1,
+            identificador="4" * 32,
+            ruta=ruta,
+            usuario="bob",
+        )
 
         # Act
         with TestClient(api.app) as anonimo:
@@ -217,13 +233,22 @@ def test_s5_el_listado_ordena_del_mas_reciente_y_recorta_a_doscientas(registro_t
         escritor = csv.DictWriter(archivo, fieldnames=CAMPOS)
         escritor.writeheader()
         for indice in range(201):
-            escritor.writerow({
-                "id": f"{indice:032d}", "hora": f"2026-11-27T00:00:{indice // 60:02d}.{indice:06d}",
-                "texto": f"pieza {indice}", "traduccion": SIN_TRADUCCION,
-                "resultado": "{'step': 'pieza.step'}", "latencia_ms": "1", "error": "ninguno",
-                "version": "desconocida", "usuario": ANONIMO, "causa": "ninguna",
-                "prompt": "no aplica", "prompt_hash": "no aplica",
-            })
+            escritor.writerow(
+                {
+                    "id": f"{indice:032d}",
+                    "hora": f"2026-11-27T00:00:{indice // 60:02d}.{indice:06d}",
+                    "texto": f"pieza {indice}",
+                    "traduccion": SIN_TRADUCCION,
+                    "resultado": "{'step': 'pieza.step'}",
+                    "latencia_ms": "1",
+                    "error": "ninguno",
+                    "version": "desconocida",
+                    "usuario": ANONIMO,
+                    "causa": "ninguna",
+                    "prompt": "no aplica",
+                    "prompt_hash": "no aplica",
+                }
+            )
 
     # Act
     with TestClient(api.app) as cliente:
@@ -252,8 +277,9 @@ def test_rf4_el_step_se_descarga_tras_reiniciar_con_el_token(registro_temporal, 
         with TestClient(api.app) as cliente:
             registro = cliente.get(f"/v1/registros/{'5' * 32}")
             token = registro.headers.get("X-Download-Token")
-            con_token = cliente.get(f"/v1/registros/{'5' * 32}/step",
-                                    headers={"X-Download-Token": token or ""})
+            con_token = cliente.get(
+                f"/v1/registros/{'5' * 32}/step", headers={"X-Download-Token": token or ""}
+            )
             sin_token = cliente.get(f"/v1/registros/{'5' * 32}/step")
     finally:
         api.app.dependency_overrides.clear()
@@ -292,8 +318,7 @@ def test_s8_la_consulta_puntual_expone_el_estado_ya_derivado(registro_temporal):
     assert construida["motivo"] == ""
     assert declinada["estado"] == "declinada"
     assert declinada["motivo"] == (
-        "Pieza declinada: El asistente no puede construir esta pieza: "
-        "familia fuera de catálogo."
+        "Pieza declinada: El asistente no puede construir esta pieza: familia fuera de catálogo."
     )
     # La consulta puntual y el listado coinciden en la clasificación.
     assert construida["estado"] == listado["6" * 32]
