@@ -53,3 +53,14 @@
 - AC3: escala declarada coincide con la relación dibujado/real en ±1 %.
 - RNF-1: determinista salvo la fecha del cajetín; RNF-2: sin red/API key/GPU.
 - RNF-3: descarga por el canal de SPEC-037; RNF-4: dependencia con licencia y peso documentados.
+
+## Revisión (post-primer informe)
+
+- [x] B1: el cajetín lleva el id real de la solicitud por la cadena
+  `generar_pieza`/`editar_pieza` → `construir_pieza` → `plano_pdf.escribir`,
+  con retrocompatibilidad (el id entra por parámetro o por el contexto
+  `job_id` que fijan las rutas SSE (`trabajos.py`), el worker (`worker.py`) y
+  las rutas JSON; los dobles históricos de pruebas no cambian). — test_hu43_solicitud_id.py
+- [x] B2: merge con `origin/main` (HU-48, PR #161, `55db05d`); conservados el
+  guard de materiales (`verificar_programa` → `validar_materiales`) y
+  `plano_pdf`; el cajetín muestra el material canónico (`al` → `aluminum`). — test_hu43_solicitud_id.py

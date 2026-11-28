@@ -44,7 +44,7 @@ from m2_cad import (
     prompts,
 )
 from m2_cad.control import ControlGeneracion
-from m2_cad.observabilidad import redactar
+from m2_cad.observabilidad import job_id_actual, redactar
 from m2_cad.registro import _sanitizar
 
 logger = logging.getLogger(__name__)
@@ -433,7 +433,9 @@ def _csv_materiales(filas: dict[tuple[str, str], dict[str, float]]) -> str:
     return salida.getvalue()
 
 
-def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
+def construir_pieza(
+    programa: dict, directorio: Path, *, solicitud_id: str | None = None
+) -> ResultadoPieza:
     """Verifica, construye y exporta STEP, GLB y CSV en `directorio` (AC1-AC4)."""
     verificar_programa(programa)
 
@@ -468,7 +470,14 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
         partes=list(partes),
     )
     plano_dxf.escribir(resultado_t, resultado_t.dxf)
-    plano_pdf.escribir(resultado_t, resultado_t.pdf)
+    # SPEC-044 AC2: el cajetín del PDF lleva el id real de la solicitud; si quien
+    # invoca no lo pasa, se toma el del contexto de ejecución (SSE y worker lo
+    # fijan con `contexto_solicitud`), y sin ninguno conserva el valor neutro.
+    plano_pdf.escribir(
+        resultado_t,
+        resultado_t.pdf,
+        solicitud_id=solicitud_id or job_id_actual() or "—",
+    )
     return resultado_t
 
 
@@ -650,6 +659,7 @@ def _construir_programa(
     version: str,
     tiempo_generacion: float,
     control: ControlGeneracion | None,
+    solicitud_id: str | None = None,
 ) -> ResultadoPieza:
     """Escribe `programa.json`, valida el catálogo y construye la pieza (AC1-AC5).
 
@@ -679,7 +689,13 @@ def _construir_programa(
         control.comprobar_cancelacion()
 
     try:
-        resultado = construir_pieza(programa, salida)
+        # El id sólo viaja cuando lo hay: el contexto de ejecución cubre los
+        # flujos SSE y worker, y los dobles de prueba con la firma histórica
+        # no reciben una kw que no esperan (SPEC-044 AC2).
+        if solicitud_id:
+            resultado = construir_pieza(programa, salida, solicitud_id=solicitud_id)
+        else:
+            resultado = construir_pieza(programa, salida)
     except Exception as exc:
         exc.version_modelo = version
         if isinstance(exc, PiezaDeclinada):
@@ -716,6 +732,7 @@ def generar_pieza(
     directorio: Path = RUTA_SALIDA,
     control: ControlGeneracion | None = None,
     medir_uso: Callable[[dict], None] | None = None,
+    solicitud_id: str | None = None,
 ) -> ResultadoPieza:
     """Genera el programa desde el texto en español y construye la pieza (AC1-AC5).
 
@@ -752,6 +769,7 @@ def generar_pieza(
         version=version,
         tiempo_generacion=tiempo_generacion,
         control=control,
+        solicitud_id=solicitud_id,
     )
 
 
@@ -763,6 +781,7 @@ def editar_pieza(
     directorio: Path = RUTA_SALIDA,
     control: ControlGeneracion | None = None,
     medir_uso: Callable[[dict], None] | None = None,
+    solicitud_id: str | None = None,
 ) -> ResultadoPieza:
     """Aplica una instrucción de cambio al programa vigente y construye la pieza (HU-35).
 
@@ -803,4 +822,5 @@ def editar_pieza(
         version=version,
         tiempo_generacion=tiempo_generacion,
         control=control,
+        solicitud_id=solicitud_id,
     )
