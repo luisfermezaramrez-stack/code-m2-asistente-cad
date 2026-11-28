@@ -1651,7 +1651,7 @@ def descargar_archivo(
     trabajo = _trabajo(solicitud_id, gestor, cola)
     garantizar_propietario(usuario, trabajo.usuario)
     estado = trabajo.estado()
-    if estado["estado"] != "verificado" or formato not in {"step", "glb", "csv", "dxf"}:
+    if estado["estado"] != "verificado" or formato not in {"step", "glb", "csv", "dxf", "pdf"}:
         raise HTTPException(404, "Archivo no disponible.")
     resultado = estado.get("resultado", {})
     nombre = (
@@ -1676,6 +1676,7 @@ def descargar_archivo(
         "glb": "model/gltf-binary",
         "csv": "text/csv",
         "dxf": "image/vnd.dxf",
+        "pdf": "application/pdf",
     }
     return FileResponse(
         ruta,
