@@ -2069,6 +2069,7 @@ version = "1.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "constraint-kit", extra = ["kernel", "service", "solver"] },
+    { name = "ezdxf" },
     { name = "fastapi" },
     { name = "llama-cpp-python" },
     { name = "mlflow-skinny" },
@@ -2088,6 +2089,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "constraint-kit", extras = ["kernel", "service", "solver"], directory = "vendor/constraint-kit" },
+    { name = "ezdxf", specifier = ">=1.4.5" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "llama-cpp-python", specifier = ">=0.3" },
     { name = "mlflow-skinny", specifier = ">=3.18.0" },

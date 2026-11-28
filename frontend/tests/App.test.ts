@@ -120,6 +120,14 @@ describe('SPA conectada a FastAPI simulado', () => {
     expect(wrapper.get('button.download[data-download-filename="pieza.csv"]').attributes('data-download-url')).toBe('/v1/generaciones/job1/archivos/csv')
   })
 
+  it('DXF queda en el canal con su botón propio (HU-42)', async () => {
+    await start(); await sendStages()
+    service.send(event('verificado', 3, { resultado: { ...result, dxf: 'outputs/job/pieza.dxf' } }), true)
+    await flushPromises()
+    expect(wrapper.get('button.download[data-download-filename="pieza.dxf"]').attributes('data-download-url')).toBe('/v1/generaciones/job1/archivos/dxf')
+    expect(wrapper.text()).toContain('DXF')
+  })
+
   it('comunica el detalle público de un error HTTP sin ofrecer archivos', async () => {
     service.postStatus = 503
     service.postDetail = 'El servicio de generación no está disponible.'

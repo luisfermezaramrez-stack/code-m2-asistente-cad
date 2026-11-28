@@ -33,7 +33,7 @@ from pathlib import Path
 import httpx
 from constraint_kit import bom, builder, dsl, llm
 
-from m2_cad import MARCA_PRELIMINAR, declinacion, llm_resiliente, prompts
+from m2_cad import MARCA_PRELIMINAR, declinacion, llm_resiliente, plano_dxf, prompts
 from m2_cad.control import ControlGeneracion
 from m2_cad.observabilidad import redactar
 from m2_cad.registro import _sanitizar
@@ -179,10 +179,12 @@ class ResultadoPieza:
     familia: str = ""
     programa_json: Path | None = None
     version_modelo: str = "desconocida"
+    #: Plano DXF de vistas ortogonales (SPEC-043); None en dobles de prueba.
+    dxf: Path | None = None
 
     def a_respuesta(self) -> dict[str, str]:
         """Serializa el resultado para la API (todos los valores como texto)."""
-        return {
+        respuesta = {
             "step": str(self.step),
             "glb": str(self.glb),
             "bom_csv": str(self.bom_csv),
@@ -192,6 +194,9 @@ class ResultadoPieza:
             "tiempo_generacion_s": f"{self.tiempo_generacion_s:.3f}",
             "tiempo_construccion_s": f"{self.tiempo_construccion_s:.3f}",
         }
+        if self.dxf is not None:  # SPEC-043: el plano DXF es aditivo
+            respuesta["dxf"] = str(self.dxf)
+        return respuesta
 
 
 def extraer_programa(salida: str) -> dict:
@@ -325,7 +330,7 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
     firma = dsl.signature(ensamble)
     duracion = time.perf_counter() - inicio
 
-    return ResultadoPieza(
+    resultado_t = ResultadoPieza(
         programa=programa,
         step=Path(exportado["step"]),
         glb=Path(exportado["glb"]),
@@ -335,7 +340,10 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
         tiempo_construccion_s=duracion,
         familia=familia_de_programa(programa),
         programa_json=Path(directorio) / "programa.json",
+        dxf=Path(directorio) / f"{NOMBRE_PIEZA}.dxf",
     )
+    plano_dxf.escribir(resultado_t, resultado_t.dxf)
+    return resultado_t
 
 
 def familia_de_programa(programa: dict) -> str:
