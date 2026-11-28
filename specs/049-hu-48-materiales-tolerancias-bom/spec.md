@@ -99,7 +99,8 @@ preliminar.
   confirmó** (ver [decisión del spike](#decisión-del-spike-rf-1--ac1)).
 - **RF-5**: un material o tolerancia no soportado produce declinación con motivo legible.
   Requiere código nuevo: un guard que valide el material del programa contra la lista
-  soportada, hoy inexistente.
+  soportada, hoy inexistente. **Solo se implementa la parte de material**: la de tolerancia
+  queda fuera de alcance junto con RF-4 (decisión del spike, alcance B).
 
 ### No funcionales
 

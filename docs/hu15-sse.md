@@ -152,3 +152,5 @@ error. No se afirma haber probado detención de proveedores remotos.
 En las pruebas de compatibilidad se reprodujo en `HEAD` un defecto previo de CSV
 en Windows (`\r\r\n`). Se evita la segunda traducción de saltos al escribir el BOM,
 conservando su contenido y formato; la prueba existente de lectura verifica la corrección.
+HU-48 extiende ese BOM con material y costos y mantiene el mismo fin de línea `\r\n` en el
+prefijo histórico, que se compara byte a byte contra el BOM del núcleo (SPEC-049).

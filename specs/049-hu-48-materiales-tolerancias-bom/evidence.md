@@ -45,7 +45,7 @@ B; la decisión quedó registrada en [`spec.md`](./spec.md) y en [`plan.md`](./p
 | AC4 — Tolerancias | — | **No aplica**: fuera de alcance por decisión del spike (AC1). |
 | RNF-1 — sin red, API key ni GPU | Las pruebas construyen el programa DSL a mano; no se invoca el modelo | Cumple. |
 | RNF-2 — corpus dorado | `make corpus-dorado` | Cumple: «15 casos sin divergencias». |
-| RNF-3 — CSV sin romper consumidores | `test_rnf3_el_consumidor_previo_lee_sus_cuatro_columnas`, `tests/test_pipeline.py` actualizado | Cumple: las cuatro columnas históricas conservan nombre y orden; un `DictReader` con esas claves sigue funcionando. |
+| RNF-3 — CSV sin romper consumidores | `test_rnf3_las_cuatro_columnas_historicas_coinciden_byte_a_byte_con_el_kit`, `test_rnf3_el_consumidor_previo_lee_sus_cuatro_columnas`, `tests/test_pipeline.py` actualizado | Cumple: el prefijo histórico de cada fila —incluido el fin de línea `\r\n` y el `round(x, 3)` sin relleno— es idéntico byte a byte al de `bom.bom_document` sobre el mismo build, y un `DictReader` con las cuatro claves viejas sigue funcionando. |
 
 ## 4. Validaciones realizadas
 
@@ -80,3 +80,16 @@ El material viaja explícito desde el programa hasta el BOM, el CSV suma materia
 por línea y total con precios versionados, y un material fuera del catálogo declina nombrando
 lo pedido en vez de construirse con la densidad del acero. El kit quedó intacto, el corpus
 dorado sigue verde y las cuatro columnas históricas del CSV no cambiaron.
+
+## 8. Correcciones de la verificación independiente
+
+Ronda 2, en la misma rama; se observó RED en cada prueba nueva antes de corregir.
+
+| Hallazgo | Corrección | Prueba |
+|---|---|---|
+| **B1 (RNF-3)**: el CSV había cambiado el prefijo histórico: `lineterminator="\n"` y `f"{x:.3f}"` (`20.72` → `20.720`), cuando `bom.py` usa CRLF y `round(x, 3)`. | `csv.writer` sin `lineterminator` (CRLF), masa con `round(x, 3)` sin formatear y fila `TOTAL` con el mismo prefijo; las columnas nuevas conservan su formato. | `test_rnf3_las_cuatro_columnas_historicas_coinciden_byte_a_byte_con_el_kit`: compara campo a campo y el fin de línea contra `bom.bom_document` del mismo build. |
+| Un precio faltante se detectaba después de exportar STEP y GLB, dejando archivos a medias. | El CSV se arma antes de `builder.export`; la falta de precio aborta sin escribir nada. | `test_un_material_sin_precio_falla_antes_de_exportar`: exige `ErrorPipeline` y que no existan `pieza.step`, `pieza.glb` ni `pieza.csv`. |
+| Un alias declarado en `data/materiales.toml` (por ejemplo `alias = ["iron"]`) reabría en silencio un material declinado. | Los alias viven en el código (`ALIAS = {"al": "aluminum"}`) y la tabla solo los documenta: `normalizar` no consulta la tabla y `verificar()` rechaza cualquier alias no permitido o mal asignado. | `test_verificar_rechaza_un_alias_que_reabre_un_material_declinado`: la tabla con `iron` produce problema y `normalizar("iron"/"petg"/"titanium")` sigue siendo `None`. |
+| Un material vacío, no textual o una lista producía motivos como «» o «['steel']». | `_material_legible()` describe el material pedido: lo nombra si es texto y, si no, dice «sin material válido (vacío o no es texto)». | `test_ac3_el_motivo_es_legible_para_cualquier_valor`, parametrizada con `""`, `"   "`, `None`, `5`, `["steel"]` y `"aluminium"`. |
+| Faltaba fijar la normalización de RF-2 en el guard. | Sin cambios de código: el comportamiento ya era correcto y ahora queda fijado. | `test_rf2_normaliza_mayusculas_espacios_y_saltos`: `" AL "` y `"Al"` → `aluminum`, `"\tnylon\n"` → `nylon`, `"STEEL "` → `steel`. |
+| `spec.md` dejaba la parte de tolerancia de RF-5 ambigua. | RF-5 aclara que solo se implementa la parte de material; la de tolerancia queda fuera con RF-4. `plan.md`, `README.md` y `docs/hu15-sse.md` describen el fin de línea y el `round` reales. | Revisión de los cuatro documentos. |

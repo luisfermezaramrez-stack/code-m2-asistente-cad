@@ -57,8 +57,9 @@ Si la pieza no se puede construir, el asistente declina con un motivo en
 español en vez de inventar geometría.
 
 La lista de materiales trae `part_type`, `qty`, `total_mass_g`, `unit_mass_g`, `material`,
-`unit_cost_usd` y `total_cost_usd`: las cuatro primeras columnas conservan el formato
-anterior y las nuevas agregan el material canónico y el costo estimado. Los precios viven en
+`unit_cost_usd` y `total_cost_usd`: las cuatro primeras columnas conservan el formato anterior
+—nombre, orden, `round` de la masa y fin de línea `\r\n`, iguales byte a byte que el BOM del
+núcleo— y las nuevas agregan el material canónico y el costo estimado. Los precios viven en
 [`data/materiales.toml`](data/materiales.toml), un archivo versionado que se puede editar o
 apuntar a otro con `M2_MATERIALES`; `make materiales-check` verifica que estén los ocho
 materiales del catálogo y que sus densidades coincidan con el núcleo. Un material fuera del

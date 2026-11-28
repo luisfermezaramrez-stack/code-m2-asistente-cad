@@ -56,9 +56,10 @@ final:
 | `total_cost_usd` | Costo de la línea. |
 
 La fila `TOTAL` conserva `TOTAL`, la cantidad de piezas y la masa total en sus primeras
-posiciones, y suma el costo total en la última. El archivo se escribe con `\n` y una fila
-vacía antes del total, igual que antes. Un lector que use las cuatro columnas viejas sigue
-funcionando; la prueba de RNF-3 fija exactamente eso.
+posiciones, y suma el costo total en la última. El prefijo histórico se escribe **igual que `bom.py`**: `csv.writer` sin `lineterminator`
+(fin de línea `\r\n`), masa con `round(x, 3)` sin rellenar ceros y una fila vacía antes del
+total. Un lector que use las cuatro columnas viejas sigue funcionando, y la prueba de RNF-3
+compara ese prefijo **byte a byte** contra `bom.bom_document` sobre el mismo build.
 
 ### Configuración
 
