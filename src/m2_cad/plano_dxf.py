@@ -99,7 +99,7 @@ def _recoger(*componentes) -> list[Edge]:
     return aristas
 
 
-def _polilinea_de(arista: Edge) -> list[tuple[float, float]]:
+def polilinea_de(arista: Edge) -> list[tuple[float, float]]:
     """Discretiza una arista proyectada a puntos 2D del plano de la vista.
 
     Tras `HLRToShape` las coordenadas del plano son (x, y) para cualquier
@@ -133,7 +133,7 @@ def _cotas_generales(msp, caja_vista: tuple[float, float], offset: tuple[float, 
     ).render()
 
 
-def _extremos_de(arista: Edge) -> tuple[tuple[float, float], tuple[float, float]]:
+def extremos_de(arista: Edge) -> tuple[tuple[float, float], tuple[float, float]]:
     primero = arista.positionAt(0.0)
     ultimo = arista.positionAt(1.0)
     return (
@@ -154,7 +154,7 @@ def _cotas_por_arista(msp, aristas: list[Edge], offset: tuple[float, float]) -> 
     for arista in aristas:
         if arista.geomType() != "LINE":
             continue
-        (x1, y1), (x2, y2) = _extremos_de(arista)
+        (x1, y1), (x2, y2) = extremos_de(arista)
         p1 = (x1 + offset[0], y1 + offset[1])
         p2 = (x2 + offset[0], y2 + offset[1])
         if ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5 < _LONGITUD_MINIMA_COTA:
@@ -228,8 +228,8 @@ def _escribir(resultado: "ResultadoPieza", destino: Path) -> None:
     for vista in ("frontal", "superior", "lateral"):
         visibles, ocultas = proyeccion_hlr(shape, vista)
         polilineas = {
-            "ARISTAS-VISIBLES": [_polilinea_de(a) for a in visibles],
-            "ARISTAS-OCULTAS": [_polilinea_de(a) for a in ocultas],
+            "ARISTAS-VISIBLES": [polilinea_de(a) for a in visibles],
+            "ARISTAS-OCULTAS": [polilinea_de(a) for a in ocultas],
         }
         puntos = [punto for lista in polilineas.values() for pl in lista for punto in pl]
         if puntos:

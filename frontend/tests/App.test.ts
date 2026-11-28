@@ -120,6 +120,14 @@ describe('SPA conectada a FastAPI simulado', () => {
     expect(wrapper.get('button.download[data-download-filename="pieza.csv"]').attributes('data-download-url')).toBe('/v1/generaciones/job1/archivos/csv')
   })
 
+  it('PDF queda en el canal con su botón propio (HU-43)', async () => {
+    await start(); await sendStages()
+    service.send(event('verificado', 3, { resultado: { ...result, pdf: 'outputs/job/pieza.pdf' } }), true)
+    await flushPromises()
+    expect(wrapper.get('button.download[data-download-filename="pieza.pdf"]').attributes('data-download-url')).toBe('/v1/generaciones/job1/archivos/pdf')
+    expect(wrapper.text()).toContain('PDF')
+  })
+
   it('DXF queda en el canal con su botón propio (HU-42)', async () => {
     await start(); await sendStages()
     service.send(event('verificado', 3, { resultado: { ...result, dxf: 'outputs/job/pieza.dxf' } }), true)

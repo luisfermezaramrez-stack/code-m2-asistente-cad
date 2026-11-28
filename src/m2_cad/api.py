@@ -482,7 +482,9 @@ def _anotar_detalle(exc: Exception) -> None:
     )
 
 
-def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str, str]:
+def procesar_con_pipeline(
+    texto: str, medicion: dict | None = None, *, solicitud_id: str | None = None
+) -> dict[str, str]:
     """Genera la pieza con el pipeline CAD (HU-04) y traduce sus errores a HTTP.
 
     Deja en `medicion` los datos que registra el seguimiento (HU-16, AC2/AC3).
@@ -496,7 +498,14 @@ def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str,
 
     medir_uso = _preparar_medicion(pipeline, medido)
     try:
-        resultado = pipeline.generar_pieza(texto, medir_uso=medir_uso)
+        # El id sólo viaja cuando lo hay; los dobles de prueba con la firma
+        # histórica no reciben un kw que no esperan (SPEC-044 AC2).
+        if solicitud_id:
+            resultado = pipeline.generar_pieza(
+                texto, medir_uso=medir_uso, solicitud_id=solicitud_id
+            )
+        else:
+            resultado = pipeline.generar_pieza(texto, medir_uso=medir_uso)
     except pipeline.PiezaDeclinada as exc:
         medido.update(familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa))
         _anotar_detalle(exc)
@@ -521,6 +530,7 @@ def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str,
             resultado.glb,
             resultado.bom_csv,
             resultado.dxf,
+            resultado.pdf,
         ],
         # HU-35: el programa viaja en `medido` para registrar la versión 1 sin releer disco.
         programa=resultado.programa,
@@ -534,7 +544,11 @@ def obtener_procesador() -> Procesador:
 
 
 def procesar_con_progreso(
-    texto: str, control: ControlGeneracion, medicion: dict | None = None
+    texto: str,
+    control: ControlGeneracion,
+    medicion: dict | None = None,
+    *,
+    solicitud_id: str | None = None,
 ) -> dict[str, str]:
     """Adaptador SSE: distingue declinaciones sin inferirlas de un código 422.
 
@@ -549,7 +563,12 @@ def procesar_con_progreso(
 
     medir_uso = _preparar_medicion(pipeline, medido)
     try:
-        resultado = pipeline.generar_pieza(texto, control=control, medir_uso=medir_uso)
+        if solicitud_id:
+            resultado = pipeline.generar_pieza(
+                texto, control=control, medir_uso=medir_uso, solicitud_id=solicitud_id
+            )
+        else:
+            resultado = pipeline.generar_pieza(texto, control=control, medir_uso=medir_uso)
     except pipeline.PiezaDeclinada as exc:
         medido.update(familia="desconocida", artefactos=[exc.programa_json], causa=str(exc.causa))
         _anotar_detalle(exc)
@@ -572,6 +591,7 @@ def procesar_con_progreso(
             resultado.glb,
             resultado.bom_csv,
             resultado.dxf,
+            resultado.pdf,
         ],
         # HU-35: el programa viaja en `medido` para registrar la versión 1 sin releer disco.
         programa=resultado.programa,
@@ -1263,7 +1283,7 @@ def generar(
 ) -> dict[str, str] | StreamingResponse | JSONResponse:
     """Procesa una solicitud CAD validada, la registra (AC3/AC4) y la mide (HU-16)."""
     solicitud_id = _identificador(request)  # RF-5: reutiliza X-Request-ID válido.
-    with contexto_solicitud(request_id=solicitud_id):
+    with contexto_solicitud(request_id=solicitud_id, job_id=solicitud_id):
         inicio = time.perf_counter()
         logger.info("solicitud recibida: POST /generar")
         sesion = _sesion(request, usuario)
@@ -1459,6 +1479,7 @@ def _editar_json(
                 resultado.glb,
                 resultado.bom_csv,
                 resultado.dxf,
+                resultado.pdf,
             ],
         )
         diff = versiones.diff_programas(previa["programa"], resultado.programa)
@@ -1572,7 +1593,9 @@ def editar_pieza(
         origen = versiones.validar_solicitud_id(solicitud_id)
     except versiones.ErrorVersiones as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, _SIN_VERSIONES) from exc
-    with contexto_solicitud(request_id=_identificador(request)):
+    # SPEC-044 AC2: el id de la solicitud editada entra en el contexto; el
+    # pipeline lo toma así, sin forzar una kw nueva a los dobles de prueba.
+    with contexto_solicitud(request_id=_identificador(request), job_id=origen):
         logger.info("edición recibida: POST /generar/{id}/editar")
         sesion = _sesion(request, usuario)
         clave = _clave_idempotencia(idempotency_key)
@@ -1963,7 +1986,7 @@ def descargar_archivo(
     trabajo = _trabajo(solicitud_id, gestor, cola)
     garantizar_propietario(usuario, trabajo.usuario)
     estado = trabajo.estado()
-    if estado["estado"] != "verificado" or formato not in {"step", "glb", "csv", "dxf"}:
+    if estado["estado"] != "verificado" or formato not in {"step", "glb", "csv", "dxf", "pdf"}:
         raise HTTPException(404, "Archivo no disponible.")
     resultado = estado.get("resultado", {})
     nombre = (
@@ -1988,6 +2011,7 @@ def descargar_archivo(
         "glb": "model/gltf-binary",
         "csv": "text/csv",
         "dxf": "image/vnd.dxf",
+        "pdf": "application/pdf",
     }
     return FileResponse(
         ruta,

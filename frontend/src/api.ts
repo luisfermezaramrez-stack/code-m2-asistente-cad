@@ -25,7 +25,7 @@ export interface RegistroConsultado { fila: FilaRegistro; token: string }
 const ESTADOS: EstadoRegistro[] = ['construida', 'declinada', 'error', 'desconocida']
 
 // Formatos y enlaces descubiertos por HEAD: estado local de UI, no un cuerpo JSON.
-export type Format = 'step' | 'glb' | 'csv' | 'dxf'
+export type Format = 'step' | 'glb' | 'csv' | 'dxf' | 'pdf'
 export interface Artifact { format: Format; url: string }
 const terminals = new Set<Stage>(['verificado', 'declinado', 'error', 'cancelado'])
 const stages = new Set<Stage>(['iniciando', 'validando', 'generando', ...terminals])
@@ -69,7 +69,7 @@ export async function requestJob(id: string, method: 'GET' | 'DELETE', signal: A
 
 export class ArtifactAccessError extends Error {}
 export async function availableArtifacts(id: string, result: NonNullable<Job['resultado']>, signal: AbortSignal, token?: string): Promise<Artifact[]> {
-  const formats: Format[] = ['step', 'glb', 'csv', 'dxf']
+  const formats: Format[] = ['step', 'glb', 'csv', 'dxf', 'pdf']
   const found = await Promise.all(formats.map(async (format) => {
     if (!(format === 'csv' ? result.bom_csv || result.csv : result[format])) return null
     const url = artifactUrl(id, format)

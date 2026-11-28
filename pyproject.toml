@@ -13,6 +13,7 @@ dependencies = [
     "pydantic>=2.7",
     "mlflow-skinny>=3.18.0",
     "ezdxf>=1.4.5",
+    "matplotlib>=3.11.2",
 ]
 
 [dependency-groups]

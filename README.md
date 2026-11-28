@@ -58,6 +58,7 @@ cada usuario guardó desde su historial. Instanciar una plantilla valida cada pa
 rango antes de construir, no llama al LLM y entrega la misma pieza verificada (STEP, GLB, CSV).
 Las plantillas guardadas viven en `data/plantillas.json` (fuera de Git) y son privadas de su autor.
 | Plano 2D | DXF (R2010) | Vistas ortogonales con capas de aristas visibles/ocultas y cotas, en un visor CAD (SPEC-043) |
+| Plano 2D | PDF (A4/A3) | Las mismas vistas con cotas, escala declarada y cajetín, listo para imprimir y archivar (SPEC-044) |
 
 Si la pieza no se puede construir, el asistente declina con un motivo en
 español en vez de inventar geometría.
@@ -86,7 +87,7 @@ El diagrama interactivo de arquitectura de runtime vive en
 [`docs/arquitectura.html`](docs/arquitectura.html) (fuente versionada:
 [`docs/arquitectura.json`](docs/arquitectura.json)). Muestra el camino principal
 de una solicitud — de la SPA en Vue, por `POST /generar` con progreso SSE, al
-pipeline, la verificación y los entregables STEP/GLB/CSV/DXF — los dos contenedores de
+pipeline, la verificación y los entregables STEP/GLB/CSV/DXF/PDF — los dos contenedores de
 Docker Compose (`m2-cad` y `mlflow`) y la API externa de DeepSeek. Cada componente
 cita su código en una revisión fija; se regenera con Archify
 ([SPEC-020](specs/020-diagrama-arquitectura/spec.md)).

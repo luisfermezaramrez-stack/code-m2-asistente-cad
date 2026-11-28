@@ -34,9 +34,17 @@ from pathlib import Path
 import httpx
 from constraint_kit import builder, dsl, llm
 
-from m2_cad import MARCA_PRELIMINAR, declinacion, llm_resiliente, materiales, plano_dxf, prompts
+from m2_cad import (
+    MARCA_PRELIMINAR,
+    declinacion,
+    llm_resiliente,
+    materiales,
+    plano_dxf,
+    plano_pdf,
+    prompts,
+)
 from m2_cad.control import ControlGeneracion
-from m2_cad.observabilidad import redactar
+from m2_cad.observabilidad import job_id_actual, redactar
 from m2_cad.registro import _sanitizar
 
 logger = logging.getLogger(__name__)
@@ -195,6 +203,10 @@ class ResultadoPieza:
     firma: dict | None = None
     #: Plano DXF de vistas ortogonales (SPEC-043); None en dobles de prueba.
     dxf: Path | None = None
+    #: Plano PDF con cajetín (SPEC-044); None en dobles de prueba.
+    pdf: Path | None = None
+    #: Partes del ensamble con material y masa, para el cajetín del plano (SPEC-044 RF-2).
+    partes: list[dict] | None = None
 
     def a_respuesta(self) -> dict[str, str]:
         """Serializa el resultado para la API (todos los valores como texto)."""
@@ -210,6 +222,8 @@ class ResultadoPieza:
         }
         if self.dxf is not None:  # SPEC-043: el plano DXF es aditivo
             respuesta["dxf"] = str(self.dxf)
+        if self.pdf is not None:  # SPEC-044: el plano PDF es aditivo
+            respuesta["pdf"] = str(self.pdf)
         return respuesta
 
 
@@ -421,7 +435,9 @@ def _csv_materiales(filas: dict[tuple[str, str], dict[str, float]]) -> str:
     return salida.getvalue()
 
 
-def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
+def construir_pieza(
+    programa: dict, directorio: Path, *, solicitud_id: str | None = None
+) -> ResultadoPieza:
     """Verifica, construye y exporta STEP, GLB y CSV en `directorio` (AC1-AC4)."""
     verificar_programa(programa)
 
@@ -453,8 +469,18 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
         programa_json=Path(directorio) / "programa.json",
         firma=firma,
         dxf=Path(directorio) / f"{NOMBRE_PIEZA}.dxf",
+        pdf=Path(directorio) / f"{NOMBRE_PIEZA}.pdf",
+        partes=list(partes),
     )
     plano_dxf.escribir(resultado_t, resultado_t.dxf)
+    # SPEC-044 AC2: el cajetín del PDF lleva el id real de la solicitud; si quien
+    # invoca no lo pasa, se toma el del contexto de ejecución (SSE y worker lo
+    # fijan con `contexto_solicitud`), y sin ninguno conserva el valor neutro.
+    plano_pdf.escribir(
+        resultado_t,
+        resultado_t.pdf,
+        solicitud_id=solicitud_id or job_id_actual() or "—",
+    )
     return resultado_t
 
 
@@ -636,6 +662,7 @@ def _construir_programa(
     version: str,
     tiempo_generacion: float,
     control: ControlGeneracion | None,
+    solicitud_id: str | None = None,
 ) -> ResultadoPieza:
     """Escribe `programa.json`, valida el catálogo y construye la pieza (AC1-AC5).
 
@@ -665,7 +692,13 @@ def _construir_programa(
         control.comprobar_cancelacion()
 
     try:
-        resultado = construir_pieza(programa, salida)
+        # El id sólo viaja cuando lo hay: el contexto de ejecución cubre los
+        # flujos SSE y worker, y los dobles de prueba con la firma histórica
+        # no reciben una kw que no esperan (SPEC-044 AC2).
+        if solicitud_id:
+            resultado = construir_pieza(programa, salida, solicitud_id=solicitud_id)
+        else:
+            resultado = construir_pieza(programa, salida)
     except Exception as exc:
         exc.version_modelo = version
         if isinstance(exc, PiezaDeclinada):
@@ -689,6 +722,9 @@ def _construir_programa(
         familia=resultado.familia,
         programa_json=programa_json,
         version_modelo=version,
+        dxf=resultado.dxf,
+        pdf=resultado.pdf,
+        partes=resultado.partes,
         # HU-49 (AC3): la firma geométrica viaja hasta la API. El DXF no se propaga
         # aquí a propósito: `/generar` conserva su cuerpo de respuesta (HU-35, RNF-2).
         firma=resultado.firma,
@@ -720,6 +756,7 @@ def generar_pieza(
     directorio: Path = RUTA_SALIDA,
     control: ControlGeneracion | None = None,
     medir_uso: Callable[[dict], None] | None = None,
+    solicitud_id: str | None = None,
 ) -> ResultadoPieza:
     """Genera el programa desde el texto en español y construye la pieza (AC1-AC5).
 
@@ -756,6 +793,7 @@ def generar_pieza(
         version=version,
         tiempo_generacion=tiempo_generacion,
         control=control,
+        solicitud_id=solicitud_id,
     )
 
 
@@ -767,6 +805,7 @@ def editar_pieza(
     directorio: Path = RUTA_SALIDA,
     control: ControlGeneracion | None = None,
     medir_uso: Callable[[dict], None] | None = None,
+    solicitud_id: str | None = None,
 ) -> ResultadoPieza:
     """Aplica una instrucción de cambio al programa vigente y construye la pieza (HU-35).
 
@@ -807,4 +846,5 @@ def editar_pieza(
         version=version,
         tiempo_generacion=tiempo_generacion,
         control=control,
+        solicitud_id=solicitud_id,
     )
