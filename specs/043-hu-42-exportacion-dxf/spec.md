@@ -7,7 +7,8 @@
 - **Depende de**: [SPEC-024](../024-hu-23-corpus-dorado-nucleo/spec.md),
   [SPEC-037](../037-hu-36-endurecimiento-descargas/spec.md)
 - **Rama**: `feature/hu-42-exportacion-dxf`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: Spec-first · implementación en curso; spike corrido y veredicto en
+  [`plan.md`](./plan.md) §2
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §5
 - **Auditoría**: corregida según
   [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
