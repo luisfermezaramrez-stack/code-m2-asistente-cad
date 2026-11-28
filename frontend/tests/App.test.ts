@@ -62,18 +62,6 @@ describe('SPA conectada a FastAPI simulado', () => {
     expect(toggle.find('svg').exists()).toBe(true)
   })
 
-  it('ofrece ir al visor 3D con un clic al generar', async () => {
-    expect(wrapper.find('a[href="#vista-3d"]').exists()).toBe(false)
-
-    await start()
-
-    const enlace = wrapper.get('a[href="#vista-3d"]')
-    expect(enlace.text()).toContain('Ver la pieza en el visor 3D')
-    await enlace.trigger('click')
-
-    expect(document.activeElement).toBe(wrapper.get('#vista-3d').element)
-  })
-
   it.each(['', '   ', 'x'.repeat(1001)])('valida entrada y enfoca el campo sin generar', async (text) => {
     await start(text)
     expect(service.fetch.mock.calls.filter(([url]) => String(url) === '/v1/generar')).toHaveLength(0)

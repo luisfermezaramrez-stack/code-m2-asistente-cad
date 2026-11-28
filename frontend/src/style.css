@@ -55,10 +55,6 @@ summary { cursor: pointer; min-height: var(--control-min); padding-block: var(--
 /* Fila de la solicitud: card de descripción 75 %, card de proceso 25 %. */
 .solicitud { display: grid; grid-template-columns: 3fr 1fr; gap: var(--space-4); align-items: stretch; }
 .solicitud-formulario { min-width: 0; }
-/* Salto de un clic al visor 3D desde la acción de generar. */
-.ver-visor { margin: 0 0 var(--space-3); }
-.ver-visor a { display: inline-flex; align-items: center; min-height: var(--control-min); font-weight: var(--weight-strong); }
-#vista-3d { scroll-margin-top: var(--space-4); }
 .estado-vista--vacio { color: var(--color-idle); background: var(--color-idle-bg); }
 .estado-vista--cargando { color: var(--state-validando-fg); background: var(--state-validando-bg); }
 .estado-vista--error { color: var(--color-error); background: var(--color-error-bg); }

@@ -7,6 +7,8 @@
 - **Estado**: Spec-first · en revisión (PR #171 / #172)
 - **Ajusta**: la sección de plantillas de [SPEC-050](../050-hu-49-plantillas-parametrizadas/spec.md)
   y añade un atajo en la vista de nueva solicitud.
+- **Superada en parte**: [SPEC-065](../065-hu-64-sin-atajo-visor/spec.md) retira el atajo al visor
+  (RF-5 y RF-6 de esta spec); el resto sigue vigente.
 
 ## Problema y contexto
 
