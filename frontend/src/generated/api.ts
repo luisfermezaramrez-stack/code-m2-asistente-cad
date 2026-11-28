@@ -72,6 +72,38 @@ export type EstadoTrabajo = {
 };
 
 /**
+ * FirmaGeometrica
+ *
+ * Firma geométrica del núcleo (`dsl.signature`) de la pieza construida (HU-49, AC3).
+ */
+export type FirmaGeometrica = {
+    /**
+     * Area
+     */
+    area: number;
+    /**
+     * Bbox Sorted
+     */
+    bbox_sorted: Array<number>;
+    /**
+     * N Edges
+     */
+    n_edges: number;
+    /**
+     * N Faces
+     */
+    n_faces: number;
+    /**
+     * N Solids
+     */
+    n_solids: number;
+    /**
+     * Volume
+     */
+    volume: number;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -150,6 +182,82 @@ export type PanoramaMetricas = {
      * Solicitudes
      */
     solicitudes: number;
+};
+
+/**
+ * ParametroPlantilla
+ *
+ * Parámetro ajustable de una plantilla, con unidad y rango válido (HU-49, RF-1).
+ */
+export type ParametroPlantilla = {
+    /**
+     * Defecto
+     */
+    defecto: number | number;
+    /**
+     * Entero
+     */
+    entero?: boolean;
+    /**
+     * Etiqueta
+     */
+    etiqueta: string;
+    /**
+     * Maximo
+     */
+    maximo: number | number;
+    /**
+     * Minimo
+     */
+    minimo: number | number;
+    /**
+     * Nombre
+     */
+    nombre: string;
+    /**
+     * Unidad
+     */
+    unidad: string;
+    /**
+     * Valores
+     */
+    valores?: Array<number | number> | null;
+};
+
+/**
+ * PlantillaPublica
+ *
+ * Plantilla visible para el usuario: sin propietario ni programa DSL (HU-49).
+ */
+export type PlantillaPublica = {
+    /**
+     * Descripcion
+     */
+    descripcion: string;
+    /**
+     * Familia
+     */
+    familia: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Nombre
+     */
+    nombre: string;
+    /**
+     * Origen
+     */
+    origen: 'catalogo' | 'guardada';
+    /**
+     * Parametros
+     */
+    parametros: Array<ParametroPlantilla>;
+    /**
+     * Tipo
+     */
+    tipo: string;
 };
 
 /**
@@ -248,6 +356,63 @@ export type RespuestaEdicion = {
 };
 
 /**
+ * RespuestaInstancia
+ *
+ * Pieza construida desde una plantilla, sin modelo, con su firma (HU-49, AC1).
+ */
+export type RespuestaInstancia = {
+    /**
+     * Aviso
+     */
+    aviso: string;
+    /**
+     * Bom Csv
+     */
+    bom_csv: string;
+    /**
+     * Caja Mm
+     */
+    caja_mm: string;
+    firma: FirmaGeometrica;
+    /**
+     * Glb
+     */
+    glb: string;
+    /**
+     * Solicitud Id
+     */
+    solicitud_id: string;
+    /**
+     * Step
+     */
+    step: string;
+    /**
+     * Tiempo Construccion S
+     */
+    tiempo_construccion_s: string;
+    /**
+     * Tiempo Generacion S
+     */
+    tiempo_generacion_s: string;
+    /**
+     * Volumen Mm3
+     */
+    volumen_mm3: string;
+};
+
+/**
+ * RespuestaPlantillas
+ *
+ * Catálogo versionado seguido de las plantillas guardadas del usuario (HU-49).
+ */
+export type RespuestaPlantillas = {
+    /**
+     * Plantillas
+     */
+    plantillas: Array<PlantillaPublica>;
+};
+
+/**
  * RespuestaRegistros
  *
  * Listado de solicitudes propias registradas (HU-37, AC3).
@@ -337,6 +502,42 @@ export type SolicitudGenerar = {
      * Descripción técnica de la pieza en español.
      */
     texto: string;
+};
+
+/**
+ * SolicitudGuardarPlantilla
+ *
+ * Solicitud entregada que se guarda como plantilla del usuario (HU-49, RF-3).
+ */
+export type SolicitudGuardarPlantilla = {
+    /**
+     * Nombre
+     *
+     * Nombre de la plantilla, de 1 a 80 caracteres.
+     */
+    nombre: string;
+    /**
+     * Solicitud Id
+     *
+     * Id de una solicitud entregada del usuario.
+     */
+    solicitud_id: string;
+};
+
+/**
+ * SolicitudInstancia
+ *
+ * Valores de los parámetros; los omitidos toman su valor por defecto (HU-49, RF-2).
+ */
+export type SolicitudInstancia = {
+    /**
+     * Valores
+     *
+     * Valor por nombre de parámetro; se valida contra su rango antes de construir.
+     */
+    valores?: {
+        [key: string]: number | number;
+    };
 };
 
 /**
@@ -748,6 +949,92 @@ export type PanoramaMetricasV1MetricasGetResponses = {
 };
 
 export type PanoramaMetricasV1MetricasGetResponse = PanoramaMetricasV1MetricasGetResponses[keyof PanoramaMetricasV1MetricasGetResponses];
+
+export type ListarPlantillasV1PlantillasGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/plantillas';
+};
+
+export type ListarPlantillasV1PlantillasGetErrors = {
+    /**
+     * El índice de plantillas guardadas no se pudo leer.
+     */
+    409: unknown;
+};
+
+export type ListarPlantillasV1PlantillasGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: RespuestaPlantillas;
+};
+
+export type ListarPlantillasV1PlantillasGetResponse = ListarPlantillasV1PlantillasGetResponses[keyof ListarPlantillasV1PlantillasGetResponses];
+
+export type GuardarPlantillaV1PlantillasPostData = {
+    body: SolicitudGuardarPlantilla;
+    path?: never;
+    query?: never;
+    url: '/v1/plantillas';
+};
+
+export type GuardarPlantillaV1PlantillasPostErrors = {
+    /**
+     * La solicitud no existe o no es del usuario.
+     */
+    404: unknown;
+    /**
+     * El historial de versiones guardado no se pudo leer.
+     */
+    409: unknown;
+    /**
+     * Nombre inválido o tipo de pieza sin plantilla de catálogo.
+     */
+    422: unknown;
+};
+
+export type GuardarPlantillaV1PlantillasPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlantillaPublica;
+};
+
+export type GuardarPlantillaV1PlantillasPostResponse = GuardarPlantillaV1PlantillasPostResponses[keyof GuardarPlantillaV1PlantillasPostResponses];
+
+export type InstanciarPlantillaV1PlantillasPlantillaIdInstanciarPostData = {
+    body: SolicitudInstancia;
+    path: {
+        /**
+         * Plantilla Id
+         */
+        plantilla_id: string;
+    };
+    query?: never;
+    url: '/v1/plantillas/{plantilla_id}/instanciar';
+};
+
+export type InstanciarPlantillaV1PlantillasPlantillaIdInstanciarPostErrors = {
+    /**
+     * La plantilla no existe o es de otro usuario.
+     */
+    404: unknown;
+    /**
+     * Parámetro desconocido, no numérico o fuera de rango (antes de construir), o pieza que no pasa la verificación determinista.
+     */
+    422: unknown;
+};
+
+export type InstanciarPlantillaV1PlantillasPlantillaIdInstanciarPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: RespuestaInstancia;
+};
+
+export type InstanciarPlantillaV1PlantillasPlantillaIdInstanciarPostResponse = InstanciarPlantillaV1PlantillasPlantillaIdInstanciarPostResponses[keyof InstanciarPlantillaV1PlantillasPlantillaIdInstanciarPostResponses];
 
 export type ReadyV1ReadyGetData = {
     body?: never;

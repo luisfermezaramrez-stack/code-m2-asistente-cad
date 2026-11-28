@@ -72,6 +72,7 @@ async function salir() {
     <nav class="nav" aria-label="Navegación principal">
       <RouterLink to="/nueva-solicitud">Nueva solicitud</RouterLink>
       <RouterLink to="/historial">Historial</RouterLink>
+      <RouterLink to="/plantillas">Plantillas</RouterLink>
       <RouterLink to="/metricas">Métricas</RouterLink>
       <RouterLink to="/ajustes">Ajustes</RouterLink>
     </nav>

@@ -114,6 +114,7 @@ code-m2-asistente-cad/
 │   ├── pipeline.py             # orquesta solicitud→DSL→verificación→B-rep (HU-04)
 │   ├── declinacion.py          # catálogo de causas legibles de declinación (HU-26/HU-48)
 │   ├── materiales.py           # tabla versionada de materiales, densidades y precios (HU-48)
+│   ├── plantillas.py           # catálogo y plantillas guardadas de piezas (HU-49)
 │   ├── versiones.py           # historial de versiones de la pieza por solicitud (HU-35)
 │   ├── llm_resiliente.py       # reintentos, plazo total y caché del LLM (HU-25)
 │   ├── banco.py                # banco de 40 solicitudes contra el modelo (HU-14)
@@ -137,6 +138,7 @@ code-m2-asistente-cad/
 ├── data/
 │   ├── test_cases.csv          # banco de 40 solicitudes
 │   ├── materiales.toml         # materiales, densidades y precios del BOM (HU-48)
+│   ├── plantillas.toml         # catálogo versionado de plantillas de pieza (HU-49)
 │   ├── banco_replay.json       # respuestas grabadas del banco con versión de prompt (HU-44)
 │   ├── alertas_baseline.json   # baseline v1, umbrales e historial de actualización (HU-46)
 │   ├── registro.csv            # registro de solicitudes (ignorado en git)
@@ -468,6 +470,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-27 | HU-47: `docker-compose.cloud.yml` y `deploy/Caddyfile` parametrizan API, worker, volúmenes y TLS sin tocar la imagen; `verify_hu47_cloud_config.py` valida la estructura y los secretos sin red ni impresión de valores | Dejar verificable el despliegue con dominio propio mientras faltan proveedor, DNS, imagen publicada y credenciales; conservar la cola compartida de HU-45 y la sesión segura de HU-53 sin contratar ni publicar |
 | 2026-11-28 | HU-43: `plano_pdf.py` reutiliza las vistas HLR y las funciones de cotas de SPEC-043 y dibuja sobre el backend PDF de matplotlib una página A4/A3 horizontal con margen de 10 mm, escala por serie (1:1, 1:2, 1:5…) declarada en el cajetín y cajetín con material, masa, fecha e id de solicitud; `matplotlib` sube de transitiva (por `vtk`) a dependencia directa y el PDF sale por el canal de descargas de HU-36; determinista salvo la fecha del cajetín, que es la huella admisible (RNF-1) | El PDF es el plano que se imprime y archiva; reutilizar la proyección y las cotas de SPEC-043 evita dos fuentes de verdad geométrica y el backend PDF de matplotlib ya estaba en el árbol de dependencias (cero bytes nuevos) |
 | 2026-11-27 | HU-48: `materiales.py` + `data/materiales.toml` concentran el catálogo cerrado de materiales, sus alias y los precios del BOM; `construir_pieza` escribe el CSV con material y costo por línea (el kit no se parchea) y un guard declina el material no soportado (SPEC-049, alcance B) | El kit caía a la densidad del acero sin avisar y su BOM agrupa por tipo sin material ni costo; precios versionados y guard propio dan costo trazable sin mantener un parche externo |
+| 2026-11-28 | HU-49: `plantillas.py` + `data/plantillas.toml` (catálogo versionado, una plantilla por familia) y `data/plantillas.json` (guardadas, con propietario); `/v1/plantillas` instancia sin LLM por el mismo `_construir_programa` y valida rangos antes de construir (SPEC-050) | Variantes frecuentes sin redactar ni gastar tokens; los rangos y valores permitidos viven como datos revisables y la verificación es la misma que la del flujo por texto |
 | 2026-11-28 | HU-42: `plano_dxf.py` proyecta por HLR las vistas frontal, superior y lateral del STEP exportado, con capas de aristas visibles/ocultas, cotas generales de `caja_mm` y cotas por arista; `ezdxf` sube de transitiva a dependencia directa; el DXF sale por el canal de descargas de HU-36 y la cabecera de fecha fija lo vuelve determinista (RNF-1) | Los planos 2D son el entregable que los fabricantes leen; reutilizar el mecanismo HLR de CadQuery evita mantener proyección propia y las cotas quedan atadas a la verificación (`caja_mm`), no al render |
 
 ## 10. Notas y tareas pendientes

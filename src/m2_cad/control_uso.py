@@ -168,17 +168,27 @@ class ControlUso:
             if presupuesto > 0 and self._gasto[dia] >= presupuesto:
                 raise PresupuestoExcedido(presupuesto)
 
-            limite = self.configuracion.limite_ventana
-            if limite <= 0:
-                return
-            ventana = self.configuracion.ventana_segundos
-            cola = self._ventanas[sesion]
-            while cola and ahora - cola[0] >= ventana:
-                cola.popleft()
-            if len(cola) >= limite:
-                espera = max(1, math.ceil(ventana - (ahora - cola[0])))
-                raise LimiteVentanaExcedido(limite, ventana, espera)
-            cola.append(ahora)
+            self._ocupar_ventana(sesion, ahora)
+
+    def reservar_ventana(self, sesion: str) -> None:
+        """Solo el tope por ventana, para construcciones sin LLM ni gasto (HU-49)."""
+        ahora = self._reloj()
+        with self._lock:
+            self._ocupar_ventana(sesion, ahora)
+
+    def _ocupar_ventana(self, sesion: str, ahora: float) -> None:
+        """Cuenta una solicitud en la ventana de la sesión; requiere `self._lock`."""
+        limite = self.configuracion.limite_ventana
+        if limite <= 0:
+            return
+        ventana = self.configuracion.ventana_segundos
+        cola = self._ventanas[sesion]
+        while cola and ahora - cola[0] >= ventana:
+            cola.popleft()
+        if len(cola) >= limite:
+            espera = max(1, math.ceil(ventana - (ahora - cola[0])))
+            raise LimiteVentanaExcedido(limite, ventana, espera)
+        cola.append(ahora)
 
     def registrar_gasto(self, costo_usd: float, *, dia: date | None = None) -> None:
         """AC4: suma el costo ya calculado por el seguimiento, nunca uno inventado.

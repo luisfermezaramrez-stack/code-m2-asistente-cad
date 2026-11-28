@@ -1,0 +1,308 @@
+# Catálogo versionado de plantillas de pieza (SPEC-050, HU-49).
+#
+# Cada plantilla declara el tipo del motor, la familia del banco, su programa DSL
+# completo con valores por defecto y los parámetros que el usuario puede ajustar
+# (nombre, etiqueta, unidad, defecto, mínimo y máximo). El material es explícito y
+# pasa por el mismo guard que el flujo por texto.
+#
+# - Los valores por defecto son los que se construyen si el usuario no toca nada.
+# - `make plantillas-check` verifica tipos, familias, rangos y que el programa base
+#   pase el verificador determinista.
+# - Es un archivo de datos: para añadir una plantilla se agrega una entrada y se
+#   revisa en el PR, sin tocar código.
+
+version = 1
+unidad_defecto = "mm"
+
+[[plantillas]]
+id = "placa-con-agujeros"
+nombre = "Placa con agujeros"
+descripcion = "Placa rectangular con una corona de agujeros pasantes."
+tipo = "plate"
+familia = "plate"
+
+[[plantillas.parametros]]
+nombre = "width"
+etiqueta = "Ancho"
+unidad = "mm"
+defecto = 100
+minimo = 20
+maximo = 300
+
+[[plantillas.parametros]]
+nombre = "depth"
+etiqueta = "Fondo"
+unidad = "mm"
+defecto = 60
+minimo = 20
+maximo = 300
+
+[[plantillas.parametros]]
+nombre = "thick"
+etiqueta = "Espesor"
+unidad = "mm"
+defecto = 6
+minimo = 2
+maximo = 50
+
+[[plantillas.parametros]]
+nombre = "bolt_d"
+etiqueta = "Diámetro de agujero"
+unidad = "mm"
+defecto = 10
+minimo = 3
+maximo = 30
+
+[[plantillas.parametros]]
+nombre = "bolt_circle"
+etiqueta = "Círculo de agujeros"
+unidad = "mm"
+defecto = 70
+minimo = 10
+maximo = 250
+
+[[plantillas.parametros]]
+nombre = "bolt_count"
+etiqueta = "Cantidad de agujeros"
+unidad = "u"
+defecto = 4
+minimo = 1
+maximo = 12
+entero = true
+
+[plantillas.programa]
+mates = []
+
+[[plantillas.programa.parts]]
+id = "p"
+type = "plate"
+material = "steel"
+
+[plantillas.programa.parts.params]
+width = 100
+depth = 60
+thick = 6
+boss_d = 0
+boss_h = 0
+bolt_d = 10
+bolt_circle = 70
+bolt_count = 4
+
+[[plantillas]]
+id = "escuadra-de-chapa"
+nombre = "Escuadra de chapa"
+descripcion = "Escuadra en L de espesor constante."
+tipo = "sheet_bracket"
+familia = "sheet_bracket"
+
+[[plantillas.parametros]]
+nombre = "thickness"
+etiqueta = "Espesor"
+unidad = "mm"
+defecto = 3
+minimo = 1
+maximo = 12
+
+[[plantillas.parametros]]
+nombre = "base_length"
+etiqueta = "Largo de la base"
+unidad = "mm"
+defecto = 80
+minimo = 20
+maximo = 300
+
+[[plantillas.parametros]]
+nombre = "flange_length"
+etiqueta = "Largo del ala"
+unidad = "mm"
+defecto = 60
+minimo = 20
+maximo = 300
+
+[[plantillas.parametros]]
+nombre = "width"
+etiqueta = "Ancho"
+unidad = "mm"
+defecto = 40
+minimo = 10
+maximo = 200
+
+[[plantillas.parametros]]
+nombre = "bend_radius"
+etiqueta = "Radio de plegado"
+unidad = "mm"
+defecto = 2
+minimo = 0.5
+maximo = 20
+
+[plantillas.programa]
+mates = []
+
+[[plantillas.programa.parts]]
+id = "p"
+type = "sheet_bracket"
+material = "steel"
+
+[plantillas.programa.parts.params]
+thickness = 3
+base_length = 80
+flange_length = 60
+width = 40
+bend_radius = 2
+
+[[plantillas]]
+id = "adaptador-de-reduccion"
+nombre = "Adaptador de reducción"
+descripcion = "Adaptador macizo de base rectangular a boca circular."
+tipo = "adapter"
+familia = "adapter"
+
+[[plantillas.parametros]]
+nombre = "bottom_w"
+etiqueta = "Ancho de la base"
+unidad = "mm"
+defecto = 60
+minimo = 20
+maximo = 300
+
+[[plantillas.parametros]]
+nombre = "bottom_d"
+etiqueta = "Fondo de la base"
+unidad = "mm"
+defecto = 40
+minimo = 20
+maximo = 300
+
+[[plantillas.parametros]]
+nombre = "top_d"
+etiqueta = "Diámetro de la boca"
+unidad = "mm"
+defecto = 30
+minimo = 10
+maximo = 250
+
+[[plantillas.parametros]]
+nombre = "height"
+etiqueta = "Altura"
+unidad = "mm"
+defecto = 50
+minimo = 10
+maximo = 300
+
+[plantillas.programa]
+mates = []
+
+[[plantillas.programa.parts]]
+id = "p"
+type = "adapter"
+material = "steel"
+
+[plantillas.programa.parts.params]
+bottom_w = 60
+bottom_d = 40
+top_d = 30
+height = 50
+
+[[plantillas]]
+id = "brida"
+nombre = "Brida ASME B16.5"
+descripcion = "Brida de tubería con su clase de presión."
+tipo = "flange"
+familia = "flange"
+
+[[plantillas.parametros]]
+nombre = "flange_class"
+etiqueta = "Clase de presión"
+unidad = "u"
+defecto = 150
+minimo = 150
+maximo = 2500
+entero = true
+# Clases ASME B16.5: el núcleo rechaza cualquier otro valor.
+valores = [150, 300, 400, 600, 900, 1500, 2500]
+
+[plantillas.programa]
+mates = []
+
+[[plantillas.programa.parts]]
+id = "p"
+type = "flange"
+material = "steel"
+
+[plantillas.programa.parts.params]
+nps = "2"
+flange_class = 150
+kind = "weld_neck"
+
+[[plantillas]]
+id = "espaciador"
+nombre = "Espaciador cilíndrico"
+descripcion = "Cilindro con un agujero pasante coaxial."
+tipo = "spacer"
+familia = "spacer"
+
+[[plantillas.parametros]]
+nombre = "outer_d"
+etiqueta = "Diámetro exterior"
+unidad = "mm"
+defecto = 30
+minimo = 5
+maximo = 200
+
+[[plantillas.parametros]]
+nombre = "bore_d"
+etiqueta = "Diámetro del agujero"
+unidad = "mm"
+defecto = 12
+minimo = 0
+maximo = 150
+
+[[plantillas.parametros]]
+nombre = "height"
+etiqueta = "Altura"
+unidad = "mm"
+defecto = 20
+minimo = 1
+maximo = 200
+
+[plantillas.programa]
+mates = []
+
+[[plantillas.programa.parts]]
+id = "p"
+type = "spacer"
+material = "steel"
+
+[plantillas.programa.parts.params]
+outer_d = 30
+bore_d = 12
+height = 20
+
+[[plantillas]]
+id = "tornillo-metrico"
+nombre = "Tornillo métrico ISO 4762"
+descripcion = "Tornillo de cabeza cilíndrica con hexágono interior."
+tipo = "screw"
+familia = "tornillería"
+
+[[plantillas.parametros]]
+nombre = "length"
+etiqueta = "Longitud"
+unidad = "mm"
+defecto = 20
+minimo = 5
+maximo = 200
+
+[plantillas.programa]
+mates = []
+
+[[plantillas.programa.parts]]
+id = "p"
+type = "screw"
+material = "steel"
+
+[plantillas.programa.parts.params]
+size = "M5-0.8"
+length = 20
+simple = true
+fastener_type = "iso4762"

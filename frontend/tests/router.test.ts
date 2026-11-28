@@ -206,8 +206,9 @@ describe('AC4 · Navegación sólo con teclado', () => {
 
   it('no captura Tab en el nav: el foco queda libre para salir del menú', async () => {
     const enlaces = wrapper.findAll('nav a')
-    // HU-51 añadió «Métricas»: la navegación por teclado tiene que seguir cubriéndolas todas.
-    expect(enlaces).toHaveLength(4)
+    // HU-51 añadió «Métricas» y HU-49 «Plantillas»: la navegación por teclado tiene que
+    // seguir cubriéndolas todas.
+    expect(enlaces).toHaveLength(5)
 
     const primero = enlaces[0]!.element as HTMLAnchorElement
     primero.focus()
