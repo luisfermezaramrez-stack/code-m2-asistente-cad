@@ -30,7 +30,7 @@ def test_ac3_modelo_configurado_y_registro_accesible(cliente, monkeypatch):
     assert respuesta.status_code == 200
     assert respuesta.json() == {
         "status": "ok",
-        "dependencias": {"modelo": "ok", "registro": "ok"},
+        "dependencias": {"modelo": "ok", "registro": "ok", "datos": "ok"},
     }
 
 

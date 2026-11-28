@@ -20,6 +20,7 @@ from m2_cad.control import (
     GeneracionCancelada,
     SolicitudDeclinada,
 )
+from m2_cad.errores_publicos import motivo_publico
 from m2_cad.observabilidad import contexto_solicitud
 
 logger = logging.getLogger(__name__)
@@ -100,11 +101,16 @@ class Trabajo:
                     "motivo": str(exc.detail),
                     "codigo_http": exc.status_code,
                 }
-            except Exception:
-                logger.exception("Fallo en generación SSE %s", self.id)
+            except Exception as exc:
+                # Un fallo conocido trae su motivo; lo desconocido sigue siendo genérico.
+                conocido = motivo_publico(exc)
+                if conocido is None:
+                    logger.exception("Fallo en generación SSE %s", self.id)
+                else:
+                    logger.warning("Fallo conocido en generación SSE %s: %s", self.id, conocido)
                 terminal = {
                     "estado": "error",
-                    "motivo": "No fue posible completar la generación.",
+                    "motivo": conocido or "No fue posible completar la generación.",
                     "codigo_http": 500,
                 }
             try:

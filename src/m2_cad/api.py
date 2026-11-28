@@ -30,7 +30,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field, StrictFloat, StrictInt, field_validator
 
-from m2_cad import declinacion, metricas, plantillas, seguimiento, versiones
+from m2_cad import declinacion, materiales, metricas, plantillas, seguimiento, versiones
 from m2_cad.autenticacion import (
     ANONIMO,
     LimiteIntentos,
@@ -407,6 +407,22 @@ def _modelo_configurado() -> bool:
     )
 
 
+def _datos_disponibles() -> bool:
+    """Datos versionados del despliegue: tabla de materiales y catálogo de plantillas.
+
+    Un volumen de datos viejo puede dejar estos archivos fuera del contenedor: sin ellos
+    el pipeline falla recién al armar la pieza, así que se informan en el readiness.
+    """
+    try:
+        materiales.cargar()
+    except (materiales.ErrorMateriales, OSError):
+        return False
+    try:
+        return plantillas.ruta_catalogo().is_file()
+    except OSError:
+        return False
+
+
 def _registro_disponible() -> bool:
     """Comprueba acceso al registro sin crearlo ni alterar su contenido."""
     ruta = Path(obtener_ruta_registro())
@@ -430,6 +446,7 @@ def ready() -> JSONResponse:
     dependencias = {
         "modelo": "ok" if _modelo_configurado() else "no_disponible",
         "registro": "ok" if _registro_disponible() else "no_disponible",
+        "datos": "ok" if _datos_disponibles() else "no_disponible",
     }
     disponible = all(estado == "ok" for estado in dependencias.values())
     return JSONResponse(
