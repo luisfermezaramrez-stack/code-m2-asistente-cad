@@ -224,12 +224,12 @@ def test_un_material_sin_precio_falla_antes_de_exportar(tmp_path, monkeypatch):
 @pytest.mark.parametrize(
     ("material", "fragmento"),
     [
-        ("", "sin material válido"),
-        ("   ", "sin material válido"),
-        (None, "sin material válido"),
-        (5, "sin material válido"),
-        (["steel"], "sin material válido"),
-        ("aluminium", "«aluminium»"),
+        ("", "la pieza «p» no indica un material válido"),
+        ("   ", "la pieza «p» no indica un material válido"),
+        (None, "la pieza «p» no indica un material válido"),
+        (5, "la pieza «p» no indica un material válido"),
+        (["steel"], "la pieza «p» no indica un material válido"),
+        ("aluminium", "el material «aluminium» no está entre los materiales soportados"),
     ],
 )
 def test_ac3_el_motivo_es_legible_para_cualquier_valor(material, fragmento, tmp_path):
@@ -240,4 +240,28 @@ def test_ac3_el_motivo_es_legible_para_cualquier_valor(material, fragmento, tmp_
     assert fragmento in mensaje
     assert "«»" not in mensaje
     assert "'steel'" not in mensaje
+    if "material válido" in mensaje:
+        assert "steel," in mensaje, "el motivo lista los materiales soportados"
     assert info.value.causa is declinacion.Causa.MATERIAL_NO_SOPORTADO
+
+
+def test_el_costo_de_linea_sale_del_unitario_redondeado():
+    """Factura: unitario redondeado, línea = unitario x cantidad y total = suma de líneas.
+
+    Tres espaciadores de nailon con 2,95 g cada uno: el costo exacto por unidad es
+    0,0826 USD y el de la línea 0,2478. Redondear cada uno por separado daba 0,08 y
+    0,25, y la fila no cuadraba.
+    """
+    partes = [{"type": "spacer", "material": "nylon", "mass_g": 2.95} for _ in range(3)]
+
+    filas = list(
+        csv.reader(pipeline._csv_materiales(pipeline._resumen_materiales(partes)).splitlines())
+    )
+
+    unitario = float(filas[1][5])
+    linea = float(filas[1][6])
+    assert unitario == 0.08
+    assert linea == round(unitario * 3, 2)
+    assert linea == 0.24
+    assert filas[3][0] == "TOTAL"
+    assert float(filas[3][6]) == round(linea, 2)

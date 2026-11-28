@@ -236,11 +236,11 @@ def extraer_programa(salida: str) -> dict:
     return programa
 
 
-def _material_legible(pedido: object) -> str:
-    """Material pedido para el mensaje al usuario, sin volcar el valor crudo (RF-5)."""
+def _material_pedido(pedido: object) -> str | None:
+    """Texto del material pedido, o `None` si no lo hay (vacío o no es texto)."""
     if isinstance(pedido, str) and pedido.strip():
-        return f"«{pedido.strip()}»"
-    return "sin material válido (vacío o no es texto)"
+        return pedido.strip()
+    return None
 
 
 def validar_materiales(programa: dict) -> None:
@@ -267,10 +267,17 @@ def validar_materiales(programa: dict) -> None:
             # Una tabla ilegible es un error de configuración, no del usuario.
             raise ErrorPipeline(str(exc)) from exc
         if canonico is None:
+            nombre = _material_pedido(pedido)
+            soportados = ", ".join(materiales.SOPORTADOS)
+            if nombre is None:
+                raise _declinar(
+                    declinacion.Causa.MATERIAL_NO_SOPORTADO,
+                    f"la pieza «{parte.get('id')}» no indica un material válido; "
+                    f"materiales soportados: {soportados}",
+                )
             raise _declinar(
                 declinacion.Causa.MATERIAL_NO_SOPORTADO,
-                f"el material {_material_legible(pedido)} no está entre los materiales "
-                f"soportados ({', '.join(materiales.SOPORTADOS)})",
+                f"el material «{nombre}» no está entre los materiales soportados ({soportados})",
             )
         parte["material"] = canonico
 
@@ -387,6 +394,10 @@ def _csv_materiales(filas: dict[tuple[str, str], dict[str, float]]) -> str:
             precio_g = materiales.precio_usd_g(material)
         except materiales.ErrorMateriales as exc:
             raise ErrorPipeline(str(exc)) from exc
+        # Convención de factura: el unitario se redondea y la línea sale de él, así la
+        # fila cuadra con `unitario × cantidad`; el total suma las líneas ya redondeadas.
+        costo_unitario = round(unitaria * precio_g, 2)
+        costo_linea = round(costo_unitario * cantidad, 2)
         escritor.writerow(
             [
                 tipo,
@@ -394,15 +405,17 @@ def _csv_materiales(filas: dict[tuple[str, str], dict[str, float]]) -> str:
                 round(masa, 3),
                 round(unitaria, 3),
                 material,
-                f"{unitaria * precio_g:.2f}",
-                f"{masa * precio_g:.2f}",
+                f"{costo_unitario:.2f}",
+                f"{costo_linea:.2f}",
             ]
         )
         piezas += cantidad
         masa_total += masa
-        costo_total += masa * precio_g
+        costo_total += costo_linea
     escritor.writerow([])
-    escritor.writerow(["TOTAL", piezas, round(masa_total, 3), "", "", "", f"{costo_total:.2f}"])
+    escritor.writerow(
+        ["TOTAL", piezas, round(masa_total, 3), "", "", "", f"{round(costo_total, 2):.2f}"]
+    )
     return salida.getvalue()
 
 
