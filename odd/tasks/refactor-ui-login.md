@@ -99,3 +99,8 @@ Las specs formales viven en `specs/059`, `specs/060` y `specs/061`.
   (cambia este titulo por otro mas diciente). / dale mas color al modo claro para que no se vea
   tan blanco» — sexta iteración (S14). Además, instrucción explícita de **no hacer commit** de
   estos cambios.
+- **L9**: «listo lo primero que debes hacer es crear las HU en proyecs y luego hacer commit el
+  diseño quedo bien» — diseño aprobado. HUs creadas en el proyecto 1: **#164 a #169**, hito M5;
+  después se commitea el refactor y se abre el PR que las cierra.
+- **L10**: «al crear las Hu comenzamos con la implementacion de las misma para luego hacer los
+  PR respectivos» — implementación completada en la rama; el PR queda como último paso.
