@@ -4,7 +4,7 @@
 - **Historia**: #165 (HU-59) · 1 SP · Etiquetas: frontend, refactor, UX
 - **Responsable**: Luis Meza
 - **Rama**: `refactor/hu-58-60-interfaz-login` (HU-58, HU-59 y HU-60 en un solo PR)
-- **Estado**: Spec-first · en revisión (PR #170)
+- **Estado**: Spec-first · en revisión (PR #171 / #172)
 - **Supera**: los requisitos de navegación de [SPEC-039](../039-hu-38-app-shell/spec.md) y de
   [SPEC-052](../052-hu-51-panorama-metricas/spec.md) (pestaña de métricas), y retira la vista de
   estado de «Ajustes» creada por SPEC-039.

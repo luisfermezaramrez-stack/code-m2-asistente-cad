@@ -4,7 +4,7 @@
 - **Historia**: #167 (HU-61) · 1 SP · Etiquetas: frontend, refactor, UX
 - **Responsable**: Luis Meza
 - **Rama**: `refactor/hu-58-60-interfaz-login` (HU-58 a HU-61 en un solo PR)
-- **Estado**: Spec-first · en revisión (PR #170)
+- **Estado**: Spec-first · en revisión (PR #171 / #172)
 - **Supera**: la colocación visible del aviso que exige
   [SPEC-003](../003-declinacion-preliminar/spec.md) («marcar toda salida como diseño
   preliminar») y el panel de aviso del shell de [SPEC-039](../039-hu-38-app-shell/spec.md).

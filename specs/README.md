@@ -93,9 +93,9 @@ entregan en un solo PR. Issues y PR se registran al abrirlos.
 
 | Spec | Historia | Issue | PR | Tipo | Estado |
 | --- | --- | --- | --- | --- | --- |
-| [059](059-hu-58-login-primera-pantalla/) | HU-58 · El login como primera pantalla y el tema sol/luna | #164 | #170 | Spec-first | En revisión (PR #170) |
-| [060](060-hu-59-retirar-metricas-ajustes/) | HU-59 · Retirar «Métricas» y «Ajustes» de la interfaz | #165 | #170 | Spec-first | En revisión (PR #170) |
-| [061](061-hu-60-card-proceso-bajo-descripcion/) | HU-60 · Proceso compacto y orden vertical al 100 % | #166 | #170 | Spec-first | En revisión (PR #170) |
-| [062](062-hu-61-sin-aviso-profesional/) | HU-61 · Sin aviso profesional persistente en el shell | #167 | #170 | Spec-first | En revisión (PR #170) |
-| [063](063-hu-62-gradiente-identidad/) | HU-62 · Gradiente de identidad del asistente CAD | #168 | #170 | Spec-first | En revisión (PR #170) |
-| [064](064-hu-63-plantillas-y-atajo-visor/) | HU-63 · Plantillas legibles, sección en cards y atajo al visor 3D | #169 | #170 | Spec-first | En revisión (PR #170) |
+| [059](059-hu-58-login-primera-pantalla/) | HU-58 · El login como primera pantalla y el tema sol/luna | #164 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
+| [060](060-hu-59-retirar-metricas-ajustes/) | HU-59 · Retirar «Métricas» y «Ajustes» de la interfaz | #165 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
+| [061](061-hu-60-card-proceso-bajo-descripcion/) | HU-60 · Proceso compacto y orden vertical al 100 % | #166 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
+| [062](062-hu-61-sin-aviso-profesional/) | HU-61 · Sin aviso profesional persistente en el shell | #167 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
+| [063](063-hu-62-gradiente-identidad/) | HU-62 · Gradiente de identidad del asistente CAD | #168 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
+| [064](064-hu-63-plantillas-y-atajo-visor/) | HU-63 · Plantillas legibles, sección en cards y atajo al visor 3D | #169 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |

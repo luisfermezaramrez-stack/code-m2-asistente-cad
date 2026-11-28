@@ -4,7 +4,7 @@
 - **Historia**: #169 (HU-63) · 2 SP · Etiquetas: frontend, refactor, UX
 - **Responsable**: Luis Meza
 - **Rama**: `refactor/hu-58-60-interfaz-login` (HU-58 a HU-63 en un solo PR)
-- **Estado**: Spec-first · en revisión (PR #170)
+- **Estado**: Spec-first · en revisión (PR #171 / #172)
 - **Ajusta**: la sección de plantillas de [SPEC-050](../050-hu-49-plantillas-parametrizadas/spec.md)
   y añade un atajo en la vista de nueva solicitud.
 
