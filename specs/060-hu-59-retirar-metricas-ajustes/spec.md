@@ -5,14 +5,16 @@
 - **Responsable**: Luis Meza
 - **Rama**: `refactor/hu-58-60-interfaz-login` (HU-58, HU-59 y HU-60 en un solo PR)
 - **Estado**: Spec-first · implementada en local, pendiente de PR
-- **Supera**: los requisitos de navegación de [SPEC-039](../039-hu-38-app-shell/spec.md) (cuatro
-  entradas) y de [SPEC-052](../052-hu-51-panorama-metricas/spec.md) (pestaña de métricas), y
-  retira la vista de estado de «Ajustes» creada por SPEC-039.
+- **Supera**: los requisitos de navegación de [SPEC-039](../039-hu-38-app-shell/spec.md) y de
+  [SPEC-052](../052-hu-51-panorama-metricas/spec.md) (pestaña de métricas), y retira la vista de
+  estado de «Ajustes» creada por SPEC-039.
+- **Preserva**: la entrada «Plantillas» de [SPEC-050](../050-hu-49-plantillas-parametrizadas/spec.md)
+  (HU-49) y el detalle de historial de [SPEC-038](../038-hu-37-historial-ui/spec.md) (HU-37).
 
 ## Problema y contexto
 
-La navegación tiene cuatro entradas (`frontend/src/App.vue:98-101`): Nueva solicitud,
-Historial, Métricas y Ajustes. Dos de ellas no aportan a la tarea del usuario:
+La navegación tiene cinco entradas (`frontend/src/App.vue:74-78`): Nueva solicitud, Historial,
+Plantillas, Métricas y Ajustes. Dos de ellas no aportan a la tarea del usuario:
 
 - **Ajustes** (`frontend/src/views/SettingsView.vue`) no configura nada: repite estados de
   vista y remite a la cabecera y a Nueva solicitud (`SettingsView.vue:19`). Es un cascarón.
@@ -33,15 +35,15 @@ vacías o de operación interna.
 
 ### Funcionales
 
-- **RF-1**: la navegación principal contiene exactamente dos entradas: «Nueva solicitud» e
-  «Historial».
+- **RF-1**: la navegación principal contiene exactamente tres entradas: «Nueva solicitud»,
+  «Historial» y «Plantillas».
 - **RF-2**: las rutas `/metricas` y `/ajustes` dejan de existir; navegar a ellas resuelve en
   la vista de ruta no encontrada.
 - **RF-3**: se eliminan `frontend/src/views/MetricsView.vue`, `frontend/src/views/SettingsView.vue`
   y `frontend/tests/Metrics.test.ts`, junto con las importaciones de `router.ts` y la función
   `cargarMetricas` de `frontend/src/api.ts`, que queda sin consumidores.
 - **RF-4**: la vista de ruta no encontrada deja de mencionar «ajustes» y enumera sólo las
-  entradas vigentes.
+  entradas vigentes (nueva solicitud, historial y plantillas).
 - **RF-5**: el endpoint `GET /v1/metricas` y su módulo `m2_cad.metricas` permanecen intactos
   como contrato de la API (`tests/test_api_metricas.py`, `tests/test_metricas.py` sin cambios):
   la retirada es de interfaz, no de backend.
@@ -57,12 +59,12 @@ vacías o de operación interna.
 
 ## Criterios de aceptación
 
-### AC1 — Menú con dos entradas
+### AC1 — Menú con tres entradas
 
 - **Dado** un usuario autenticado en el shell
 - **Cuando** observa la navegación principal
-- **Entonces** hay dos enlaces: «Nueva solicitud» e «Historial», y ninguno dice «Métricas» ni
-  «Ajustes».
+- **Entonces** hay tres enlaces: «Nueva solicitud», «Historial» y «Plantillas», y ninguno dice
+  «Métricas» ni «Ajustes».
 
 ### AC2 — Rutas retiradas
 
@@ -75,7 +77,7 @@ vacías o de operación interna.
 
 - **Dado** el foco en la navegación principal
 - **Cuando** recorre con Tab, Shift+Tab y activa con Enter
-- **Entonces** alcanza y activa las dos entradas vigentes, y el skip link sigue siendo
+- **Entonces** alcanza y activa las tres entradas vigentes, y el skip link sigue siendo
   enfocable.
 
 ### AC4 — Backend intacto
@@ -92,5 +94,5 @@ vacías o de operación interna.
 
 ## Métricas de éxito
 
-- Dos entradas en el menú; cero archivos de vista sin importadores.
+- Tres entradas en el menú; cero archivos de vista sin importadores.
 - Cero peticiones a `/v1/metricas` originadas en la SPA.

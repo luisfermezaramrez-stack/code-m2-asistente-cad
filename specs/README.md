@@ -84,3 +84,15 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [054](054-hu-53-autenticacion/) | HU-53 · Autenticación y usuarios | 3 | Juan Camilo | #113 | #133 | Spec-first | Fusionada |
 | [055](055-hu-54-sitio-documentacion/) | HU-54 · Sitio de documentación publicado | 3 | Carlos | #114 | #150 | Spec-first | Fusionada |
 | [056](056-hu-55-releases-automaticos/) | HU-55 · Releases automáticos con changelog | 3 | Carlos | #115 | #153 | Spec-first | Fusionada |
+
+## Refactor de la interfaz — acceso, menú y orden de la solicitud
+
+Specs redactadas antes de implementar y revisadas contra `main` tras la fusión de HU-37, HU-49,
+HU-51 y HU-53. Las tres se implementan en la rama `refactor/hu-58-60-interfaz-login` y se
+entregan en un solo PR. Issues y PR se registran al abrirlos.
+
+| Spec | Historia | Issue | PR | Tipo | Estado |
+| --- | --- | --- | --- | --- | --- |
+| [059](059-hu-58-login-primera-pantalla/) | HU-58 · El login como primera pantalla y el tema sol/luna | — | — | Spec-first | Implementada en local; PR pendiente |
+| [060](060-hu-59-retirar-metricas-ajustes/) | HU-59 · Retirar «Métricas» y «Ajustes» de la interfaz | — | — | Spec-first | Implementada en local; PR pendiente |
+| [061](061-hu-60-card-proceso-bajo-descripcion/) | HU-60 · La card de proceso bajo la descripción de la pieza | — | — | Spec-first | Implementada en local; PR pendiente |

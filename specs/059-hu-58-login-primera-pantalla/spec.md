@@ -8,17 +8,19 @@
 - **Supera**: el requisito de shell de [SPEC-039](../039-hu-38-app-shell/spec.md) sobre el
   formulario de acceso dentro de la cabecera y el de [SPEC-054](../054-hu-53-autenticacion/spec.md)
   sobre el acceso conviviendo con la vista.
+- **Preserva**: la navegación por teclado nativa del shell (SPEC-040/042) y el `tabindex="-1"`
+  del destino del skip link, que se mantienen sin cambios.
 
 ## Problema y contexto
 
-Hoy `frontend/src/App.vue:104-115` pinta la cabecera, el aviso profesional, la navegación y
-el panel de sesión **en la misma pantalla**: quien abre la aplicación ve el formulario de
-acceso arriba y las funciones de la app abajo (`App.vue:93-120`). El resultado es una pantalla
+Hoy `frontend/src/App.vue:79-90` pinta el panel de sesión dentro del mismo flujo que la
+cabecera, el aviso profesional y la navegación (`App.vue:61-96`): quien abre la aplicación ve
+el formulario de acceso arriba y las funciones de la app abajo. El resultado es una pantalla
 que no se lee como una puerta de entrada: el visitante que todavía no se autenticó ve el
 formulario de generación, la navegación y el aviso profesional, y puede creer que ya está
 dentro del servicio.
 
-Además, el cambio de tema se ofrece como un botón de texto (`App.vue:96`:
+Además, el cambio de tema se ofrece como un botón de texto (`App.vue:69`:
 `{{ themeLabel }}`) que ocupa espacio y compite con el título, cuando es la única acción
 que la pantalla de acceso debe ofrecer además del formulario.
 
@@ -45,8 +47,9 @@ confundir el acceso con las funciones de la aplicación.
   la acción: luna cuando el tema activo es claro (la acción lleva a oscuro) y sol cuando el
   tema activo es oscuro (la acción lleva a claro). Conserva un nombre accesible que describa
   la acción, no el icono.
-- **RF-3**: el botón de tema está disponible en la pantalla de acceso y en la cabecera del
-  shell, con el mismo comportamiento y la misma preferencia persistida
+- **RF-3**: el botón de tema es un único componente reutilizable
+  (`frontend/src/components/BotonTema.vue`), disponible en la pantalla de acceso y en la
+  cabecera del shell, con el mismo comportamiento y la misma preferencia persistida
   (`m2-cad-theme`), y sigue respetando `prefers-color-scheme` cuando no hay preferencia.
 - **RF-4**: al iniciar sesión con credenciales válidas, la pantalla de acceso se desmonta y el
   shell se monta en la misma ruta, con la vista que el usuario pidió y su nombre visible.

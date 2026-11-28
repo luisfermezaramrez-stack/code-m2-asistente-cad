@@ -10,9 +10,9 @@
 
 ## Problema y contexto
 
-En `frontend/src/views/NewRequestView.vue` la columna izquierda contiene sólo el panel
-«Describe tu pieza» (líneas 41-62) y la columna derecha arranca con la card «Proceso»
-(líneas 63-76), seguida de «Vista 3D» (77-84) y «Archivos de la pieza» (85-97).
+En `frontend/src/views/NewRequestView.vue` la columna izquierda contenía sólo el panel
+«Describe tu pieza» (líneas 39-60) y la columna derecha arrancaba con la card «Proceso»
+(líneas 61-79), seguida de «Vista 3D» (82-89) y «Archivos de la pieza» (90-102).
 
 El resultado es que el estado del trabajo que el usuario acaba de pedir aparece **al lado** de
 la descripción, no debajo: al enviar la solicitud, la mirada tiene que viajar al margen derecho

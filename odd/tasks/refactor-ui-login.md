@@ -15,8 +15,9 @@ Las specs formales viven en `specs/059`, `specs/060` y `specs/061`.
   la acción, no el icono.» (SPEC-059, RF-2)
 - **S3** — «si el servicio no exige sesión (`requerido: false`, modo local), la aplicación abre
   directamente el shell, sin pantalla de acceso intermedia.» (SPEC-059, RF-6)
-- **S4** — «la navegación principal contiene exactamente dos entradas: "Nueva solicitud" e
-  "Historial".» (SPEC-060, RF-1)
+- **S4** — «la navegación principal contiene exactamente tres entradas: «Nueva solicitud»,
+  «Historial» y «Plantillas».» (SPEC-060, RF-1). «Plantillas» (HU-49) es una función de la
+  aplicación y se conserva.
 - **S5** — «las rutas `/metricas` y `/ajustes` dejan de existir; navegar a ellas resuelve en la
   vista de ruta no encontrada.» (SPEC-060, RF-2)
 - **S6** — «el endpoint `GET /v1/metricas` y su módulo `m2_cad.metricas` permanecen intactos
