@@ -104,3 +104,17 @@ Las specs formales viven en `specs/059`, `specs/060` y `specs/061`.
   después se commitea el refactor y se abre el PR que las cierra.
 - **L10**: «al crear las Hu comenzamos con la implementacion de las misma para luego hacer los
   PR respectivos» — implementación completada en la rama; el PR queda como último paso.
+
+## Slices de entrega
+
+El refactor se entrega en un solo PR (#170) por ser un único cambio de interfaz con archivos
+compartidos entre las seis HU. Tamaño medido contra `main`: 29 archivos, +1088 −454.
+
+| Slice | Contenido | Líneas |
+| --- | --- | --- |
+| S1 | Código y pruebas del frontend (`frontend/`), incluidas las vistas retiradas | +342 −454 |
+| S2 | Specs, índice y este documento | +746 |
+
+Si la revisión pide menos carga, S2 se separa a un PR encadenado: las specs no necesitan
+revisión de código y el código queda en ~800 líneas, de las cuales casi la mitad son archivos
+eliminados completos (MetricsView, SettingsView, Metrics.test).
