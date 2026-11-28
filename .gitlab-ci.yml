@@ -110,6 +110,8 @@ lint:
     - uv run --no-sync make lint
     # HU-33/AC2: también falla si un prompt cambió sin subir su versión.
     - uv run --no-sync make prompts-check
+    # HU-48/RF-3: la tabla versionada de materiales y precios también se valida acá.
+    - uv run --no-sync make materiales-check
     # HU-47/RNF-3: la configuración cloud se valida sin red, igual que en `make check`.
     - uv run --no-sync make cloud-config-check
     - uv run --no-sync ruff format --check src tests

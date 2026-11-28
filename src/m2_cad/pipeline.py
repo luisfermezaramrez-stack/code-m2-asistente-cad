@@ -19,21 +19,30 @@ diseño preliminar.
 HU-14: la solicitud en español llega directa al modelo, sin traducción ES→EN.
 """
 
+import csv
+import io
 import json
 import logging
 import os
 import re
 import time
 import uuid
-from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
-from constraint_kit import bom, builder, dsl, llm
+from constraint_kit import builder, dsl, llm
 
-from m2_cad import MARCA_PRELIMINAR, declinacion, llm_resiliente, plano_dxf, plano_pdf, prompts
+from m2_cad import (
+    MARCA_PRELIMINAR,
+    declinacion,
+    llm_resiliente,
+    materiales,
+    plano_dxf,
+    plano_pdf,
+    prompts,
+)
 from m2_cad.control import ControlGeneracion
 from m2_cad.observabilidad import redactar
 from m2_cad.registro import _sanitizar
@@ -42,6 +51,17 @@ logger = logging.getLogger(__name__)
 
 RUTA_SALIDA = Path("outputs")
 NOMBRE_PIEZA = "pieza"
+# Columnas del BOM (HU-48, SPEC-049): las cuatro primeras son las históricas y
+# conservan su nombre y su orden para no romper a sus consumidores (RNF-3).
+COLUMNAS_BOM = (
+    "part_type",
+    "qty",
+    "total_mass_g",
+    "unit_mass_g",
+    "material",
+    "unit_cost_usd",
+    "total_cost_usd",
+)
 # Plazo total de la llamada al LLM, repartido entre todos los reintentos (HU-25).
 TIEMPO_ESPERA_LLM = 120.0
 TEMPERATURA_LLM = 0.1
@@ -230,12 +250,60 @@ def extraer_programa(salida: str) -> dict:
     return programa
 
 
+def _material_pedido(pedido: object) -> str | None:
+    """Texto del material pedido, o `None` si no lo hay (vacío o no es texto)."""
+    if isinstance(pedido, str) and pedido.strip():
+        return pedido.strip()
+    return None
+
+
+def validar_materiales(programa: dict) -> None:
+    """Normaliza el alias del material y declina lo que no está soportado (RF-2, RF-5).
+
+    El verificador del kit acepta cualquier texto y construye con la densidad del acero en
+    silencio; este guard es el único punto que conoce el catálogo real
+    (`materiales.SOPORTADOS`). Corre antes del verificador, así que también cubre a quien
+    llama `construir_pieza` sin pasar por el catálogo de familias (el corpus dorado).
+
+    Los programas de declinación honesta del modelo (`{"unsupported": …}`) y los que no
+    traen `parts` no se tocan: no hay material que validar.
+    """
+    partes = programa.get("parts")
+    if dsl.is_decline(programa) or not isinstance(partes, list):
+        return
+    for parte in partes:
+        if not isinstance(parte, dict) or "material" not in parte:
+            continue
+        pedido = parte.get("material")
+        try:
+            canonico = materiales.normalizar(pedido)
+        except materiales.ErrorMateriales as exc:
+            # Una tabla ilegible es un error de configuración, no del usuario.
+            raise ErrorPipeline(str(exc)) from exc
+        if canonico is None:
+            nombre = _material_pedido(pedido)
+            soportados = ", ".join(materiales.SOPORTADOS)
+            if nombre is None:
+                raise _declinar(
+                    declinacion.Causa.MATERIAL_NO_SOPORTADO,
+                    f"la pieza «{parte.get('id')}» no indica un material válido; "
+                    f"materiales soportados: {soportados}",
+                )
+            raise _declinar(
+                declinacion.Causa.MATERIAL_NO_SOPORTADO,
+                f"el material «{nombre}» no está entre los materiales soportados ({soportados})",
+            )
+        parte["material"] = canonico
+
+
 def verificar_programa(programa: dict) -> dict:
     """Valida el programa con el verificador de constraint-kit (AC1).
 
     Devuelve el informe del verificador si pasa sin errores; lanza
-    PiezaDeclinada ante una declinación y ErrorVerificacion ante errores.
+    PiezaDeclinada ante una declinación y ErrorVerificacion ante errores. Antes de
+    verificar, el guard de material deja el material canónico o declina (HU-48, RF-5).
     """
+    validar_materiales(programa)
     informe = dsl.check(programa)
     if informe["declined"]:
         raise _declinar(declinacion.causa_de_informe(informe), detalle=informe["reason"])
@@ -303,17 +371,66 @@ def marcar_step(ruta: Path) -> None:
     ruta.write_text(marcada + separador + datos, encoding="ascii")
 
 
-def _resumen_materiales(partes: list[dict]) -> dict:
-    """Arma el resumen que bom.bom_document espera a partir del reporte."""
-    masa_por_tipo: dict[str, float] = defaultdict(float)
+def _resumen_materiales(partes: list[dict]) -> dict[tuple[str, str], dict[str, float]]:
+    """Agrupa el reporte del build por tipo y material para el BOM (RF-2, AC2).
+
+    `builder.build_assembly` ya pesa cada parte con la densidad de su material
+    (`DENSITY_G_MM3`), así que el costo sale de esa masa sin recalcular geometría. El
+    material faltante cuenta como `steel`, que es el valor por defecto del kit.
+    """
+    filas: dict[tuple[str, str], dict[str, float]] = {}
     for parte in partes:
-        masa_por_tipo[parte["type"]] += parte.get("mass_g") or 0.0
-    return {
-        "bom": dict(Counter(parte["type"] for parte in partes)),
-        "mass_by_type": dict(masa_por_tipo),
-        "mass_g": sum(masa_por_tipo.values()),
-        "part_count": len(partes),
-    }
+        material = str(parte.get("material") or "steel").strip().lower()
+        fila = filas.setdefault((str(parte["type"]), material), {"qty": 0.0, "mass_g": 0.0})
+        fila["qty"] += 1
+        fila["mass_g"] += float(parte.get("mass_g") or 0.0)
+    return filas
+
+
+def _csv_materiales(filas: dict[tuple[str, str], dict[str, float]]) -> str:
+    """Arma el CSV del BOM con material, masa y costo estimado (RF-3, RNF-3).
+
+    Extiende las cuatro columnas históricas al final para no romper a quien las lee; el
+    total conserva `TOTAL`, la cantidad de piezas y la masa en sus primeras posiciones.
+    """
+    salida = io.StringIO()
+    escritor = csv.writer(salida)
+    escritor.writerow(COLUMNAS_BOM)
+    piezas = 0
+    masa_total = 0.0
+    costo_total = 0.0
+    for tipo, material in sorted(filas):
+        fila = filas[(tipo, material)]
+        cantidad = int(fila["qty"])
+        masa = fila["mass_g"]
+        unitaria = masa / cantidad if cantidad else 0.0
+        try:
+            precio_g = materiales.precio_usd_g(material)
+        except materiales.ErrorMateriales as exc:
+            raise ErrorPipeline(str(exc)) from exc
+        # Convención de factura: el unitario se redondea y la línea sale de él, así la
+        # fila cuadra con `unitario × cantidad`; el total suma las líneas ya redondeadas.
+        costo_unitario = round(unitaria * precio_g, 2)
+        costo_linea = round(costo_unitario * cantidad, 2)
+        escritor.writerow(
+            [
+                tipo,
+                cantidad,
+                round(masa, 3),
+                round(unitaria, 3),
+                material,
+                f"{costo_unitario:.2f}",
+                f"{costo_linea:.2f}",
+            ]
+        )
+        piezas += cantidad
+        masa_total += masa
+        costo_total += costo_linea
+    escritor.writerow([])
+    escritor.writerow(
+        ["TOTAL", piezas, round(masa_total, 3), "", "", "", f"{round(costo_total, 2):.2f}"]
+    )
+    return salida.getvalue()
 
 
 def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
@@ -327,12 +444,12 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
     # (+2,74 mm por eje en un loft), lo que falsea el AC3 en piezas curvas.
     caja = ensamble.toCompound().BoundingBox()
     base = Path(directorio) / NOMBRE_PIEZA
+    # El BOM se calcula antes de exportar: un precio faltante no deja STEP ni GLB a medias.
+    csv_bom = _csv_materiales(_resumen_materiales(partes))
     exportado = builder.export(ensamble, str(base))
     marcar_step(Path(exportado["step"]))
     bom_csv = base.with_suffix(".csv")
-    bom_csv.write_text(
-        bom.bom_document(_resumen_materiales(partes), fmt="csv"), encoding="utf-8", newline=""
-    )
+    bom_csv.write_text(csv_bom, encoding="utf-8", newline="")
     firma = dsl.signature(ensamble)
     duracion = time.perf_counter() - inicio
 
@@ -586,6 +703,9 @@ def _construir_programa(
         familia=resultado.familia,
         programa_json=programa_json,
         version_modelo=version,
+        dxf=resultado.dxf,
+        pdf=resultado.pdf,
+        partes=resultado.partes,
     )
 
 
