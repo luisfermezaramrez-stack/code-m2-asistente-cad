@@ -12,6 +12,7 @@ const origenes: Record<PlantillaPublica['origen'], string> = {
   catalogo: 'Catálogo',
   guardada: 'Guardada por ti',
 }
+
 const plantillas = ref<PlantillaPublica[]>([])
 const cargando = ref(true)
 const errorLista = ref('')
@@ -24,6 +25,7 @@ const anuncio = ref('Cargando las plantillas…')
 let control: AbortController | undefined
 
 function campo(parametro: ParametroPlantilla): string { return `parametro-${parametro.nombre}` }
+function esElegida(plantilla: PlantillaPublica): boolean { return seleccionada.value?.id === plantilla.id }
 function rango(parametro: ParametroPlantilla): string {
   if (parametro.valores?.length) return `Valores permitidos: ${parametro.valores.join(', ')} ${parametro.unidad}.`
   return `Entre ${parametro.minimo} y ${parametro.maximo} ${parametro.unidad}${parametro.entero ? ', entero' : ''}.`
@@ -97,21 +99,26 @@ onBeforeUnmount(() => control?.abort())
     </p>
     <p v-else-if="!cargando && plantillas.length === 0" class="muted">No hay plantillas disponibles.</p>
     <ul v-else class="plantillas" aria-label="Plantillas disponibles">
-      <li v-for="plantilla in plantillas" :key="plantilla.id" class="plantilla" :data-test="`plantilla-${plantilla.id}`">
+      <li v-for="plantilla in plantillas" :key="plantilla.id" class="plantilla" :class="{ 'plantilla--elegida': esElegida(plantilla) }" :data-test="`plantilla-${plantilla.id}`">
         <p class="plantilla-meta">
           <strong>{{ plantilla.nombre }}</strong>
-          <span class="origen">{{ origenes[plantilla.origen] }}</span>
+          <span class="etiquetas">
+            <span v-if="esElegida(plantilla)" class="elegida">Elegida</span>
+            <span class="origen">{{ origenes[plantilla.origen] }}</span>
+          </span>
         </p>
         <p>{{ plantilla.descripcion }}</p>
         <button
           type="button"
-          :aria-pressed="seleccionada?.id === plantilla.id"
+          :aria-pressed="esElegida(plantilla)"
           @click="elegir(plantilla)"
         >
           Usar «{{ plantilla.nombre }}»
         </button>
       </li>
     </ul>
+
+    <p v-if="!seleccionada && !cargando && plantillas.length" class="muted ayuda">Elige una plantilla para ajustar sus medidas.</p>
 
     <form v-if="seleccionada" class="parametros" aria-labelledby="parametros-title" novalidate @submit.prevent="generar">
       <h3 id="parametros-title">Parámetros de {{ seleccionada.nombre }}</h3>
@@ -142,7 +149,6 @@ onBeforeUnmount(() => control?.abort())
       <button class="primary" type="submit" :disabled="generando">{{ generando ? 'Generando…' : 'Generar pieza' }}</button>
       <p v-if="errorFormulario" class="field-error" role="alert" data-test="error-plantilla">{{ errorFormulario }}</p>
     </form>
-
     <section v-if="resultado" class="resultado" aria-labelledby="resultado-title" data-test="resultado-plantilla">
       <h3 id="resultado-title">Pieza generada</h3>
       <dl>
@@ -160,15 +166,23 @@ onBeforeUnmount(() => control?.abort())
 <style scoped>
 .anuncio { margin-bottom: var(--space-4); }
 .plantillas { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-5); padding: 0; list-style: none; }
-.plantilla { padding: var(--space-4); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-small); background: var(--color-surface-subtle); }
-.plantilla-meta { display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: space-between; }
+.plantilla { display: grid; gap: var(--space-2); padding: var(--space-4); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-small); background: var(--color-surface-subtle); }
+.plantilla--elegida { border-color: var(--color-accent); }
+.plantilla-meta { display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: space-between; margin: 0; }
+.plantilla p { margin: 0; }
+.etiquetas { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .origen { color: var(--color-muted); font-size: var(--text-small); }
-.plantilla button[aria-pressed='true'] { border-color: var(--color-accent); color: var(--color-accent); }
-.parametros { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--space-3); align-items: start; margin-bottom: var(--space-5); }
+.elegida { padding: 0 var(--space-2); border-radius: var(--radius-small); background: var(--color-accent); color: var(--color-on-accent); font-size: var(--text-small); font-weight: var(--weight-strong); }
+/* El estado presionado debe seguir siendo legible: fondo y texto del par accent/on-accent. */
+.plantilla button[aria-pressed='true'] { border-color: var(--color-accent); background: var(--color-accent); color: var(--color-on-accent); }
+.plantilla button { justify-self: start; }
+.ayuda { margin-bottom: var(--space-4); }
+.parametros { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--space-3); align-items: start; margin-bottom: var(--space-5); padding: var(--space-4); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-small); background: var(--color-surface-subtle); }
 .parametros h3, .parametros > button, .parametros .field-error { grid-column: 1 / -1; }
 .parametros > button { justify-self: start; }
 .parametro p { margin: var(--space-1) 0 0; }
 select { width: 100%; min-height: var(--control-min); padding: var(--space-2) var(--space-3); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-small); color: var(--color-text); background: var(--color-surface); font: inherit; }
+.resultado { margin-bottom: var(--space-5); padding: var(--space-4); border: var(--border-width) solid var(--color-accent); border-radius: var(--radius-small); background: var(--color-surface-subtle); }
 .resultado dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-3); margin: 0 0 var(--space-3); }
 .resultado dl > div { padding: var(--space-3); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-small); background: var(--color-surface-subtle); }
 .resultado dt { color: var(--color-muted); font-size: var(--text-small); }

@@ -44,7 +44,7 @@ describe('AC1 y AC2 · URL propia y estado recuperable', () => {
     expect(router.currentRoute.value.path).toBe('/nueva-solicitud')
     expect(enlace('Nueva solicitud').attributes('href')).toBe('/nueva-solicitud')
     expect(wrapper.find('textarea#descripcion').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Describe tu pieza')
+    expect(wrapper.text()).toContain('Especifica la pieza que necesitas')
     expect(wrapper.findAll('nav a')).toHaveLength(3)
   })
 
