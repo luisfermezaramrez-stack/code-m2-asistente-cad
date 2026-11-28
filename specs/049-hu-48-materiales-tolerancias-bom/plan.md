@@ -52,8 +52,8 @@ final:
 | `total_mass_g` | Masa de la línea, con la densidad del material (`DENSITY_G_MM3`). |
 | `unit_mass_g` | Masa unitaria. |
 | `material` | Material canónico (`aluminum` cuando el modelo pidió `al`). |
-| `unit_cost_usd` | Costo unitario = masa unitaria / 1000 × precio del material. |
-| `total_cost_usd` | Costo de la línea. |
+| `unit_cost_usd` | Costo unitario = `round(masa unitaria / 1000 × precio del material, 2)`. |
+| `total_cost_usd` | Costo de la línea = `round(unitario × cantidad, 2)`, la convención de factura: la fila siempre cuadra con el unitario y el total es la suma de las líneas. |
 
 La fila `TOTAL` conserva `TOTAL`, la cantidad de piezas y la masa total en sus primeras
 posiciones, y suma el costo total en la última. El prefijo histórico se escribe **igual que `bom.py`**: `csv.writer` sin `lineterminator`

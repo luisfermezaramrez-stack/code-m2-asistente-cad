@@ -93,3 +93,11 @@ Ronda 2, en la misma rama; se observó RED en cada prueba nueva antes de corregi
 | Un material vacío, no textual o una lista producía motivos como «» o «['steel']». | `_material_legible()` describe el material pedido: lo nombra si es texto y, si no, dice «sin material válido (vacío o no es texto)». | `test_ac3_el_motivo_es_legible_para_cualquier_valor`, parametrizada con `""`, `"   "`, `None`, `5`, `["steel"]` y `"aluminium"`. |
 | Faltaba fijar la normalización de RF-2 en el guard. | Sin cambios de código: el comportamiento ya era correcto y ahora queda fijado. | `test_rf2_normaliza_mayusculas_espacios_y_saltos`: `" AL "` y `"Al"` → `aluminum`, `"\tnylon\n"` → `nylon`, `"STEEL "` → `steel`. |
 | `spec.md` dejaba la parte de tolerancia de RF-5 ambigua. | RF-5 aclara que solo se implementa la parte de material; la de tolerancia queda fuera con RF-4. `plan.md`, `README.md` y `docs/hu15-sse.md` describen el fin de línea y el `round` reales. | Revisión de los cuatro documentos. |
+
+## 9. Pulido previo al PR
+
+| Hallazgo | Corrección | Prueba |
+|---|---|---|
+| El motivo de un material vacío se leía «el material sin material válido (vacío o no es texto) no está entre…». | Para vacío o no texto: «la pieza «<id>» no indica un material válido; materiales soportados: …». Para un material desconocido se mantiene el formato que lo nombra. | `test_ac3_el_motivo_es_legible_para_cualquier_valor`, parametrizada con la frase nueva. |
+| El costo unitario y el de línea se redondeaban por separado: 3 espaciadores de nailon daban unitario `0,08` y línea `0,25`, y la fila no cuadraba. | Convención de factura: `unitario = round(costo exacto por unidad, 2)`, `línea = round(unitario × cantidad, 2)` y `TOTAL` = suma de las líneas. | `test_el_costo_de_linea_sale_del_unitario_redondeado` (3 × 2,95 g de nailon: `0,08`, `0,24` y total `0,24`). |
+| El prefijo histórico del CSV no podía moverse con el pulido. | Sin cambios en las cuatro columnas ni en el fin de línea. | `test_rnf3_las_cuatro_columnas_historicas_coinciden_byte_a_byte_con_el_kit` sigue en verde. |
