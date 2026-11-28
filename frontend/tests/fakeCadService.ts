@@ -21,7 +21,7 @@ export function event(state: Stage, sequence: number, extra: Partial<Job> = {}):
 
 export class FakeCadService {
   current: Job = { solicitud_id: 'job1', estado: 'iniciando', terminal: false, cancelacion_solicitada: false }
-  files = new Set<Format>(['step', 'glb', 'csv', 'dxf'])
+  files = new Set<Format>(['step', 'glb', 'csv', 'dxf', 'pdf'])
   posts: { body: unknown; signal: AbortSignal; controller: ReadableStreamDefaultController<Uint8Array> }[] = []
   deleteResult: Job | undefined
   sesion: EstadoSesion = { requerido: false, autenticado: false, usuario: null }
@@ -55,7 +55,7 @@ export class FakeCadService {
       } })
       return new Response(body, { headers: { 'Content-Type': 'text/event-stream', 'X-Download-Token': 'token-simulado-hu36', 'X-Solicitud-ID': 'job1' } })
     }
-    if (url.endsWith('/archivos/step') || url.endsWith('/archivos/glb') || url.endsWith('/archivos/csv') || url.endsWith('/archivos/dxf')) {
+    if (url.match(/\/archivos\/(step|glb|csv|dxf|pdf)$/)) {
       const format = url.split('/').at(-1) as Format
       // El trabajo sigue vivo sólo mientras el formato esté en `files` (HEAD responde igual).
       return new Response(init?.method === 'HEAD' ? null : 'archivo simulado', { status: this.files.has(format) ? 200 : 404 })
