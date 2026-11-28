@@ -1,0 +1,80 @@
+# Tabla versionada de materiales, densidades y precios estimados (SPEC-049, HU-48).
+#
+# Fuente única de los materiales que el asistente acepta, de sus alias y del precio
+# que usa el BOM para estimar el costo. El código no lleva precios: para ajustarlos se
+# edita este archivo (y se sube la fecha de `actualizado`), o se apunta a otra tabla
+# con la variable de entorno M2_MATERIALES.
+#
+# - `densidad_g_mm3` debe coincidir con DENSITY_G_MM3 del constraint-kit vendoreado;
+#   `make materiales-check` lo verifica.
+# - Los precios son estimaciones internas para diseño preliminar, en USD por kg de
+#   material. No son cotizaciones de proveedores ni incluyen mecanizado.
+# - El catálogo cerrado (RF-5) es esta lista: un material que no esté aquí se declina.
+
+version = 1
+moneda = "USD"
+unidad_precio = "kg"
+
+[[materiales]]
+nombre = "steel"
+alias = []
+densidad_g_mm3 = 0.00785
+precio_usd_kg = 1.20
+fuente = "estimación interna: acero al carbono laminado, sin mecanizado"
+actualizado = "2026-11-27"
+
+[[materiales]]
+nombre = "stainless"
+alias = []
+densidad_g_mm3 = 0.0080
+precio_usd_kg = 4.50
+fuente = "estimación interna: acero inoxidable 304 en plancha"
+actualizado = "2026-11-27"
+
+[[materiales]]
+nombre = "aluminum"
+alias = ["al"]
+densidad_g_mm3 = 0.0027
+precio_usd_kg = 3.20
+fuente = "estimación interna: aleación 6061 en plancha"
+actualizado = "2026-11-27"
+
+[[materiales]]
+nombre = "brass"
+alias = []
+densidad_g_mm3 = 0.0085
+precio_usd_kg = 8.50
+fuente = "estimación interna: latón en barra"
+actualizado = "2026-11-27"
+
+[[materiales]]
+nombre = "copper"
+alias = []
+densidad_g_mm3 = 0.00896
+precio_usd_kg = 9.80
+fuente = "estimación interna: cobre electrolítico en plancha"
+actualizado = "2026-11-27"
+
+[[materiales]]
+nombre = "abs"
+alias = []
+densidad_g_mm3 = 0.00104
+precio_usd_kg = 3.50
+fuente = "estimación interna: filamento ABS para FDM"
+actualizado = "2026-11-27"
+
+[[materiales]]
+nombre = "pla"
+alias = []
+densidad_g_mm3 = 0.00124
+precio_usd_kg = 22.00
+fuente = "estimación interna: filamento PLA para FDM"
+actualizado = "2026-11-27"
+
+[[materiales]]
+nombre = "nylon"
+alias = []
+densidad_g_mm3 = 0.00114
+precio_usd_kg = 28.00
+fuente = "estimación interna: filamento de nailon para FDM"
+actualizado = "2026-11-27"

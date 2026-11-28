@@ -4,7 +4,7 @@
 .PHONY: help install lock vendor test cov lint format check \
         precommit-install precommit build up down clean bench bench-report bench-replay worker \
         model-fetch model-serve verify-serve kernel-image kernel-test cloud-setup \
-        corpus-dorado prompts-check cloud-config-check \
+        corpus-dorado prompts-check materiales-check cloud-config-check \
         security security-secretos security-dependencias security-excepciones-validar \
         frontend-install frontend-test frontend-typecheck frontend-build frontend-check \
         e2e e2e-install \
@@ -52,6 +52,9 @@ corpus-dorado: ## HU-23: compara el núcleo determinista con el corpus dorado (s
 prompts-check: ## HU-33: verifica que ningún prompt cambió sin subir su versión
 	uv run --no-project python -B scripts/verify_prompts.py
 
+materiales-check: ## HU-48: valida la tabla versionada de materiales y precios
+	uv run --no-project python -B scripts/verify_materiales.py
+
 cloud-config-check: ## HU-47: valida la configuración cloud sin red ni secretos
 	uv run --no-project python -B scripts/verify_hu47_cloud_config.py --modo plantilla
 
@@ -90,6 +93,7 @@ cov: frontend-build ## Corre pytest con reporte de cobertura
 lint: ## Ruff con reglas E, F, I, B
 	uv run ruff check src tests scripts/verify_hu15_deployment.py scripts/generate_api_types.py \
 		scripts/generate_api_contract.py scripts/verify_corpus_dorado.py scripts/verify_prompts.py \
+		scripts/verify_materiales.py \
 		scripts/comparar_ab.py \
 		scripts/verify_banco_replay.py scripts/verificar_alertas.py \
 		scripts/build_docs_site.py scripts/generar_release.py \
@@ -98,7 +102,7 @@ lint: ## Ruff con reglas E, F, I, B
 format: ## Aplica ruff format
 	uv run ruff format src tests
 
-check: lint prompts-check cloud-config-check api-contract-check api-types-check frontend-check docs-build cov release-check ## Ruff, contratos, cloud, SPA, sitio, cobertura y release (CI)
+check: lint prompts-check materiales-check cloud-config-check api-contract-check api-types-check frontend-check docs-build cov release-check ## Ruff, contratos, materiales, cloud, SPA, sitio, cobertura y release (CI)
 
 worker: ## HU-45: consume la cola persistente en un proceso separado de la API
 	uv run --no-sync python -m m2_cad.worker

@@ -50,11 +50,21 @@ y obtiene, sin redactar prompts en inglés ni usar la consola:
 | --- | --- | --- |
 | Modelo | STEP (ISO 10303) | Abrir en cualquier CAD |
 | Vista 3D | GLB | Visualizar en el navegador, con vistas ortogonales, cotas y captura PNG |
-| Lista de materiales | CSV | Corte / compra |
+| Lista de materiales | CSV | Corte / compra, con material, masa y costo estimado por línea y total (SPEC-049) |
 | Plano 2D | DXF (R2010) | Vistas ortogonales con capas de aristas visibles/ocultas y cotas, en un visor CAD (SPEC-043) |
 
 Si la pieza no se puede construir, el asistente declina con un motivo en
 español en vez de inventar geometría.
+
+La lista de materiales trae `part_type`, `qty`, `total_mass_g`, `unit_mass_g`, `material`,
+`unit_cost_usd` y `total_cost_usd`: las cuatro primeras columnas conservan el formato anterior
+—nombre, orden, `round` de la masa y fin de línea `\r\n`, iguales byte a byte que el BOM del
+núcleo— y las nuevas agregan el material canónico y el costo estimado. Los precios viven en
+[`data/materiales.toml`](data/materiales.toml), un archivo versionado que se puede editar o
+apuntar a otro con `M2_MATERIALES`; `make materiales-check` verifica que estén los ocho
+materiales del catálogo y que sus densidades coincidan con el núcleo. Un material fuera del
+catálogo (por ejemplo `titanium`) declina con un motivo que lo nombra, en lugar de construirse
+con la densidad del acero.
 
 ## Alcance
 

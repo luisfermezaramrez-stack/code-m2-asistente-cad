@@ -192,6 +192,27 @@ def test_el_chequeo_de_prompts_entra_en_check_y_en_el_job_lint():
     assert "uv run --no-sync make prompts-check" in lint
 
 
+def test_la_tabla_de_materiales_entra_en_check_y_en_el_espejo():
+    """HU-48/RF-3: la tabla de precios se valida en las dos puertas, sin red.
+
+    Un precio o una densidad mal declarados no pueden publicarse sin que falle CI, y la
+    validación tiene que servir sin instalar el proyecto (solo biblioteca estándar).
+    """
+    makefile = _texto(MAKEFILE)
+
+    assert "materiales-check" in _dependencias("check", makefile)
+    assert "materiales-check:" in makefile
+    cuerpo = next(
+        linea
+        for linea in makefile.split("materiales-check:", 1)[1].splitlines()
+        if "scripts/verify_materiales.py" in linea
+    )
+    assert "uv run --no-project python -B scripts/verify_materiales.py" in cuerpo
+    assert "uv run --no-sync make materiales-check" in _job_gitlab("lint")
+    # La tabla es un artefacto versionado del repositorio, no configuración local.
+    assert (RAIZ / "data" / "materiales.toml").is_file()
+
+
 def test_la_configuracion_cloud_entra_en_check_y_en_el_espejo():
     """HU-47/RNF-3: la misma validación sin red corre en las dos puertas."""
     makefile = _texto(MAKEFILE)
