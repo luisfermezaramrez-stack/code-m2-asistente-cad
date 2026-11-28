@@ -1583,7 +1583,6 @@ def panorama_metricas(
     return PanoramaMetricas(**metricas.panorama(configuracion, horas=horas))
 
 
-
 @router.get("/generaciones/{solicitud_id}", response_model=EstadoTrabajo)
 def consultar_generacion(
     solicitud_id: str,

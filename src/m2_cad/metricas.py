@@ -72,14 +72,10 @@ SIN_CAUSA = "sin_causa"
 FAMILIA_DESCONOCIDA = "desconocida"
 _CAUSAS_VACIAS = {"", "ninguna"}
 
-_MENSAJE_DESACTIVADO = (
-    "El seguimiento está desactivado: activa MLFLOW y vuelve a intentarlo."
-)
+_MENSAJE_DESACTIVADO = "El seguimiento está desactivado: activa MLFLOW y vuelve a intentarlo."
 # Mensaje fijo que ve el cliente ante un backend inaccesible: ni texto de la
 # excepción ni URI ni rutas (R1-1, R1-2). El detalle queda sólo en el log.
-_MENSAJE_BACKEND = (
-    "El seguimiento no está disponible: no se pudieron leer las métricas de MLflow."
-)
+_MENSAJE_BACKEND = "El seguimiento no está disponible: no se pudieron leer las métricas de MLflow."
 _LARGO_MAXIMO_ERROR = 300
 # El detalle que va al log nunca puede arrastrar las credenciales del URI del usuario.
 _PATRON_CREDENCIALES = re.compile(r"(?P<esquema>[A-Za-z][A-Za-z0-9+.\-]*://)[^/\s@]+@")
@@ -175,9 +171,7 @@ def lectura(corrida: Any) -> dict:
     }
 
 
-def _paginar(
-    cliente: Any, experimento_id: str, *, desde_ms: float, hasta_ms: float
-) -> list:
+def _paginar(cliente: Any, experimento_id: str, *, desde_ms: float, hasta_ms: float) -> list:
     """Todas las corridas de la ventana, siguiendo el token de continuación de MLflow.
 
     El filtro por ``start_time`` lo aplica el servidor. Los extremos se redondean
@@ -236,8 +230,7 @@ def leer_corridas(
             experimento = cliente.get_experiment_by_name(configuracion.experimento_generacion)
             if experimento is None:
                 _avisar_no_disponible(
-                    "no existe el experimento «"
-                    f"{configuracion.experimento_generacion}» en MLflow"
+                    f"no existe el experimento «{configuracion.experimento_generacion}» en MLflow"
                 )
                 raise SeguimientoNoDisponible(_MENSAJE_BACKEND)
             corridas = _paginar(
@@ -339,11 +332,7 @@ def panorama(
     `ValueError`; en cambio, si el seguimiento está desactivado o MLflow falla se
     devuelve el panorama degradado (S6/AC2).
     """
-    if (
-        not isinstance(horas, int)
-        or isinstance(horas, bool)
-        or not 1 <= horas <= HORAS_MAXIMAS
-    ):
+    if not isinstance(horas, int) or isinstance(horas, bool) or not 1 <= horas <= HORAS_MAXIMAS:
         raise ValueError(
             f"«horas» debe ser un entero entre 1 y {HORAS_MAXIMAS}; se recibió {horas!r}."
         )

@@ -24,9 +24,7 @@ HASTA = DESDE + timedelta(hours=24)
 
 # El motivo que llega al cliente es fijo: no arrastra texto de la excepción ni el
 # URI del backend (R1-1/R1-2).
-MOTIVO_BACKEND = (
-    "El seguimiento no está disponible: no se pudieron leer las métricas de MLflow."
-)
+MOTIVO_BACKEND = "El seguimiento no está disponible: no se pudieron leer las métricas de MLflow."
 VAR_ESPERA = "MLFLOW_HTTP_REQUEST_TIMEOUT"
 
 CLAVES_DEL_PANORAMA = {
@@ -307,6 +305,7 @@ def test_el_resultado_no_expone_textos_ni_identificadores():
 
 # -- estado degradado --------------------------------------------------
 
+
 def test_resumir_corridas_con_motivo_degrada_y_deja_los_contadores_en_cero():
     # Arrange
     motivo = "El seguimiento está desactivado: activa MLFLOW y vuelve a intentarlo."
@@ -384,9 +383,7 @@ def test_el_error_de_mlflow_no_expone_credenciales():
     assert "usuario:secreto" not in mensaje
 
 
-def test_el_motivo_degradado_es_fijo_y_no_filtra_el_detalle_del_backend(
-    monkeypatch, caplog
-):
+def test_el_motivo_degradado_es_fijo_y_no_filtra_el_detalle_del_backend(monkeypatch, caplog):
     # Arrange: la excepción del backend arrastra URI con credenciales y rutas.
     fuga = RuntimeError(
         "falló http://usuario:clave@host:5000/mlruns al leer /var/lib/mlflow "
