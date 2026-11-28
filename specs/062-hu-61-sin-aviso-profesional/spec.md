@@ -1,7 +1,7 @@
 # SPEC-062 · HU-61 — Sin aviso profesional persistente en el shell (refactor)
 
 - **ID**: SPEC-062
-- **Historia**: HU-61 · 1 SP · Etiquetas: frontend, refactor, UX
+- **Historia**: #167 (HU-61) · 1 SP · Etiquetas: frontend, refactor, UX
 - **Responsable**: Luis Meza
 - **Rama**: `refactor/hu-58-60-interfaz-login` (HU-58 a HU-61 en un solo PR)
 - **Estado**: Spec-first · implementada en local, pendiente de PR

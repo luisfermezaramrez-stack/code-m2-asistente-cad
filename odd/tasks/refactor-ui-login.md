@@ -32,6 +32,27 @@ Las specs formales viven en `specs/059`, `specs/060` y `specs/061`.
   verificación geométrica no certifica resistencia ni cumplimiento normativo."» (pedido del
   usuario, L4). El shell deja de mostrarlo; la marca preliminar sigue en el campo `aviso` de
   la API. (SPEC-062, RF-1 y RF-2)
+- **S10** — «quiero que donde se describen las piezas ocupe el 100% debajo la vista 3D y por
+  utlimo la seccion de archivos de la pieza tambien al 100% / En orden quedaria card 1 describe
+  la pieza (adentro la card de proceso). 2. card de vista 3D y por ultimo archivos de la
+  pieza» (pedido del usuario, L5). Una sola columna al 100 % con ese orden. (SPEC-061, RF-1 a
+  RF-4, tercera iteración)
+- **S11** — «cambiar el describe la pieza con un 75% y 25% para la card de proceso (compactarla
+  al maximo)» (pedido del usuario, L6). Dentro de la card 1: formulario 75 %, proceso 25 %,
+  compactado al máximo sin perder estado, etapas ni ayudas. (SPEC-061, RF-3, RF-4 y RF-7,
+  cuarta iteración)
+- **S12** — «separar la card de proceso de la descripcion de la pieza» (pedido del usuario, L7).
+  El proceso deja de estar anidado: es una card propia en la misma fila, 75 % / 25 %.
+  (SPEC-061, RF-3 y RF-4, quinta iteración)
+- **S13** — «ademas agregar un color gradiente que haga alucion a lo que es el app» (pedido del
+  usuario, L7). Token `--gradiente-app` de tonos acero en los tres bloques de tema, aplicado a
+  la cabecera del shell y del acceso, sin cambiar colores de texto ni contraste. (SPEC-063,
+  RF-1 a RF-5)
+- **S14** — «hacer que la card de proceso tenga el mismo alto de la card de describe tu pieza
+  (cambia este titulo por otro mas diciente). / dale mas color al modo claro para que no se vea
+  tan blanco» (pedido del usuario, L8). Igual alto en la fila (`align-items: stretch`), título
+  «Especifica la pieza que necesitas» y paleta clara en tonos acero sin perder AA.
+  (SPEC-061, RF-8 y RF-9; SPEC-063, RF-6 y RF-7)
 
 ## Tasks
 
@@ -42,6 +63,11 @@ Las specs formales viven en `specs/059`, `specs/060` y `specs/061`.
 | T3 | S7, S8 | in-line | `refactor(hu-60): mover la card de proceso bajo la descripción` |
 | T4 | S1-S9 | in-line | `test(hu-58-60): cubrir acceso, menú y orden del panel de proceso` |
 | T5 | S9 | in-line | `refactor(hu-61): retirar el aviso profesional del shell` |
+| T6 | S10 | in-line | `refactor(hu-60): una columna al 100 % con descripción, vista 3D y archivos` |
+| T7 | S11 | in-line | `refactor(hu-60): proceso al 25 % junto al formulario, compactado al máximo` |
+| T8 | S12 | in-line | `refactor(hu-60): card de proceso separada de la descripción` |
+| T9 | S13 | in-line | `feat(hu-62): gradiente de identidad en las cabeceras del shell y del acceso` |
+| T10 | S14 | in-line | `refactor(hu-60-62): igual alto en la fila, título diciente y paleta clara con color` |
 
 ## Log
 
@@ -60,3 +86,16 @@ Las specs formales viven en `specs/059`, `specs/060` y `specs/061`.
   verificación geométrica no certifica resistencia ni cumplimiento normativo." / quiero
   insertar de manera compacta la card de proceso debajo del boton de generar pieza» — segunda
   iteración de diseño tras ver la vista local (S8, S9).
+- **L5**: «ademas quiero que donde se describen las piezas ocupe el 100% debajo la vista 3D y
+  por utlimo la seccion de archivos de la pieza tambien al 100% / En orden quedaria card 1
+  describe la pieza (adentro la card de proceso). 2. card de vista 3D y por ultimo archivos de
+  la pieza» — tercera iteración: una columna, tres cards al 100 % (S10).
+- **L6**: «cambiar el describe la pieza con un 75% y 25% para la card de proceso (compactarla al
+  maximo)» — cuarta iteración: 75/25 dentro de la card 1 (S11).
+- **L7**: «separar la card de proceso de la descripcion de la pieza / ademas agregar un color
+  gradiente que haga alucion a lo que es el app» — quinta iteración: card propia en la fila
+  75/25 (S12) y gradiente de identidad en las cabeceras (S13).
+- **L8**: «hacer que la card de proceso tenga el mismo alto de la card de describe tu pieza
+  (cambia este titulo por otro mas diciente). / dale mas color al modo claro para que no se vea
+  tan blanco» — sexta iteración (S14). Además, instrucción explícita de **no hacer commit** de
+  estos cambios.

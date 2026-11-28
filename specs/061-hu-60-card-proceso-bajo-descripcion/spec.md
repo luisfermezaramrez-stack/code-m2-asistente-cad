@@ -1,101 +1,122 @@
-# SPEC-061 · HU-60 — La card de proceso compacta bajo la acción de generar (refactor)
+# SPEC-061 · HU-60 — Proceso compacto y orden vertical al 100 % (refactor)
 
 - **ID**: SPEC-061
-- **Historia**: HU-60 · 1 SP · Etiquetas: frontend, refactor, UX
+- **Historia**: #166 (HU-60) · 2 SP · Etiquetas: frontend, refactor, UX
 - **Responsable**: Luis Meza
 - **Rama**: `refactor/hu-58-60-interfaz-login` (HU-58 a HU-61 en un solo PR)
 - **Estado**: Spec-first · implementada en local, pendiente de PR
-- **Ajusta**: el orden de paneles de [SPEC-039](../039-hu-38-app-shell/spec.md) en la vista de
-  nueva solicitud. Segunda iteración tras la revisión visual: la card pasa a ser compacta y a
-  vivir dentro del panel de la descripción.
+- **Ajusta**: el layout de paneles de [SPEC-039](../039-hu-38-app-shell/spec.md) en la vista de
+  nueva solicitud. Quinta iteración tras la revisión visual.
 
 ## Problema y contexto
 
-En `frontend/src/views/NewRequestView.vue` la columna derecha arrancaba con la card «Proceso»
-a la altura de «Describe tu pieza»: el estado del trabajo que el usuario acaba de pedir
-aparecía **al lado** de la descripción, no debajo, y obligaba a mover la mirada al margen
-derecho justo después de pulsar «Generar pieza».
+La vista de nueva solicitud nació como una rejilla de dos columnas: la descripción a la
+izquierda (`24rem`) y, a la derecha, el proceso, la vista 3D y las descargas. Con la
+descripción y las etapas de la generación en columnas distintas, el recorrido natural —escribir
+qué quiero, generar, ver el avance, mirar la pieza, descargar— quedaba repartido en dos ejes y
+obligaba a saltar de columna en cada paso.
 
-La primera iteración de esta spec la bajó a la columna de la descripción, pero como panel
-independiente: seguía siendo un bloque grande, con su propio borde y su propio título, para
-un contenido de una línea de estado y, a veces, dos o tres etapas. El proceso pertenece al
-botón que lo dispara: va inmediatamente debajo, en el mismo panel, con jerarquía visual menor.
-
-La vista 3D y las descargas sí son resultados: se quedan en la columna lateral.
+Las dos iteraciones anteriores movieron el proceso a la columna de la descripción y después lo
+compactaron dentro de su panel. Falta la última pieza: **una sola columna**, con las tres cards
+al 100 % del ancho, en el orden en que el usuario las usa.
 
 ## Historia de usuario
 
-**Como** usuario que envía una descripción, **quiero** ver el estado del proceso justo debajo
-del botón «Generar pieza», **para** confirmar qué está pasando sin perder de vista lo que pedí.
+**Como** usuario que describe una pieza, **quiero** recorrer la vista de arriba hacia abajo en
+una sola columna —descripción con su proceso, vista 3D y archivos—, **para** seguir el trabajo
+sin saltar entre columnas.
 
 ## Requisitos
 
 ### Funcionales
 
-- **RF-1**: la card «Proceso» se renderiza dentro del panel «Describe tu pieza», inmediatamente
-  después de las acciones de la solicitud y de las acciones de espera, con el mismo ancho que
-  el formulario que la dispara.
-- **RF-2**: la card es compacta: título de menor jerarquía visual, estado y etapas con
-  espaciado reducido, separada del formulario por una línea superior en lugar de un panel
-  propio con borde y fondo.
-- **RF-3**: «Vista 3D» y «Archivos de la pieza» permanecen en la columna lateral, en ese orden.
-- **RF-4**: en pantallas de 900 px o menos, donde la rejilla pasa a una sola columna, el orden
-  de lectura es descripción y proceso → vista 3D → archivos.
-- **RF-5**: no cambia ningún contenido, etiqueta, atributo ARIA ni comportamiento del panel:
-  sólo su posición y su densidad. La región `aria-live` del estado y la lista de etapas siguen
+- **RF-1**: la vista usa una sola columna; cada card ocupa el 100 % del ancho disponible del
+  contenedor.
+- **RF-2**: el orden del documento es: (1) «Especifica la pieza que necesitas», (2) «Vista 3D», (3) «Archivos
+  de la pieza».
+- **RF-3**: la card «Proceso» es una card propia, hermana de «Especifica la pieza que necesitas» y separada
+  de ella, y se compacta al máximo: tipografía `--text-small`, `padding` y separaciones
+  reducidos, estado y etapas sin relleno sobrante.
+- **RF-4**: en la primera fila, «Especifica la pieza que necesitas» ocupa el 75 % del ancho y «Proceso» el
+  25 %; por debajo de 900 px las dos cards se apilan (descripción y luego proceso), sin cambiar
+  el orden de sus contenidos.
+- **RF-8**: la card «Proceso» mide lo mismo que la card «Especifica la pieza que necesitas» en
+  su fila, aunque su contenido sea más corto; su contenido se alinea arriba y el aire sobrante
+  queda abajo.
+  presentes y legibles; sólo cambia su densidad.
+- **RF-9**: el título de la primera card nombra la acción del usuario («Especifica la pieza
+  que necesitas») en lugar de la tarea del sistema («Describe tu pieza»).
+- **RF-5**: no cambia ningún contenido, etiqueta, atributo ARIA ni comportamiento de las cards:
+  sólo su posición y su ancho. La región `aria-live` del estado y la lista de etapas siguen
   anunciando lo mismo.
 - **RF-6**: la navegación por teclado conserva el orden del documento: descripción, opciones de
-  espera, acciones de la solicitud, acciones de espera, y luego estado y etapas.
+  espera, acciones de la solicitud, acciones de espera, estado y etapas, visor 3D y descargas.
 
 ### No funcionales
 
-- **RNF-1**: la rejilla y la densidad usan los tokens existentes (`--space-*`, `--text-small`,
-  `--border-width`); no se agregan valores de layout nuevos ni estilos en línea.
-- **RNF-2**: el cambio no altera el número de peticiones ni el estado de la generación, que
+- **RNF-1**: el layout usa los tokens existentes (`--space-*`, `--text-small`,
+  `--border-width`, `--radius-panel`); no se agregan valores nuevos ni estilos en línea.
+- **RNF-2**: se retiran las reglas de rejilla que quedan sin uso (`.stack` y el token
+  `--request-column`) para no dejar CSS ni tokens muertos.
+- **RNF-3**: el cambio no altera el número de peticiones ni el estado de la generación, que
   vive en el shell (`useGeneration`).
 
 ## Criterios de aceptación
 
-### AC1 — Proceso dentro del panel, bajo la acción
+### AC1 — Orden vertical de las cards
 
 - **Dado** la vista de nueva solicitud
 - **Cuando** se inspecciona el orden del documento
-- **Entonces** el bloque «Proceso» está dentro del panel «Describe tu pieza» y es el siguiente
-  elemento después de las acciones de la solicitud.
+- **Entonces** las cards aparecen como «Especifica la pieza que necesitas», «Vista 3D» y «Archivos de la
+  pieza», en ese orden.
 
-### AC2 — Card compacta
+### AC2 — Ancho completo
+
+- **Dado** la vista en escritorio y en un ancho de 480 px
+- **Cuando** se mide cada card
+- **Entonces** las tres ocupan el 100 % del ancho del contenedor y ninguna comparte fila con
+  otra.
+
+### AC3 — Proceso como card propia y compacta
 
 - **Dado** la vista de nueva solicitud en escritorio
-- **Cuando** se compara la card «Proceso» con el formulario
-- **Entonces** ocupa el ancho de la columna, no tiene borde ni fondo de panel propio, y su
-  título es más pequeño y de menor contraste que el título del panel.
+- **Cuando** se mide la primera fila
+- **Entonces** «Especifica la pieza que necesitas» ocupa el 75 % del ancho, «Proceso» el 25 %, son dos cards
+  separadas con su propio borde y la card de proceso usa tipografía pequeña y espaciado
+  reducido, sin eliminar estado, etapas ni ayudas.
 
-### AC3 — Resultados en la columna lateral
-
-- **Dado** la vista de nueva solicitud en escritorio
-- **Cuando** se envía una solicitud y llega una pieza
-- **Entonces** «Vista 3D» y «Archivos de la pieza» aparecen en la columna lateral, fuera del
-  panel de la descripción.
-
-### AC4 — Una sola columna en móvil
+### AC6 — Una columna por debajo de 900 px
 
 - **Dado** un ancho de 900 px o menos
 - **Cuando** se recorre la vista
-- **Entonces** el orden vertical es descripción y proceso, vista 3D y archivos.
+- **Entonces** las cards «Especifica la pieza que necesitas» y «Proceso» se apilan en ese orden, seguidas de la
+  vista 3D y de los archivos.
 
-### AC5 — Sin cambios de contenido
+### AC4 — Sin cambios de contenido
 
-- **Dado** el bloque «Proceso» antes y después del cambio
+- **Dado** cada card antes y después del cambio
 - **Cuando** se comparan sus textos, estados y atributos de accesibilidad
-- **Entonces** son idénticos; sólo cambió la posición y la densidad.
+- **Entonces** son idénticos; sólo cambió la posición y el ancho.
+
+### AC5 — Sin estilos muertos
+
+- **Dado** el repositorio tras el cambio
+- **Cuando** se busca `--request-column` y la clase `.stack`
+- **Entonces** no aparecen en `frontend/src`.
+
+### AC7 — Mismo alto en la fila
+
+- **Dado** la vista de nueva solicitud en escritorio
+- **Cuando** se comparan las alturas de «Especifica la pieza que necesitas» y «Proceso»
+- **Entonces** ambas cards miden lo mismo, con el contenido del proceso alineado arriba.
 
 ## Fuera de alcance
 
-- Rediseñar el contenido del proceso o de las etapas informadas.
+- Rediseñar el contenido de las cards o de las etapas informadas.
 - Cambiar el visor 3D (SPEC-040) o las descargas (SPEC-037).
 - Reordenar los paneles de Historial o de Plantillas.
 
 ## Métricas de éxito
 
-- El bloque de proceso es el siguiente elemento del panel tras la acción de generar.
-- Cero cambios en el DOM interno del bloque (mismos nodos y atributos).
+- Un solo eje de lectura en la vista de nueva solicitud.
+- Cero reglas y tokens de rejilla sin consumidores.

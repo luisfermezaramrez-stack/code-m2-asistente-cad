@@ -1,7 +1,7 @@
 # SPEC-059 · HU-58 — El login como primera pantalla y el tema sol/luna (refactor)
 
 - **ID**: SPEC-059
-- **Historia**: HU-58 · 2 SP · Etiquetas: frontend, refactor, UX
+- **Historia**: #164 (HU-58) · 2 SP · Etiquetas: frontend, refactor, UX
 - **Responsable**: Luis Meza
 - **Rama**: `refactor/hu-58-60-interfaz-login` (HU-58, HU-59 y HU-60 en un solo PR)
 - **Estado**: Spec-first · implementada en local, pendiente de PR
@@ -76,7 +76,7 @@ confundir el acceso con las funciones de la aplicación.
 - **Dado** un servicio con sesión requerida y un visitante sin autenticar
 - **Cuando** abre cualquier ruta de la aplicación
 - **Entonces** ve únicamente la pantalla de acceso (marca, formulario y botón de tema) y no
-  existe en el DOM la navegación, el aviso profesional ni el panel «Describe tu pieza».
+  existe en el DOM la navegación, el aviso profesional ni el panel «Especifica la pieza que necesitas».
 
 ### AC2 — Tema con iconos de sol y luna
 

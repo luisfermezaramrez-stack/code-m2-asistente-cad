@@ -1,7 +1,7 @@
 # SPEC-060 · HU-59 — Retirar «Métricas» y «Ajustes» de la interfaz (refactor)
 
 - **ID**: SPEC-060
-- **Historia**: HU-59 · 1 SP · Etiquetas: frontend, refactor, UX
+- **Historia**: #165 (HU-59) · 1 SP · Etiquetas: frontend, refactor, UX
 - **Responsable**: Luis Meza
 - **Rama**: `refactor/hu-58-60-interfaz-login` (HU-58, HU-59 y HU-60 en un solo PR)
 - **Estado**: Spec-first · implementada en local, pendiente de PR

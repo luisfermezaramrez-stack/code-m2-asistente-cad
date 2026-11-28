@@ -93,7 +93,9 @@ entregan en un solo PR. Issues y PR se registran al abrirlos.
 
 | Spec | Historia | Issue | PR | Tipo | Estado |
 | --- | --- | --- | --- | --- | --- |
-| [059](059-hu-58-login-primera-pantalla/) | HU-58 · El login como primera pantalla y el tema sol/luna | — | — | Spec-first | Implementada en local; PR pendiente |
-| [060](060-hu-59-retirar-metricas-ajustes/) | HU-59 · Retirar «Métricas» y «Ajustes» de la interfaz | — | — | Spec-first | Implementada en local; PR pendiente |
-| [061](061-hu-60-card-proceso-bajo-descripcion/) | HU-60 · La card de proceso compacta bajo la acción de generar | — | — | Spec-first | Implementada en local; PR pendiente |
-| [062](062-hu-61-sin-aviso-profesional/) | HU-61 · Sin aviso profesional persistente en el shell | — | — | Spec-first | Implementada en local; PR pendiente |
+| [059](059-hu-58-login-primera-pantalla/) | HU-58 · El login como primera pantalla y el tema sol/luna | #164 | — | Spec-first | Implementada en local; PR pendiente |
+| [060](060-hu-59-retirar-metricas-ajustes/) | HU-59 · Retirar «Métricas» y «Ajustes» de la interfaz | #165 | — | Spec-first | Implementada en local; PR pendiente |
+| [061](061-hu-60-card-proceso-bajo-descripcion/) | HU-60 · La card de proceso compacta bajo la acción de generar | #166 | — | Spec-first | Implementada en local; PR pendiente |
+| [062](062-hu-61-sin-aviso-profesional/) | HU-61 · Sin aviso profesional persistente en el shell | #167 | — | Spec-first | Implementada en local; PR pendiente |
+| [063](063-hu-62-gradiente-identidad/) | HU-62 · Gradiente de identidad del asistente CAD | #168 | — | Spec-first | Implementada en local; PR pendiente |
+| [064](064-hu-63-plantillas-y-atajo-visor/) | HU-63 · Plantillas legibles, sección en cards y atajo al visor 3D | #169 | — | Spec-first | Implementada en local; PR pendiente |
