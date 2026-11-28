@@ -51,7 +51,7 @@ describe('acceso HU-53 en la SPA', () => {
     expect(wrapper.text()).toContain('Iniciar sesión')
     expect(wrapper.find('nav').exists()).toBe(false)
     expect(wrapper.find('textarea').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('Diseño preliminar')
+    expect(wrapper.find('.notice').exists()).toBe(false)
     expect(wrapper.find('button.theme-toggle').exists()).toBe(true)
   })
 

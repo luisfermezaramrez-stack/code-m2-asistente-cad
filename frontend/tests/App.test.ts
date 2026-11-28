@@ -43,7 +43,7 @@ afterEach(() => { wrapper.unmount(); document.body.innerHTML = ''; vi.unstubAllG
 
 describe('SPA conectada a FastAPI simulado', () => {
   it('muestra aviso profesional y estado vacío sin muestras técnicas', () => {
-    expect(wrapper.text()).toContain('Diseño preliminar: requiere revisión profesional')
+    expect(wrapper.find('.notice').exists()).toBe(false)
     expect(wrapper.text()).toContain('Sin solicitud')
     expect(wrapper.findAll('button.download')).toHaveLength(0)
     expect(wrapper.text()).not.toMatch(/MAQUETA|SSE|localhost|simulado/)

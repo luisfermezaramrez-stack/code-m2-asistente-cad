@@ -70,7 +70,6 @@ async function salir() {
         </div>
       </header>
       <p v-if="errorSesion" class="field-error" role="alert">{{ errorSesion }}</p>
-      <aside class="notice" aria-label="Aviso profesional"><strong>Diseño preliminar: requiere revisión profesional</strong><br>La verificación geométrica no certifica resistencia ni cumplimiento normativo.</aside>
       <nav class="nav" aria-label="Navegación principal">
         <RouterLink to="/nueva-solicitud">Nueva solicitud</RouterLink>
         <RouterLink to="/historial">Historial</RouterLink>

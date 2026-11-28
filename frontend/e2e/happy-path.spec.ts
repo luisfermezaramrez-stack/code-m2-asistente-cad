@@ -44,7 +44,7 @@ test.describe('flujo feliz', () => {
     expect(backend.peticiones.filter((peticion) => peticion.path.includes('/archivos/'))
       .every((peticion) => peticion.token === TOKEN_DESCARGA)).toBe(true)
 
-    // La entrega se anuncia como preliminar, nunca como apta para fabricación.
-    await expect(page.getByText('Diseño preliminar: requiere revisión profesional')).toBeVisible()
+    // La entrega se anuncia como preliminar en el resultado, no con un aviso fijo del shell.
+    await expect(page.locator('.notice')).toHaveCount(0)
   })
 })
