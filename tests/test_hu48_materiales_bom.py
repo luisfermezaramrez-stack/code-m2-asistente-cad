@@ -16,14 +16,17 @@ COLUMNAS_PREVIAS = ["part_type", "qty", "total_mass_g", "unit_mass_g"]
 COLUMNAS_NUEVAS = ["material", "unit_cost_usd", "total_cost_usd"]
 
 
-def _programa(material: object, *, tipo: str = "plate") -> dict:
+_SIN_MATERIAL = object()
+
+
+def _programa(material: object = _SIN_MATERIAL, *, tipo: str = "plate") -> dict:
     params = (
         {"width": 100, "depth": 50, "thick": 5}
         if tipo == "plate"
         else {"outer_d": 20, "bore_d": 8, "height": 10}
     )
     parte: dict = {"id": "p", "type": tipo, "params": params}
-    if material is not None:
+    if material is not _SIN_MATERIAL:
         parte["material"] = material
     return {"parts": [parte], "mates": []}
 
@@ -122,7 +125,7 @@ def test_ac3_el_motivo_declara_que_haria_falta(tmp_path):
 
 
 def test_un_programa_sin_material_sigue_usando_acero(tmp_path):
-    filas = _filas(pipeline.construir_pieza(_programa(None), tmp_path).bom_csv)
+    filas = _filas(pipeline.construir_pieza(_programa(), tmp_path).bom_csv)
 
     assert filas[1][4] == "steel"
 
@@ -158,3 +161,83 @@ def test_un_programa_declinado_no_pasa_por_el_guard(tmp_path):
         pipeline.construir_pieza({"unsupported": "engranajes"}, tmp_path)
 
     assert info.value.causa is declinacion.Causa.FAMILIA_NO_SOPORTADA
+
+
+def _csv_del_kit(programa: dict) -> str:
+    """CSV que producía el kit para el mismo programa (referencia de RNF-3)."""
+    from collections import Counter, defaultdict
+
+    from constraint_kit import bom as bom_kit
+    from constraint_kit import builder as kit_builder
+
+    _, partes = kit_builder.build_assembly(programa)
+    masa_por_tipo: dict[str, float] = defaultdict(float)
+    for parte in partes:
+        masa_por_tipo[parte["type"]] += parte.get("mass_g") or 0.0
+    resumen = {
+        "bom": dict(Counter(parte["type"] for parte in partes)),
+        "mass_by_type": dict(masa_por_tipo),
+        "mass_g": sum(masa_por_tipo.values()),
+        "part_count": len(partes),
+    }
+    return bom_kit.bom_document(resumen, fmt="csv")
+
+
+def test_rnf3_las_cuatro_columnas_historicas_coinciden_byte_a_byte_con_el_kit(tmp_path):
+    """El prefijo histórico del CSV no cambia ni en formato ni en fin de línea."""
+    programa = _programa("steel")
+
+    esperado = _csv_del_kit(programa)
+    obtenido = pipeline.construir_pieza(programa, tmp_path).bom_csv.read_bytes().decode("utf-8")
+
+    assert "\r\n" in obtenido
+    assert obtenido.replace("\r\n", "").count("\n") == 0, "quedan saltos LF sueltos"
+    filas_esperadas = esperado.split("\r\n")
+    filas_obtenidas = obtenido.split("\r\n")
+    assert len(filas_obtenidas) == len(filas_esperadas)
+    for esperada, obtenida in zip(filas_esperadas, filas_obtenidas, strict=True):
+        if not esperada:
+            assert obtenida == ""
+            continue
+        assert obtenida.split(",")[:4] == esperada.split(","), obtenida
+
+
+def test_un_material_sin_precio_falla_antes_de_exportar(tmp_path, monkeypatch):
+    """Configuración de precios incompleta: no se escribe STEP ni GLB."""
+    tabla = materiales.RUTA_TABLA.read_text(encoding="utf-8").replace(
+        "precio_usd_kg = 1.20", "precio_usd_kg = 0"
+    )
+    ruta = tmp_path / "materiales.toml"
+    ruta.write_text(tabla, encoding="utf-8")
+    monkeypatch.setenv("M2_MATERIALES", str(ruta))
+    destino = tmp_path / "salida"
+
+    with pytest.raises(pipeline.ErrorPipeline) as info:
+        pipeline.construir_pieza(_programa("steel"), destino)
+
+    assert "steel" in str(info.value)
+    assert not (destino / "pieza.step").exists()
+    assert not (destino / "pieza.glb").exists()
+    assert not (destino / "pieza.csv").exists()
+
+
+@pytest.mark.parametrize(
+    ("material", "fragmento"),
+    [
+        ("", "sin material válido"),
+        ("   ", "sin material válido"),
+        (None, "sin material válido"),
+        (5, "sin material válido"),
+        (["steel"], "sin material válido"),
+        ("aluminium", "«aluminium»"),
+    ],
+)
+def test_ac3_el_motivo_es_legible_para_cualquier_valor(material, fragmento, tmp_path):
+    with pytest.raises(pipeline.PiezaDeclinada) as info:
+        pipeline.construir_pieza(_programa(material), tmp_path)
+
+    mensaje = str(info.value)
+    assert fragmento in mensaje
+    assert "«»" not in mensaje
+    assert "'steel'" not in mensaje
+    assert info.value.causa is declinacion.Causa.MATERIAL_NO_SOPORTADO

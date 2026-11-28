@@ -236,6 +236,13 @@ def extraer_programa(salida: str) -> dict:
     return programa
 
 
+def _material_legible(pedido: object) -> str:
+    """Material pedido para el mensaje al usuario, sin volcar el valor crudo (RF-5)."""
+    if isinstance(pedido, str) and pedido.strip():
+        return f"«{pedido.strip()}»"
+    return "sin material válido (vacío o no es texto)"
+
+
 def validar_materiales(programa: dict) -> None:
     """Normaliza el alias del material y declina lo que no está soportado (RF-2, RF-5).
 
@@ -262,8 +269,8 @@ def validar_materiales(programa: dict) -> None:
         if canonico is None:
             raise _declinar(
                 declinacion.Causa.MATERIAL_NO_SOPORTADO,
-                f"el material «{pedido}» no está entre los materiales soportados "
-                f"({', '.join(materiales.SOPORTADOS)})",
+                f"el material {_material_legible(pedido)} no está entre los materiales "
+                f"soportados ({', '.join(materiales.SOPORTADOS)})",
             )
         parte["material"] = canonico
 
@@ -366,7 +373,7 @@ def _csv_materiales(filas: dict[tuple[str, str], dict[str, float]]) -> str:
     total conserva `TOTAL`, la cantidad de piezas y la masa en sus primeras posiciones.
     """
     salida = io.StringIO()
-    escritor = csv.writer(salida, lineterminator="\n")
+    escritor = csv.writer(salida)
     escritor.writerow(COLUMNAS_BOM)
     piezas = 0
     masa_total = 0.0
@@ -384,8 +391,8 @@ def _csv_materiales(filas: dict[tuple[str, str], dict[str, float]]) -> str:
             [
                 tipo,
                 cantidad,
-                f"{masa:.3f}",
-                f"{unitaria:.3f}",
+                round(masa, 3),
+                round(unitaria, 3),
                 material,
                 f"{unitaria * precio_g:.2f}",
                 f"{masa * precio_g:.2f}",
@@ -395,7 +402,7 @@ def _csv_materiales(filas: dict[tuple[str, str], dict[str, float]]) -> str:
         masa_total += masa
         costo_total += masa * precio_g
     escritor.writerow([])
-    escritor.writerow(["TOTAL", piezas, f"{masa_total:.3f}", "", "", "", f"{costo_total:.2f}"])
+    escritor.writerow(["TOTAL", piezas, round(masa_total, 3), "", "", "", f"{costo_total:.2f}"])
     return salida.getvalue()
 
 
@@ -410,10 +417,12 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
     # (+2,74 mm por eje en un loft), lo que falsea el AC3 en piezas curvas.
     caja = ensamble.toCompound().BoundingBox()
     base = Path(directorio) / NOMBRE_PIEZA
+    # El BOM se calcula antes de exportar: un precio faltante no deja STEP ni GLB a medias.
+    csv_bom = _csv_materiales(_resumen_materiales(partes))
     exportado = builder.export(ensamble, str(base))
     marcar_step(Path(exportado["step"]))
     bom_csv = base.with_suffix(".csv")
-    bom_csv.write_text(_csv_materiales(_resumen_materiales(partes)), encoding="utf-8", newline="")
+    bom_csv.write_text(csv_bom, encoding="utf-8", newline="")
     firma = dsl.signature(ensamble)
     duracion = time.perf_counter() - inicio
 

@@ -35,6 +35,10 @@ UNIDAD_PRECIO = "kg"
 #: (`prompts/planner-v1.txt`). Es el catálogo cerrado que valida el guard de RF-5.
 SOPORTADOS = ("steel", "stainless", "aluminum", "brass", "copper", "abs", "pla", "nylon")
 
+#: Únicos alias admitidos. Viven en el código, no en la tabla: un alias declarado a mano no
+#: puede reabrir un material que el catálogo declina (`iron`, `petg`, `titanium`).
+ALIAS = {"al": "aluminum"}
+
 
 class ErrorMateriales(RuntimeError):
     """La tabla no existe, no es TOML válido o no permite calcular un costo."""
@@ -90,13 +94,7 @@ def normalizar(pedido: object) -> str | None:
         return None
     if texto in SOPORTADOS:
         return texto
-    for nombre, entrada in cargar().items():
-        alias = entrada.get("alias") or []
-        if isinstance(alias, list) and any(
-            isinstance(item, str) and item.strip().lower() == texto for item in alias
-        ):
-            return nombre
-    return None
+    return ALIAS.get(texto)
 
 
 def precio_usd_g(material: object) -> float:
@@ -182,8 +180,13 @@ def verificar(destino: Path | None = None) -> list[str]:
                 problemas.append(f"el alias de «{nombre}» debe ser texto no vacío")
                 continue
             clave = item.strip().lower()
-            if clave in SOPORTADOS:
-                problemas.append(f"el alias «{clave}» de «{nombre}» choca con un material canónico")
+            if clave not in ALIAS:
+                problemas.append(
+                    f"el alias «{clave}» de «{nombre}» no está permitido: solo se admiten "
+                    f"{sorted(ALIAS)}"
+                )
+            elif ALIAS[clave] != nombre:
+                problemas.append(f"el alias «{clave}» de «{nombre}» pertenece a «{ALIAS[clave]}»")
             elif clave in alias_vistos:
                 problemas.append(
                     f"el alias «{clave}» de «{nombre}» ya lo declara «{alias_vistos[clave]}»"

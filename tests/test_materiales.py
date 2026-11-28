@@ -137,3 +137,29 @@ def test_verificar_detecta_un_alias_que_choca_con_un_material_canonico(tmp_path,
     problemas = materiales.verificar()
 
     assert any("brass" in problema and "alias" in problema for problema in problemas)
+
+
+@pytest.mark.parametrize(
+    ("pedido", "esperado"),
+    [
+        (" AL ", "aluminum"),
+        ("Al", "aluminum"),
+        ("\tnylon\n", "nylon"),
+        ("STEEL ", "steel"),
+    ],
+)
+def test_rf2_normaliza_mayusculas_espacios_y_saltos(pedido, esperado):
+    assert materiales.normalizar(pedido) == esperado
+
+
+def test_verificar_rechaza_un_alias_que_reabre_un_material_declinado(tmp_path, monkeypatch):
+    """Un alias en la tabla no puede convertir `iron` en un material aceptado."""
+    texto = _tabla_valida().replace('nombre = "steel"', 'nombre = "steel"\nalias = ["iron"]', 1)
+    monkeypatch.setenv("M2_MATERIALES", str(_escribir_tabla(tmp_path, texto)))
+
+    problemas = materiales.verificar()
+
+    assert any("iron" in problema and "alias" in problema for problema in problemas)
+    assert materiales.normalizar("iron") is None
+    assert materiales.normalizar("petg") is None
+    assert materiales.normalizar("titanium") is None
