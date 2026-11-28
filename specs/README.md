@@ -40,7 +40,7 @@ Cada spec se vincula a su historia del tablero y a la PR que la implementa.
 | [021](021-hu-20-cierre-entrega/) | HU-20 · Publicación de la entrega en `main` con `v1.0` | #72 | #75 | Spec-first | Fusionada; `v1.0` publicada |
 | [022](022-hu-21-informe-final-refactor/) | HU-21 · Refactor del informe final y la trazabilidad de la HU-13 (refactor) | #73 | #74 | Spec-first | Fusionada |
 | [023](023-hu-22-constitution-refactor/) | HU-22 · Refactor de CONSTITUTION.md al estado real de la entrega (refactor) | #77 | #78 | Spec-first | Fusionada |
-| [057](057-hu-56-constitucion-speckit/) | HU-56 · Constitución de Spec Kit apuntando a `CONSTITUTION.md` (refactor) | #117 | #116 | Spec-first | En revisión |
+| [057](057-hu-56-constitucion-speckit/) | HU-56 · Constitución de Spec Kit apuntando a `CONSTITUTION.md` (refactor) | #117 | #116 | Spec-first | Fusionada |
 | [058](058-hu-57-flujo-main/) | HU-57 · `main` como única rama de integración (refactor de proceso) | #119 | #120 | Spec-first | Fusionada |
 
 ## Backlog v2 — Profesionalización
@@ -51,36 +51,36 @@ tomar la HU. Issue y PR se registran al abrirse.
 
 | Spec | Historia | Ola | Responsable | Issue | PR | Tipo | Estado |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| [024](024-hu-23-corpus-dorado-nucleo/) | HU-23 · Corpus dorado del núcleo determinista en CI | 0 | Luis Meza | #83 | — | Spec-first | Implementada (PR pendiente) |
-| [025](025-hu-24-logging-estructurado/) | HU-24 · Logging estructurado y trazas correlacionadas | 2 | Juan Camilo | #84 | #129 | Spec-first | En revisión |
-| [026](026-hu-25-reintentos-cache-llm/) | HU-25 · Reintentos con backoff y caché de respuestas del LLM | 0 | Juan Camilo | #85 | — | Spec-first | Propuesta |
-| [027](027-hu-26-declinacion-legible/) | HU-26 · Motivo de declinación legible y etiquetado por causa | 0 | Luis Meza | #86 | — | Spec-first | Implementada (PR pendiente) |
-| [028](028-hu-27-tipos-openapi/) | HU-27 · Tipos del frontend generados desde OpenAPI | 0 | Carlos | #87 | — | Spec-first | Propuesta |
-| [029](029-hu-28-escaneo-seguridad/) | HU-28 · Escaneo de dependencias y secretos en CI | 0 | Carlos | #88 | — | Spec-first | Propuesta |
-| [030](030-hu-29-runbook-operativo/) | HU-29 · Runbook operativo | 0 | Carlos | #89 | #136 | Spec-first | En revisión |
-| [031](031-hu-30-persistencia-registro/) | HU-30 · Persistencia transaccional, retención y backup del registro | 1 | Juan Camilo | #90 | — | Spec-first | Propuesta |
-| [032](032-hu-31-api-v1/) | HU-31 · API `/v1` versionada con contrato congelado | 1 | Juan Camilo | #91 | #130, #138 | Spec-first | Correcciones en #138 |
-| [033](033-hu-32-costo-limites-idempotencia/) | HU-32 · Control de costo, límites de uso e idempotencia | 1 | Juan Camilo | #92 | #131 | Spec-first | En revisión |
-| [034](034-hu-33-prompts-versionados/) | HU-33 · Prompts versionados como artefactos | 1 | Luis Meza | #93 | — | Spec-first | Propuesta |
-| [035](035-hu-34-sistema-diseno-v2/) | HU-34 · Sistema de diseño v2: tokens, tipografía y modo oscuro | 1 | Carlos | #94 | #137 | Spec-first | En revisión |
-| [036](036-hu-35-edicion-iterativa/) | HU-35 · Edición iterativa de la pieza | 1 | Luis Meza | #95 | — | Spec-first | Propuesta |
-| [037](037-hu-36-endurecimiento-descargas/) | HU-36 · Endurecimiento de artefactos y descargas | 1 | Juan Camilo | #96 | — | Spec-first | Propuesta |
-| [038](038-hu-37-historial-ui/) | HU-37 · Historial de solicitudes en la UI | 2 | Carlos | #97 | #145 | Spec-first | En revisión |
-| [039](039-hu-38-app-shell/) | HU-38 · App shell y navegación por vistas | 2 | Carlos | #98 | #142 | Spec-first | En revisión |
-| [040](040-hu-39-visor-ortogonal-medidas/) | HU-39 · Visor 3D: vistas ortogonales, medidas y captura | 2 | Carlos | #99 | #148 | Spec-first | En revisión |
-| [041](041-hu-40-wcag-aa/) | HU-40 · Cierre de brechas WCAG 2.1 AA | 2 | Carlos | #100 | #149 | Spec-first | En revisión |
-| [042](042-hu-41-e2e-playwright/) | HU-41 · E2E del frontend con Playwright en CI | 2 | Carlos | #101 | #144 | Spec-first | En revisión |
+| [024](024-hu-23-corpus-dorado-nucleo/) | HU-23 · Corpus dorado del núcleo determinista en CI | 0 | Luis Meza | #83 | #135 | Spec-first | Fusionada |
+| [025](025-hu-24-logging-estructurado/) | HU-24 · Logging estructurado y trazas correlacionadas | 2 | Juan Camilo | #84 | #129 | Spec-first | Fusionada |
+| [026](026-hu-25-reintentos-cache-llm/) | HU-25 · Reintentos con backoff y caché de respuestas del LLM | 0 | Juan Camilo | #85 | #126 | Spec-first | Fusionada |
+| [027](027-hu-26-declinacion-legible/) | HU-26 · Motivo de declinación legible y etiquetado por causa | 0 | Luis Meza | #86 | #139 | Spec-first | Fusionada |
+| [028](028-hu-27-tipos-openapi/) | HU-27 · Tipos del frontend generados desde OpenAPI | 0 | Carlos | #87 | #128 | Spec-first | Fusionada |
+| [029](029-hu-28-escaneo-seguridad/) | HU-28 · Escaneo de dependencias y secretos en CI | 0 | Carlos | #88 | #140 | Spec-first | Fusionada |
+| [030](030-hu-29-runbook-operativo/) | HU-29 · Runbook operativo | 0 | Carlos | #89 | #136 | Spec-first | Fusionada |
+| [031](031-hu-30-persistencia-registro/) | HU-30 · Persistencia transaccional, retención y backup del registro | 1 | Juan Camilo | #90 | #127 | Spec-first | Fusionada |
+| [032](032-hu-31-api-v1/) | HU-31 · API `/v1` versionada con contrato congelado | 1 | Juan Camilo | #91 | #130, #138 | Spec-first | Fusionada |
+| [033](033-hu-32-costo-limites-idempotencia/) | HU-32 · Control de costo, límites de uso e idempotencia | 1 | Juan Camilo | #92 | #131 | Spec-first | Fusionada |
+| [034](034-hu-33-prompts-versionados/) | HU-33 · Prompts versionados como artefactos | 1 | Luis Meza | #93 | #141 | Spec-first | Fusionada |
+| [035](035-hu-34-sistema-diseno-v2/) | HU-34 · Sistema de diseño v2: tokens, tipografía y modo oscuro | 1 | Carlos | #94 | #137 | Spec-first | Fusionada |
+| [036](036-hu-35-edicion-iterativa/) | HU-35 · Edición iterativa de la pieza | 1 | Luis Meza | #95 | #143 | Spec-first | Fusionada |
+| [037](037-hu-36-endurecimiento-descargas/) | HU-36 · Endurecimiento de artefactos y descargas | 1 | Juan Camilo | #96 | #124 | Spec-first | Fusionada |
+| [038](038-hu-37-historial-ui/) | HU-37 · Historial de solicitudes en la UI | 2 | Carlos | #97 | #145 | Spec-first | Fusionada |
+| [039](039-hu-38-app-shell/) | HU-38 · App shell y navegación por vistas | 2 | Carlos | #98 | #142 | Spec-first | Fusionada |
+| [040](040-hu-39-visor-ortogonal-medidas/) | HU-39 · Visor 3D: vistas ortogonales, medidas y captura | 2 | Carlos | #99 | #148 | Spec-first | Fusionada |
+| [041](041-hu-40-wcag-aa/) | HU-40 · Cierre de brechas WCAG 2.1 AA | 2 | Carlos | #100 | #149 | Spec-first | Fusionada |
+| [042](042-hu-41-e2e-playwright/) | HU-41 · E2E del frontend con Playwright en CI | 2 | Carlos | #101 | #144 | Spec-first | Fusionada |
 | [043](043-hu-42-exportacion-dxf/) | HU-42 · Exportación DXF de planos 2D | 2 | Luis Meza | #102 | — | Spec-first | Implementada (espera PR) |
 | [044](044-hu-43-exportacion-pdf/) | HU-43 · Exportación PDF de planos con cotas | 2 | Luis Meza | #103 | — | Spec-first | Propuesta |
-| [045](045-hu-44-banco-ci-replay/) | HU-44 · Evaluación continua del banco con respuestas grabadas | 2 | Juan Camilo | #104 | #151 | Spec-first | En revisión |
-| [046](046-hu-45-cola-persistente/) | HU-45 · Cola persistente de trabajos y worker | 2 | Juan Camilo | #105 | #132 | Spec-first | En revisión |
-| [047](047-hu-46-alertas-regresion/) | HU-46 · Alertas de regresión de calidad | 3 | Juan Camilo | #106 | #152 | Spec-first | En revisión (opcional) |
-| [048](048-hu-47-despliegue-nube/) | HU-47 · Despliegue en la nube | 3 | Carlos | #107 | #156 | Spec-first | En revisión; publicación pendiente |
+| [045](045-hu-44-banco-ci-replay/) | HU-44 · Evaluación continua del banco con respuestas grabadas | 2 | Juan Camilo | #104 | #151 | Spec-first | Fusionada |
+| [046](046-hu-45-cola-persistente/) | HU-45 · Cola persistente de trabajos y worker | 2 | Juan Camilo | #105 | #132 | Spec-first | Fusionada |
+| [047](047-hu-46-alertas-regresion/) | HU-46 · Alertas de regresión de calidad | 3 | Juan Camilo | #106 | #152 | Spec-first | Fusionada |
+| [048](048-hu-47-despliegue-nube/) | HU-47 · Despliegue en la nube | 3 | Carlos | #107 | #156 | Spec-first | Fusionada; publicación pendiente |
 | [049](049-hu-48-materiales-tolerancias-bom/) | HU-48 · Materiales, tolerancias y BOM con costos | 3 | Luis Meza | #108 | — | Spec-first | Propuesta (opcional) |
 | [050](050-hu-49-plantillas-parametrizadas/) | HU-49 · Plantillas parametrizadas de piezas | 3 | Luis Meza | #109 | — | Spec-first | Propuesta (opcional) |
-| [051](051-hu-50-cortes-visor-3d/) | HU-50 · Cortes y secciones en el visor 3D | 3 | Carlos | #110 | #155 | Spec-first | En revisión |
-| [052](052-hu-51-panorama-metricas/) | HU-51 · Panorama de métricas sobre MLflow | 3 | Juan Camilo | #111 | — | Spec-first | Propuesta (opcional) |
-| [053](053-hu-52-ab-prompts-modelos/) | HU-52 · Comparación A/B de prompts y modelos | 3 | Juan Camilo | #112 | #154 | Spec-first | En revisión |
-| [054](054-hu-53-autenticacion/) | HU-53 · Autenticación y usuarios | 3 | Juan Camilo | #113 | #133 | Spec-first | En revisión |
-| [055](055-hu-54-sitio-documentacion/) | HU-54 · Sitio de documentación publicado | 3 | Carlos | #114 | — | Spec-first | Propuesta (opcional) |
-| [056](056-hu-55-releases-automaticos/) | HU-55 · Releases automáticos con changelog | 3 | Carlos | #115 | #153 | Spec-first | En revisión |
+| [051](051-hu-50-cortes-visor-3d/) | HU-50 · Cortes y secciones en el visor 3D | 3 | Carlos | #110 | #155 | Spec-first | Fusionada |
+| [052](052-hu-51-panorama-metricas/) | HU-51 · Panorama de métricas sobre MLflow | 3 | Juan Camilo | #111 | #147 | Spec-first | Fusionada |
+| [053](053-hu-52-ab-prompts-modelos/) | HU-52 · Comparación A/B de prompts y modelos | 3 | Juan Camilo | #112 | #154 | Spec-first | Fusionada |
+| [054](054-hu-53-autenticacion/) | HU-53 · Autenticación y usuarios | 3 | Juan Camilo | #113 | #133 | Spec-first | Fusionada |
+| [055](055-hu-54-sitio-documentacion/) | HU-54 · Sitio de documentación publicado | 3 | Carlos | #114 | #150 | Spec-first | Fusionada |
+| [056](056-hu-55-releases-automaticos/) | HU-55 · Releases automáticos con changelog | 3 | Carlos | #115 | #153 | Spec-first | Fusionada |

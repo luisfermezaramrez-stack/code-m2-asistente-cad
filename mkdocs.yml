@@ -21,6 +21,7 @@ nav:
   - Operación:
       - Runbook operativo: docs/runbook-operativo.md
       - Runbook en la nube: docs/runbook-cloud.md
+      - Despliegue desde GitLab: docs/despliegue-gitlab.md
       - Prueba de usuarios: docs/prueba-usuarios.md
       - Kit de prueba: docs/prueba-usuarios/kit.md
       - Informe final: docs/informe-final.md

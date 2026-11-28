@@ -14,6 +14,7 @@ haya contenido para ellos):
 | `adr/` | *Architecture Decision Records*: decisiones grandes con contexto y consecuencias. |
 | `spikes/` | Investigaciones técnicas acotadas (pregunta, timebox, hallazgo). |
 | [`runbook-cloud.md`](./runbook-cloud.md) | Despliegue parametrizado en la nube, HTTPS con dominio propio, reinicio, rollback y rotación de secretos. |
+| [`despliegue-gitlab.md`](./despliegue-gitlab.md) | Pipeline de GitLab: validación por rama, imagen verificada y despliegue continuo en el droplet por SSH. |
 | `research/` | Notas de investigación y comparativas. |
 
 > El historial de decisiones resumido vive en

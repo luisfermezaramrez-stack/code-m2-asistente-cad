@@ -1,82 +1,85 @@
-# Pipeline del espejo de GitLab: evidencia verificable, no una segunda puerta.
+# Pipeline de GitLab: valida cada rama replicada y, desde la rama por defecto,
+# publica la imagen y la despliega en el droplet.
 #
-# GitHub es la fuente de verdad del código y quien gobierna PRs y releases; este
-# repositorio en GitLab es el espejo que sincroniza `.github/workflows/espejo-gitlab.yml`.
-# El pipeline repite acá las comprobaciones para dejar evidencia en GitLab, pero no
-# abre otra puerta de integración: sólo corre sobre la rama por defecto del espejo,
-# con lanzamiento manual o con un pipeline programado. Un push a cualquier rama
-# replicada no valida nada nuevo, porque los cambios entran por `main` en GitHub.
+# GitHub sigue siendo la fuente de verdad: `.github/workflows/espejo-gitlab.yml`
+# replica ramas y etiquetas en este repositorio, y cada push replicado dispara
+# el pipeline. Validar no reemplaza la puerta del PR en GitHub; publicar y
+# desplegar quedan reservados a la rama por defecto.
 
 variables:
+  # --- imagen ---------------------------------------------------------------
   # Versión de uv fijada, igual que en GitHub Actions y en el Dockerfile.
   UV_VERSION: "0.13.5"
   # `.python-version` es la única fuente de verdad de la versión de Python
-  # (CONSTITUTION.md). Aca se repite porque el tag de la imagen no puede leer un
+  # (CONSTITUTION.md). Acá se repite porque el tag de la imagen no puede leer un
   # archivo; `tests/test_ci_parity.py` falla si los dos valores divergen.
   PYTHON_VERSION: "3.12"
   BASE_LAYER: trixie-slim
+  # Imagen publicada por `build_image` y desplegada por `deploy`.
+  IMAGE_NAME: "luismeza2026/code"
+  IMAGE_TAG: "GDPIACD_2026_2S"
   # python-solvespace 3.0.8 no publica wheels para Linux y su mimalloc incluido
   # usa ATOMIC_VAR_INIT, símbolo eliminado en C23: los sdists se compilan en C17,
   # igual que en GitHub Actions y en Docker.
   CFLAGS: "-std=gnu17"
-  # llama-cpp-python 0.3.36 solo publica sdist: se compila con 193 objetos C++ y
-  # los runners compartidos pequeños tienen 8 GB. Con el paralelismo por defecto
-  # dos traducciones pesadas a la vez agotan la RAM y cc1plus muere con "Killed".
+  # llama-cpp-python 0.3.36 solo publica sdist: con el paralelismo por defecto
+  # dos traducciones C++ pesadas a la vez agotan los 8 GB del runner compartido.
   CMAKE_BUILD_PARALLEL_LEVEL: "2"
   # GitLab monta el directorio de build en otro filesystem: uv no puede usar
-  # hard links entre el cache y el proyecto, asi que copia los archivos.
+  # hard links entre el cache y el proyecto, así que copia los archivos.
   UV_LINK_MODE: copy
   # Donde uv descarga los paquetes. Tiene que coincidir con "cache.paths".
   UV_CACHE_DIR: $CI_PROJECT_DIR/.uv-cache
   # En CI no se resuelven versiones nuevas: eso se decide en desarrollo.
   UV_FROZEN: "1"
-  # La imagen ya trae el intérprete. Si uv intentara bajar otro, conviene que
-  # falle rápido y claro en vez de descargar cientos de MB.
+  # La imagen ya trae el intérprete: si uv intentara bajar otro, que falle rápido.
   UV_PYTHON_DOWNLOADS: never
   # Logs sin buffer: aparecen en tiempo real, no al final del job.
   PYTHONUNBUFFERED: "1"
   # pytest lee esta variable y agrega el reporte JUnit sin modificar el Makefile.
   PYTEST_ADDOPTS: "--junitxml=report.xml"
   GIT_DEPTH: "1"
-  # Imagen publicada por el job `build_image`.
-  IMAGE_NAME: "luismeza2026/code"
-  IMAGE_TAG: "GDPIACD_2026_2S"
 
 image: ghcr.io/astral-sh/uv:$UV_VERSION-python$PYTHON_VERSION-$BASE_LAYER
 
 workflow:
-  # Si llegan dos pushes seguidos, el pipeline anterior se cancela solo.
+  # Si llegan dos pushes seguidos, el pipeline anterior se cancela solo: no
+  # tiene sentido gastar minutos validando un commit que ya quedó viejo.
   auto_cancel:
     on_new_commit: interruptible
   rules:
     # Un tag no dispara pipeline: solo interesa validar ramas.
     - if: $CI_COMMIT_TAG
       when: never
-    # Solo la rama por defecto del espejo: no hay segunda puerta de integración.
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_PIPELINE_SOURCE == "web"'
-    - if: '$CI_PIPELINE_SOURCE == "api"'
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    # Ante un push replicado por el espejo.
+    - if: $CI_PIPELINE_SOURCE == "push"
+    # "Run pipeline" desde la web: tras cambiar una variable (un usuario, un
+    # secreto) se vuelve a desplegar sin push. Reintentar un pipeline viejo no
+    # sirve: las reglas de los jobs se evalúan al crearlo y ahí no había deploy.
+    - if: $CI_PIPELINE_SOURCE == "web"
 
+# Etapas secuenciales.
 stages:
   - quality
   - test
   - build
+  - deploy
 
 # Configuración compartida por todos los jobs.
 default:
   # Si un job se cuelga, falla en vez de consumir una hora de runner.
   timeout: 20 minutes
+  # Permite que auto_cancel lo interrumpa.
   interruptible: true
   cache:
     # La clave sale del hash de estos dos archivos: si cambian las dependencias
-    # se arma un cache nuevo; si no, se reutiliza.
+    # se arma un cache nuevo; si no, se reutiliza el anterior.
     key:
       files:
         - pyproject.toml
         - uv.lock
       # Un cache por job: "lint" instala solo el grupo dev y "run_test" el
-      # entorno completo; con una clave compartida cada job pisaria al otro.
+      # entorno completo; con una clave compartida cada job pisaría al otro.
       prefix: $CI_JOB_NAME
     paths:
       - .uv-cache/
@@ -101,13 +104,13 @@ lint:
     # --only-group dev instala solo el grupo dev (ruff, pytest, pre-commit) y
     # --no-install-project omite empaquetar el proyecto, que acá no se usa.
     - uv sync --only-group dev --no-install-project
-    # El Makefile es la única fuente de verdad de los comandos, también acá:
     # `ruff check .` recorrería `.agents/`, donde viven plantillas con
-    # placeholders ({{#if PACKAGE}}) que no son TOML válido.
+    # placeholders ({{#if PACKAGE}}) que no son TOML válido: se usa el Makefile.
     # --no-sync evita que "uv run" vuelva a sincronizar el entorno.
     - uv run --no-sync make lint
-    # HU-33/AC2: el espejo también falla si un prompt cambió sin subir su versión.
+    # HU-33/AC2: también falla si un prompt cambió sin subir su versión.
     - uv run --no-sync make prompts-check
+    # HU-47/RNF-3: la configuración cloud se valida sin red, igual que en `make check`.
     - uv run --no-sync make cloud-config-check
     - uv run --no-sync ruff format --check src tests
 
@@ -122,8 +125,7 @@ secretos:
   variables:
     GIT_DEPTH: "0"
   before_script:
-    # La imagen de uv no trae make ni git, y `gitleaks git` necesita git para leer
-    # el historial; el Makefile es la fuente de verdad de los comandos.
+    # `gitleaks git` necesita git para leer el historial; la imagen no lo trae.
     - apt-get update -qq
     - apt-get install -y -qq --no-install-recommends make git
     - rm -rf /var/lib/apt/lists/*
@@ -138,7 +140,6 @@ secretos:
 dependencias:
   stage: quality
   before_script:
-    # La imagen de uv no trae make ni git; el Makefile es la fuente de verdad.
     - apt-get update -qq
     - apt-get install -y -qq --no-install-recommends make git
     - rm -rf /var/lib/apt/lists/*
@@ -150,16 +151,16 @@ dependencias:
 
 # -----------------------------------------------------------------------------
 # Job 4: pruebas. Necesita el entorno completo, el kernel vendoreado y Node,
-# porque `make test` construye el frontend antes de correr pytest.
-# Corre los mismos comandos que un integrante en su máquina.
+# porque `make test` construye el frontend antes de correr pytest. Corre los
+# mismos comandos que un integrante en su máquina.
 # -----------------------------------------------------------------------------
 run_test:
   stage: test
   # `make test` depende de `frontend-build` (npm): la imagen de uv no trae Node.
   # Se usa la misma versión mayor que GitHub Actions.
   image: node:24-bookworm
-  # El Python de `.python-version` se instala en este job, así que hereda
-  # habilitada la descarga del intérprete (el `never` global es para `lint`).
+  # El Python de `.python-version` se instala en este job, así que habilita la
+  # descarga del intérprete (el `never` global es para las imágenes de uv).
   variables:
     UV_PYTHON_DOWNLOADS: "automatic"
   # Compilar los sdists de llama-cpp-python y python-solvespace no entra en el
@@ -179,10 +180,10 @@ run_test:
     - ln -sf "$HOME/.local/bin/uvx" /usr/local/bin/uvx
     # `.python-version` es la única fuente de verdad de la versión de Python.
     - uv python install "$(cat .python-version)"
-    # HU-36: las pruebas de descargas exigen una clave. GitHub genera una efímera
-    # por corrida; acá se hace lo mismo, sin guardar ninguna clave real en el
-    # repositorio ni en las variables del proyecto.
+    # HU-36: las pruebas de descargas exigen una clave. Se genera una efímera por
+    # corrida, sin guardar ninguna clave real en el repositorio ni en GitLab.
     - export M2_DOWNLOAD_SECRET=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
+    # Si falta una herramienta, falla acá con su nombre y no a mitad del build.
     - command -v git make gcc g++ node npm uv
   script:
     # vendor/constraint-kit está gitignored y lo exige [tool.uv.sources].
@@ -209,9 +210,10 @@ run_test:
 # -----------------------------------------------------------------------------
 e2e:
   stage: test
-  # Misma versión mayor de Node que GitHub Actions: el build y la suite son npm.
   image: node:24-bookworm
   timeout: 30 minutes
+  # No usa uv ni genera .uv-cache/.
+  cache: {}
   before_script:
     # Lockfile del frontend, sin resolver versiones nuevas.
     - npm --prefix frontend ci
@@ -230,31 +232,204 @@ e2e:
       - frontend/playwright-report/
 
 # -----------------------------------------------------------------------------
-# Job 6: imagen Docker de la entrega, publicada en el registro elegido.
+# Job 6: imagen Docker de la entrega, verificada antes de publicarse.
 # -----------------------------------------------------------------------------
 build_image:
   stage: build
-  # REGISTRY_USER y REGISTRY_PASS son variables protegidas: sólo existen en la
-  # rama por defecto y en las etiquetas. En una rama de validación el job no
-  # tendría con qué autenticarse, así que no se agrega en vez de fallar sin
-  # explicar por qué.
+  # Solo en la rama por defecto. Si cualquier rama construyera, una feature
+  # pisaría :latest y la imagen "oficial" dejaría de ser la de main. Además
+  # REGISTRY_USER y REGISTRY_PASS son protected: fuera de main llegan vacías.
   rules:
-    - if: '$REGISTRY_USER && $REGISTRY_PASS'
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # El build compila python-solvespace dentro del Dockerfile.
+  timeout: 45 minutes
+  # Este job no usa uv ni genera .uv-cache/.
+  cache: {}
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
   image: docker:29.10.0-cli
   services:
     - docker:29.10.0-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
   before_script:
-    - echo "$REGISTRY_PASS" | docker login -u "$REGISTRY_USER" --password-stdin
+    # docker login siempre avisa que guarda las credenciales sin cifrar. El aviso
+    # es ruido; el fallo real no: se guarda la salida y solo se imprime al fallar.
+    - >
+      echo "$REGISTRY_PASS" | docker login -u "$REGISTRY_USER" --password-stdin
+      > /tmp/docker-login.log 2>&1
+      || { cat /tmp/docker-login.log; exit 1; }
   script:
-    - docker pull $IMAGE_NAME:latest || true
-    - >-
+    # -q y stderr mudo: en el primer build la imagen todavía no existe y el
+    # "manifest not found" del pull es esperado, no un error.
+    - docker pull -q "$IMAGE_NAME:latest" > /dev/null 2>&1 || true
+    # La imagen final del Dockerfile es la API (stage sin nombre): no hay --target.
+    - >
       docker build
       --cache-from $IMAGE_NAME:latest
       --build-arg BUILDKIT_INLINE_CACHE=1
       -t $IMAGE_NAME:$IMAGE_TAG
       -t $IMAGE_NAME:latest
       .
+    # Smoke antes de publicar: la imagen tiene que quedar healthy por sí sola.
+    # Su HEALTHCHECK pega contra /v1/health; además se pide la SPA en "/".
+    # Sin sesión (M2_AUTH_ENABLED=0) y con una clave de descargas efímera: el
+    # smoke no necesita ni recibe secretos reales.
+    - |
+      SECRETO=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+      docker run -d --name m2-smoke \
+        -e M2_AUTH_ENABLED=0 -e M2_DOWNLOAD_SECRET="$SECRETO" \
+        $IMAGE_NAME:$IMAGE_TAG
+      H=""
+      for i in $(seq 1 30); do
+        H=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}sin-healthcheck{{end}}' m2-smoke 2>/dev/null || echo desconocido)
+        echo "api health=$H (intento $i/30)"
+        [ "$H" = "healthy" ] && break
+        if [ "$H" = "unhealthy" ] || [ "$H" = "sin-healthcheck" ]; then break; fi
+        sleep 5
+      done
+      if [ "$H" != "healthy" ]; then
+        docker logs --tail 60 m2-smoke || true
+        docker rm -f m2-smoke >/dev/null 2>&1 || true
+        exit 1
+      fi
+      # En una sola línea: dentro de este bloque, un salto de línea llegaría a
+      # Python como indentación y el smoke fallaría por sintaxis.
+      SMOKE="from urllib.request import urlopen; b = 'http://127.0.0.1:8000'; print('health HTTP', urlopen(b + '/v1/health', timeout=4).status); print('SPA HTTP', urlopen(b + '/', timeout=4).status)"
+      if ! docker exec m2-smoke /app/.venv/bin/python -c "$SMOKE"; then
+        docker logs --tail 60 m2-smoke || true
+        docker rm -f m2-smoke >/dev/null 2>&1 || true
+        exit 1
+      fi
+      docker rm -f m2-smoke >/dev/null
     - docker push $IMAGE_NAME:$IMAGE_TAG
     - docker push $IMAGE_NAME:latest
+
+# -----------------------------------------------------------------------------
+# Job 7: deploy al droplet por SSH: API + worker (HU-45) desde la misma imagen.
+# Se salta solo mientras no exista DO_HOST: sin droplet configurado no hay a
+# dónde desplegar, y un pipeline en rojo por eso no informa nada útil.
+# -----------------------------------------------------------------------------
+deploy:
+  stage: deploy
+  image: alpine:3.22
+  needs: ["build_image"]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $DO_HOST
+  # No usa uv: mismo criterio que build_image.
+  cache: {}
+  environment:
+    name: production
+    url: "http://$DO_HOST:$APP_PORT"
+  # Evita dos deploys simultáneos si llegan dos pushes seguidos.
+  resource_group: production
+  # auto_cancel no puede cortarlo a mitad de camino: entre `docker rm -f` y el
+  # arranque del worker, producción quedaría sin API o sin quien procese la cola.
+  interruptible: false
+  variables:
+    APP_PORT: "8000"
+    API_CONTAINER: "m2-cad"
+    WORKER_CONTAINER: "m2-cad-worker"
+    # En el droplet: el env-file con los secretos vive acá, con permisos 600.
+    REMOTE_DIR: "/opt/m2-cad"
+    # Copia normalizada de SSH_PRIVATE_KEY (ver before_script).
+    DEPLOY_KEY: "/tmp/m2-deploy-key"
+    # Topes de memoria por contenedor: ajustarlos al tamaño del droplet para
+    # dejar aire al OS y a dockerd. El worker es el que construye las piezas.
+    API_MEMORY: "1g"
+    WORKER_MEMORY: "1500m"
+  before_script:
+    - apk add --no-cache openssh-client
+    # SSH_PRIVATE_KEY es una variable de tipo File: llega como ruta temporal y
+    # GitLab la escribe tal cual. Si se pegó sin salto de línea final, ssh no la
+    # carga ("error in libcrypto"): se copia agregándolo. $(...) quita los saltos
+    # finales que hubiera y printf deja exactamente uno.
+    - printf '%s\n' "$(cat "$SSH_PRIVATE_KEY")" > "$DEPLOY_KEY"
+    - chmod 600 "$DEPLOY_KEY"
+    # Sin estos secretos la API no arranca (HU-14, HU-36, HU-53): se corta acá,
+    # con el nombre de la variable, en vez de dejar un contenedor reiniciándose.
+    - ': "${DEEPSEEK_API_KEY:?Defina DEEPSEEK_API_KEY en las variables de GitLab}"'
+    - ': "${M2_DOWNLOAD_SECRET:?Defina M2_DOWNLOAD_SECRET en las variables de GitLab}"'
+    - ': "${M2_AUTH_SECRET:?Defina M2_AUTH_SECRET en las variables de GitLab}"'
+    - ': "${M2_AUTH_USERS:?Defina M2_AUTH_USERS en las variables de GitLab}"'
+  script:
+    # La imagen está en Docker Hub PÚBLICO: el droplet no necesita credenciales.
+    # Por eso no hay docker login (ni el password viajando por SSH).
+    - |
+      SSH="ssh -o BatchMode=yes -o ConnectTimeout=10 \
+        -o StrictHostKeyChecking=accept-new -i $DEPLOY_KEY root@$DO_HOST"
+
+      # Los secretos viajan por stdin a un env-file 600, nunca en la línea de
+      # comandos de `docker run` (quedarían en `ps` y en el historial del host).
+      # HTTP sin TLS: la cookie de sesión no puede ser Secure o el navegador no
+      # la devuelve. Para HTTPS está el compose cloud de HU-47 (runbook-cloud.md).
+      printf '%s\n' \
+        "DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY" \
+        "LLM_MODEL=${LLM_MODEL:-deepseek-v4-pro}" \
+        "M2_AUTH_ENABLED=1" \
+        "M2_AUTH_COOKIE_SECURE=0" \
+        "M2_AUTH_SECRET=$M2_AUTH_SECRET" \
+        "M2_AUTH_USERS=$M2_AUTH_USERS" \
+        "M2_CORS_ORIGINS=http://$DO_HOST:$APP_PORT" \
+        "M2_COLA_HABILITADA=1" \
+        "M2_COLA_PATH=/app/data/cola.json" \
+        "M2_DOWNLOAD_SECRET=$M2_DOWNLOAD_SECRET" \
+        "M2_LOG_LEVEL=${M2_LOG_LEVEL:-INFO}" \
+        "MLFLOW_TRACKING_ENABLED=0" \
+        | $SSH "umask 077 && mkdir -p $REMOTE_DIR && cat > $REMOTE_DIR/m2-cad.env"
+
+      $SSH "docker pull -q $IMAGE_NAME:$IMAGE_TAG"
+
+      # rm -f es idempotente: primer deploy y redeploy usan el mismo camino.
+      # Los volúmenes con nombre conservan la cola, los artefactos y los respaldos.
+      $SSH "docker rm -f $WORKER_CONTAINER $API_CONTAINER >/dev/null 2>&1 || true"
+
+      $SSH "docker run -d --restart unless-stopped \
+        --name $API_CONTAINER \
+        --memory $API_MEMORY \
+        --env-file $REMOTE_DIR/m2-cad.env \
+        -p $APP_PORT:8000 \
+        -v m2-cad-data:/app/data \
+        -v m2-cad-outputs:/app/outputs \
+        $IMAGE_NAME:$IMAGE_TAG"
+    - |
+      SSH="ssh -o BatchMode=yes -o ConnectTimeout=10 \
+        -o StrictHostKeyChecking=accept-new -i $DEPLOY_KEY root@$DO_HOST"
+
+      # El HEALTHCHECK de la imagen (/v1/health) es lo que se espera: el worker
+      # arranca después de la API, como en el runbook operativo.
+      for i in $(seq 1 36); do
+        HEALTH=$($SSH "docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}sin-healthcheck{{end}}' $API_CONTAINER" 2>/dev/null || echo desconocido)
+        echo "api health=$HEALTH (intento $i/36)"
+
+        if [ "$HEALTH" = "healthy" ]; then
+          # El worker no escucha en 8000: el HEALTHCHECK de la imagen no aplica.
+          $SSH "docker run -d --restart unless-stopped \
+            --name $WORKER_CONTAINER \
+            --memory $WORKER_MEMORY \
+            --no-healthcheck \
+            --env-file $REMOTE_DIR/m2-cad.env \
+            -v m2-cad-data:/app/data \
+            -v m2-cad-outputs:/app/outputs \
+            $IMAGE_NAME:$IMAGE_TAG \
+            uv run --no-sync python -m m2_cad.worker"
+          sleep 10
+          if [ "$($SSH "docker inspect -f '{{.State.Running}}' $WORKER_CONTAINER")" != "true" ]; then
+            $SSH "docker logs --tail 80 $WORKER_CONTAINER" || true
+            exit 1
+          fi
+          # Verifica el puerto publicado desde el host, no solo dentro del contenedor.
+          $SSH "curl -fsS -o /dev/null -w 'health HTTP %{http_code}\n' http://127.0.0.1:$APP_PORT/v1/health"
+          $SSH "docker image prune -f"
+          exit 0
+        fi
+
+        if [ "$HEALTH" = "unhealthy" ] || [ "$HEALTH" = "sin-healthcheck" ]; then
+          $SSH "docker logs --tail 80 $API_CONTAINER" || true
+          exit 1
+        fi
+
+        sleep 5
+      done
+
+      echo "La API no llegó a healthy en 3 minutos"
+      $SSH "docker logs --tail 80 $API_CONTAINER" || true
+      exit 1
