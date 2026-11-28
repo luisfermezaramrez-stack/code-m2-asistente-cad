@@ -8,42 +8,42 @@
 
 ## Fase 2. Núcleo del plano PDF
 
-- [ ] Exponer `polilinea_de`/`extremos_de` en `plano_dxf.py` (sin cambio de comportamiento).
-- [ ] Crear `src/m2_cad/plano_pdf.py`: A4/A3, margen 10 mm, escala por serie.
-- [ ] Cajetín: material, masa, fecha, id de solicitud, marca preliminar (RF-2).
-- [ ] Declarar la escala elegida en el cajetín (RF-3).
-- [ ] `uv add matplotlib` en `pyproject.toml`/`uv.lock`.
+- [x] Exponer `polilinea_de`/`extremos_de` en `plano_dxf.py` (sin cambio de comportamiento). — 9316c9f
+- [x] Crear `src/m2_cad/plano_pdf.py`: A4/A3, margen 10 mm, escala por serie. — 5b4442b
+- [x] Cajetín: material, masa, fecha, id de solicitud, marca preliminar (RF-2). — 5b4442b
+- [x] Declarar la escala elegida en el cajetín (RF-3). — 5b4442b
+- [x] `uv add matplotlib` en `pyproject.toml`/`uv.lock`. — ae706aa
 
 ## Fase 3. Pipeline y canal de artefactos
 
-- [ ] `construir_pieza` escribe `pieza.pdf` y acepta `solicitud_id` (opcional).
-- [ ] `ResultadoPieza.pdf` y `a_respuesta()` (contrato aditivo).
-- [ ] Allowlist `pdf` + MIME `application/pdf` (RNF-3).
-- [ ] PDF en la lista de artefactos de la versión (HU-35).
+- [x] `construir_pieza` escribe `pieza.pdf` y acepta `solicitud_id` (opcional). — 9f226ff (el id lo inyecta quien llama')
+- [x] `ResultadoPieza.pdf` y `a_respuesta()` (contrato aditivo). — 9f226ff
+- [x] Allowlist `pdf` + MIME `application/pdf` (RNF-3). — 09d21fe
+- [x] PDF en la lista de artefactos de la versión (HU-35). — 16a517b
 
 ## Fase 4. Frontend y contrato
 
-- [ ] `Format` incluye `'pdf'` en `frontend/src/api.ts`.
-- [ ] Doble `fakeCadService` con el formato `pdf`.
-- [ ] Prueba Vitest del botón de descarga PDF.
+- [x] `Format` incluye `'pdf'` en `frontend/src/api.ts`. — 97812a4
+- [x] Doble `fakeCadService` con el formato `pdf`. — 97812a4
+- [x] Prueba Vitest del botón de descarga PDF. — 97812a4 (118 pruebas ok, typecheck y build ok)
 
 ## Fase 5. Pruebas (RED → GREEN, patrón AAA)
 
-- [ ] AC1: tamaño A4 y A3 exactos, contenido dentro del margen (pypdf).
-- [ ] AC2: cajetín con material, masa, fecha e id de solicitud (pypdf).
-- [ ] AC3: relación medida/real coincide con la escala declarada (±1 %).
-- [ ] RNF-1: mismos bytes con la misma fecha inyectada.
-- [ ] RNF-3: descarga por canal con token; no-regresión HTTP de STEP/GLB/CSV/DXF.
-- [ ] No-regresión de bytes: STEP/GLB/CSV/DXF no cambian al generar el PDF.
-- [ ] `make check` verde con secreto de descargas exportado.
+- [x] AC1: tamaño A4 y A3 exactos, contenido dentro del margen (pypdf). — tests/test_plano_pdf.py
+- [x] AC2: cajetín con material, masa, fecha e id de solicitud (pypdf). — tests/test_plano_pdf.py
+- [x] AC3: relación medida/real coincide con la escala declarada (±1 %). — tests/test_plano_pdf.py
+- [x] RNF-1: mismos bytes con la misma fecha inyectada. — tests/test_plano_pdf.py
+- [x] RNF-3: descarga por canal con token; no-regresión HTTP de STEP/GLB/CSV/DXF. — tests/test_hu43_canal_pdf.py
+- [x] No-regresión de bytes: GLB/CSV/DXF no cambian al generar el PDF. — c9c2ba9 (el STEP de build123d varía por marca de tiempo; se comparan corridas congenéreas)
+- [x] `make check` verde con secreto de descargas exportado. — pytest 825, cobertura 91,09 %
 
 ## Fase 6. Documentación y entrega
 
-- [ ] `CONSTITUTION.md`: stack con `matplotlib` y entregable PDF, decisión historizada.
-- [ ] `README.md`/`AGENTS.md`: entregable PDF y módulo nuevo.
-- [ ] `specs/README.md`: fila 044 actualizada.
-- [ ] `evidence.md` con resultados verificables.
-- [ ] Commits por unidad con Conventional Commits en español.
+- [x] `CONSTITUTION.md`: stack con `matplotlib` y entregable PDF, decisión historizada.
+- [x] `README.md`: entregable PDF (AGENTS.md no menciona entregables concretos; sin cambio).
+- [x] `specs/README.md`: fila 044 actualizada (estado "En revisión").
+- [x] `evidence.md` con resultados verificables.
+- [x] Commits por unidad con Conventional Commits en español (sin atribución IA).
 - [ ] Abrir PR hacia `main` (decisión del usuario; fuera de esta sesión).
 
 ## Criterios de cierre

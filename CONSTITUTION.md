@@ -27,8 +27,8 @@
 ### Propósito
 
 Convertir la descripción **en español** de un componente metálico auxiliar en un
-modelo CAD **preliminar verificado** (STEP, GLB, lista de materiales en CSV y plano DXF
-con vistas ortogonales) en
+modelo CAD **preliminar verificado** (STEP, GLB, lista de materiales en CSV, plano DXF
+con vistas ortogonales y plano PDF con cajetín) en
 minutos — o **declinar con un motivo** cuando la pieza no se puede construir — sin
 que el usuario tenga que redactar prompts en inglés ni usar la consola.
 
@@ -50,7 +50,8 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
   `spacer`, `tornillería`, `extrusion` y `pipe`.
 - Pipeline: solicitud en español → generación DSL (DeepSeek por API, HU-14,
   sin traducción) → verificación geométrica determinista → construcción B-rep →
-  entrega STEP/GLB/CSV y, desde SPEC-043, el plano DXF de vistas ortogonales.
+  entrega STEP/GLB/CSV y, desde SPEC-043/044, los planos DXF y PDF de vistas
+  ortogonales con cajetín.
 - API REST (`POST /generar`, `GET /health`), progreso SSE, consulta/cancelación
   en `/generaciones/{id}` y Vue 3 con resultados descargables (HU-15).
 - Acceso con sesión por usuario: `/auth/login`, `/auth/logout`, `/auth/me`; salud
@@ -81,6 +82,7 @@ que el usuario tenga que redactar prompts en inglés ni usar la consola.
 | **Versión pública** | API bajo `/v1` con OpenAPI congelado en `contracts/openapi-v1.json`; rutas planas redirigen con `307` y cabeceras `Deprecation`/`Sunset` (HU-31) |
 | **Kernel CAD** | `constraint-kit` (vendoreado en `vendor/`) con CadQuery 2.7.0, build123d 0.10.0, bd_warehouse 0.2.0, Z3, python-solvespace, OpenCascade (LGPL 2.1) |
 | **Planos DXF** | [`ezdxf`](https://ezdxf.readthedocs.io/) 1.4 — proyección HLR sobre el B-rep, capas de aristas visibles/ocultas y cotas; lectura y auditoría del plano generado (SPEC-043) |
+| **Planos PDF** | [`matplotlib`](https://matplotlib.org/) 3.11 — backend PDF vectorial sobre las vistas HLR de `plano_dxf`; cajetín con material, masa, fecha y solicitud (SPEC-044); determinista salvo la fecha del cajetín |
 | **LLM** | DeepSeek `deepseek-v4-pro` por API (`https://api.deepseek.com`), requiere `DEEPSEEK_API_KEY` (HU-14) |
 | **LLM heredado** | `gemma-4-12b-constraintkit` GGUF Q6_K (~9,8 GB) por llama.cpp (`:8080`, CUDA); solo línea base HU-01 (`docker-compose.gemma.yml`) |
 | **Seguimiento** | [MLflow](https://mlflow.org/) 3.18 (`mlflow-skinny`): experimentos `m2-cad-generacion`, `m2-cad-banco` y `m2-cad-ab`; servidor con backend SQLite (`mlflow.db`) y artefactos en volumen, UI en `127.0.0.1:5000` sin autenticación (HU-16) |
@@ -461,6 +463,7 @@ git push -u origin feature/hu-XX-tema
 | 2026-11-27 | HU-52: `ab.py` y `comparar_ab.py` comparan dos variantes de prompt/modelo sobre el mismo banco, con dos corridas en `m2-cad-ab` y reporte por familia/caso; `planner-v2` se registra sin desplazar a la v1 | Separar la decisión de promover de la evidencia: la comparación real gasta tokens y vive fuera de CI, el replay por variante no usa red y las pruebas no dependen de MLflow ni del proveedor |
 | 2026-11-27 | HU-50: `viewerCortes.ts` concentra ejes, límites, normal y constantes; `GlbViewer.vue` aplica `Plane` + stencil sobre la geometría cargada y expone corte por X/Y/Z, posición, inversión, desactivación y atajos accesibles | Inspeccionar el interior de la pieza sin backend ni GPU real; la tapa se calcula en el cliente y el corte convive con vistas, cotas y PNG de HU-39 |
 | 2026-11-27 | HU-47: `docker-compose.cloud.yml` y `deploy/Caddyfile` parametrizan API, worker, volúmenes y TLS sin tocar la imagen; `verify_hu47_cloud_config.py` valida la estructura y los secretos sin red ni impresión de valores | Dejar verificable el despliegue con dominio propio mientras faltan proveedor, DNS, imagen publicada y credenciales; conservar la cola compartida de HU-45 y la sesión segura de HU-53 sin contratar ni publicar |
+| 2026-11-28 | HU-43: `plano_pdf.py` reutiliza las vistas HLR y las funciones de cotas de SPEC-043 y dibuja sobre el backend PDF de matplotlib una página A4/A3 horizontal con margen de 10 mm, escala por serie (1:1, 1:2, 1:5…) declarada en el cajetín y cajetín con material, masa, fecha e id de solicitud; `matplotlib` sube de transitiva (por `vtk`) a dependencia directa y el PDF sale por el canal de descargas de HU-36; determinista salvo la fecha del cajetín, que es la huella admisible (RNF-1) | El PDF es el plano que se imprime y archiva; reutilizar la proyección y las cotas de SPEC-043 evita dos fuentes de verdad geométrica y el backend PDF de matplotlib ya estaba en el árbol de dependencias (cero bytes nuevos) |
 | 2026-11-28 | HU-42: `plano_dxf.py` proyecta por HLR las vistas frontal, superior y lateral del STEP exportado, con capas de aristas visibles/ocultas, cotas generales de `caja_mm` y cotas por arista; `ezdxf` sube de transitiva a dependencia directa; el DXF sale por el canal de descargas de HU-36 y la cabecera de fecha fija lo vuelve determinista (RNF-1) | Los planos 2D son el entregable que los fabricantes leen; reutilizar el mecanismo HLR de CadQuery evita mantener proyección propia y las cotas quedan atadas a la verificación (`caja_mm`), no al render |
 
 ## 10. Notas y tareas pendientes
