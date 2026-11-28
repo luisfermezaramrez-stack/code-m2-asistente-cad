@@ -447,6 +447,7 @@ def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str,
             resultado.glb,
             resultado.bom_csv,
             resultado.dxf,
+            resultado.pdf,
         ],
         # HU-35: el programa viaja en `medido` para registrar la versión 1 sin releer disco.
         programa=resultado.programa,
@@ -498,6 +499,7 @@ def procesar_con_progreso(
             resultado.glb,
             resultado.bom_csv,
             resultado.dxf,
+            resultado.pdf,
         ],
         # HU-35: el programa viaja en `medido` para registrar la versión 1 sin releer disco.
         programa=resultado.programa,
@@ -1385,6 +1387,7 @@ def _editar_json(
                 resultado.glb,
                 resultado.bom_csv,
                 resultado.dxf,
+                resultado.pdf,
             ],
         )
         diff = versiones.diff_programas(previa["programa"], resultado.programa)
