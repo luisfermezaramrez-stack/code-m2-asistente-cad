@@ -8,7 +8,7 @@
 Asistente CAD para el diseño preliminar de componentes metálicos auxiliares.
 Pipeline: descripción en español → programa DSL (DeepSeek por API, sin traducción)
 → verificación geométrica determinista → pieza B-rep
-entregada como STEP, GLB y CSV — o declinación con motivo.
+entregada como STEP, GLB, CSV y DXF — o declinación con motivo.
 
 > 📘 La verdad técnica central —propósito, stack, estructura, convenciones, decisiones y
 > flujo de trabajo— vive en [`CONSTITUTION.md`](./CONSTITUTION.md). **Léela antes de
@@ -89,8 +89,9 @@ En OpenCode la preferencia se aplica automáticamente mediante la regla
 ## Estructura y convenciones
 
 - `src/m2_cad/` — paquete propio (src-layout): `api.py` (FastAPI), `pipeline.py`,
-  `banco.py` (banco de solicitudes), `registro.py`, `trabajos.py`/`seguimiento.py` (SSE)
-  y `web.py` (build Vue y CORS). `frontend/` contiene Vue/TypeScript/Vite.
+  `plano_dxf.py` (plano DXF HU-42), `banco.py` (banco de solicitudes), `registro.py`,
+  `trabajos.py`/`seguimiento.py` (SSE) y `web.py` (build Vue y CORS). `frontend/`
+  contiene Vue/TypeScript/Vite.
 - `tests/` — pruebas con `pytest` (patrón AAA); sin GPU ni red real.
 - `specs/` — especificaciones SDD (001–023, índice en `specs/README.md`); cada módulo cita su spec y AC.
 - `docs/` — documentación y diagrama de arquitectura (Archify).
