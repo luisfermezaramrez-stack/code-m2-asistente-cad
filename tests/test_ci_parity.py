@@ -1,11 +1,12 @@
 """Paridad de verificación entre GitHub Actions y el pipeline de GitLab.
 
 GitHub es la fuente de verdad y la puerta de integración; el pipeline de GitLab
-deja evidencia verificable sobre el espejo. Esta prueba vigila las dos cosas que
-pueden romperse en silencio: que las herramientas fijadas coincidan (uv, Python,
-banderas de compilación) y que GitLab no se convierta en una segunda puerta de
-integración. Se lee el YAML como texto a propósito: no hace falta un parser para
-comprobar estas invariantes y evita sumar una dependencia solo para la prueba.
+valida cada rama replicada y, sólo desde la rama por defecto, publica la imagen y
+la despliega. Esta prueba vigila lo que puede romperse en silencio: que las
+herramientas fijadas coincidan (uv, Python, banderas de compilación) y que ninguna
+otra rama publique ni despliegue. Se lee el YAML como texto a propósito: no hace
+falta un parser para comprobar estas invariantes y evita sumar una dependencia solo
+para la prueba.
 """
 
 import tomllib
@@ -87,12 +88,45 @@ def test_cada_pipeline_corre_la_verificacion_que_declara():
     assert "make test" in _texto(GITLAB)
 
 
-def test_el_pipeline_de_gitlab_no_abre_segunda_puerta_de_integracion():
-    gitlab = _texto(GITLAB)
+def test_el_pipeline_de_gitlab_valida_cada_push_y_solo_main_publica_y_despliega():
+    """Cada rama replicada se valida; sólo la rama por defecto publica y despliega."""
+    workflow = _job_gitlab("workflow")
 
-    # Sólo push a la rama por defecto, lanzamiento manual o pipeline programado.
-    assert "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH" in gitlab
-    assert "merge_request_event" not in gitlab
+    assert '$CI_PIPELINE_SOURCE == "push"' in workflow
+    assert "merge_request_event" not in _texto(GITLAB)
+    for job in ("build_image", "deploy"):
+        assert "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH" in _job_gitlab(job), job
+    # Sin droplet configurado el deploy no se agrega, en vez de fallar en rojo.
+    assert "$DO_HOST" in _job_gitlab("deploy").split("rules:", 1)[1].split("\n  cache:")[0]
+
+
+def test_la_imagen_se_verifica_sana_antes_de_publicarse():
+    """El smoke espera el HEALTHCHECK de `/v1/health` y la SPA antes del push."""
+    build = _job_gitlab("build_image")
+    ejecutado = "\n".join(
+        linea for linea in build.splitlines() if not linea.lstrip().startswith("#")
+    )
+
+    assert "/v1/health" in ejecutado
+    assert ejecutado.index("healthy") < ejecutado.index("docker push")
+    assert "--target" not in ejecutado, "el Dockerfile no declara stages con nombre para la API"
+
+
+def test_el_deploy_levanta_api_y_worker_sin_exponer_secretos():
+    """HU-45: la API encola y el worker procesa; los secretos viajan en un env-file."""
+    deploy = _job_gitlab("deploy")
+    ejecutado = "\n".join(
+        linea for linea in deploy.splitlines() if not linea.lstrip().startswith("#")
+    )
+
+    assert "--env-file" in ejecutado
+    assert "m2_cad.worker" in ejecutado
+    assert "/v1/health" in ejecutado
+    for secreto in ("DEEPSEEK_API_KEY", "M2_AUTH_SECRET", "M2_AUTH_USERS", "M2_DOWNLOAD_SECRET"):
+        assert f"-e {secreto}" not in ejecutado, f"{secreto} quedaría en la línea de comandos"
+    assert "resource_group: production" in deploy
+    # Un push nuevo no puede cancelar el deploy entre `docker rm -f` y el arranque.
+    assert "interruptible: false" in deploy
 
 
 def test_el_lint_del_espejo_usa_el_makefile_y_no_recorre_todo_el_arbol():
