@@ -107,14 +107,14 @@ Las specs formales viven en `specs/059`, `specs/060` y `specs/061`.
 
 ## Slices de entrega
 
-El refactor se entrega en un solo PR (#170) por ser un único cambio de interfaz con archivos
-compartidos entre las seis HU. Tamaño medido contra `main`: 29 archivos, +1088 −454.
+El refactor se entrega en dos PR encadenadas: **#171** (código y pruebas, base `main`, 21 archivos,
++342 −454) y **#172** (specs, índice y este documento, encadenada sobre #171, 8 archivos, +760).
+La PR única original (#170) se cerró al dividir.
 
 | Slice | Contenido | Líneas |
 | --- | --- | --- |
 | S1 | Código y pruebas del frontend (`frontend/`), incluidas las vistas retiradas | +342 −454 |
 | S2 | Specs, índice y este documento | +746 |
 
-Si la revisión pide menos carga, S2 se separa a un PR encadenado: las specs no necesitan
-revisión de código y el código queda en ~800 líneas, de las cuales casi la mitad son archivos
-eliminados completos (MetricsView, SettingsView, Metrics.test).
+La división se aplicó: el código queda en ~800 líneas, de las cuales casi la mitad son archivos
+eliminados completos (MetricsView, SettingsView, Metrics.test), y la documentación viaja aparte.
