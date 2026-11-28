@@ -19,13 +19,15 @@ Fuente: `specs/050-hu-49-plantillas-parametrizadas/spec.md` y `plan.md` (decisio
 ## Tasks
 
 - [x] T0 · S1-S7 · plan y decisiones aprobados · delegado (w6:p5) · 668fed6
-- [ ] T1 · S1, S3, S6 · catálogo, cargador, `make plantillas-check` · delegado (w6:p5, sin commitear) → inline
-- [ ] T2 · S2, S4, S7 · API `/v1/plantillas` y contrato regenerado · inline
-- [ ] T3 · S5 · vista `/plantillas` en la SPA, Vitest · inline
-- [ ] T4 · docs, índice de specs, evidencia y `make check` · inline
+- [x] T1 · S1, S3, S6 · catálogo, cargador, `make plantillas-check` · inline · ac898b2
+- [x] T2 · S2, S4, S7 · API `/v1/plantillas` y contrato regenerado · delegado (backstop de contexto) · fb8e329
+- [x] T3 · S5 · vista `/plantillas` en la SPA, Vitest · delegado (backstop de contexto) · b584ebe
+- [x] T4 · docs, índice de specs, evidencia, correcciones del verificador y `make check` · inline
 
 ## Log
 
 - L1 (2026-11-28, usuario): «Continúa con la historia de usuario número 49. Actúa como orquestador como en la anterior y envíaselo al otro agente.»
 - L2: el plan (a)-(d) se aprobó tal cual.
 - L3: w6:p5 se detuvo por falta de cuota de DeepSeek (402) con T1 sin commitear. Usuario: «Sigo yo inline». Ruta de T1-T4: inline, porque no hay razón de delegar un writer.
+- L4: el verificador independiente (item 2) no encontró bloqueantes. Se corrigieron 4 hallazgos menores: ventana HU-32, tipos estrictos, desbordamiento y clases ASME heredadas. `make check`: 903 pruebas y 90,29 %.
+- L5 (usuario): «valida bien que necesito finalizar esta actividad cuanto antes».

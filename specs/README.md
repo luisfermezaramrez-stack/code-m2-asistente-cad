@@ -76,8 +76,8 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [046](046-hu-45-cola-persistente/) | HU-45 · Cola persistente de trabajos y worker | 2 | Juan Camilo | #105 | #132 | Spec-first | Fusionada |
 | [047](047-hu-46-alertas-regresion/) | HU-46 · Alertas de regresión de calidad | 3 | Juan Camilo | #106 | #152 | Spec-first | Fusionada |
 | [048](048-hu-47-despliegue-nube/) | HU-47 · Despliegue en la nube | 3 | Carlos | #107 | #156 | Spec-first | Fusionada; publicación pendiente |
-| [049](049-hu-48-materiales-tolerancias-bom/) | HU-48 · Materiales, tolerancias y BOM con costos | 3 | Luis Meza | #108 | — | Spec-first | Implementada (PR pendiente); alcance B tras el spike |
-| [050](050-hu-49-plantillas-parametrizadas/) | HU-49 · Plantillas parametrizadas de piezas | 3 | Luis Meza | #109 | — | Spec-first | Propuesta (opcional) |
+| [049](049-hu-48-materiales-tolerancias-bom/) | HU-48 · Materiales, tolerancias y BOM con costos | 3 | Luis Meza | #108 | #161 | Spec-first | Fusionada; alcance B tras el spike |
+| [050](050-hu-49-plantillas-parametrizadas/) | HU-49 · Plantillas parametrizadas de piezas | 3 | Luis Meza | #109 | — | Spec-first | Implementada (PR pendiente) |
 | [051](051-hu-50-cortes-visor-3d/) | HU-50 · Cortes y secciones en el visor 3D | 3 | Carlos | #110 | #155 | Spec-first | Fusionada |
 | [052](052-hu-51-panorama-metricas/) | HU-51 · Panorama de métricas sobre MLflow | 3 | Juan Camilo | #111 | #147 | Spec-first | Fusionada |
 | [053](053-hu-52-ab-prompts-modelos/) | HU-52 · Comparación A/B de prompts y modelos | 3 | Juan Camilo | #112 | #154 | Spec-first | Fusionada |

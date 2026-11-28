@@ -51,6 +51,12 @@ y obtiene, sin redactar prompts en inglés ni usar la consola:
 | Modelo | STEP (ISO 10303) | Abrir en cualquier CAD |
 | Vista 3D | GLB | Visualizar en el navegador, con vistas ortogonales, cotas y captura PNG |
 | Lista de materiales | CSV | Corte / compra, con material, masa y costo estimado por línea y total (SPEC-049) |
+
+También se puede partir de una **plantilla** (SPEC-050): la vista `/plantillas` lista el catálogo
+versionado en `data/plantillas.toml` (una plantilla por familia del banco) y las plantillas que
+cada usuario guardó desde su historial. Instanciar una plantilla valida cada parámetro contra su
+rango antes de construir, no llama al LLM y entrega la misma pieza verificada (STEP, GLB, CSV).
+Las plantillas guardadas viven en `data/plantillas.json` (fuera de Git) y son privadas de su autor.
 | Plano 2D | DXF (R2010) | Vistas ortogonales con capas de aristas visibles/ocultas y cotas, en un visor CAD (SPEC-043) |
 
 Si la pieza no se puede construir, el asistente declina con un motivo en
