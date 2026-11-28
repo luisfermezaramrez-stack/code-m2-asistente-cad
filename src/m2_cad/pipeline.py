@@ -33,7 +33,7 @@ from pathlib import Path
 import httpx
 from constraint_kit import bom, builder, dsl, llm
 
-from m2_cad import MARCA_PRELIMINAR, declinacion, llm_resiliente, plano_dxf, prompts
+from m2_cad import MARCA_PRELIMINAR, declinacion, llm_resiliente, plano_dxf, plano_pdf, prompts
 from m2_cad.control import ControlGeneracion
 from m2_cad.observabilidad import redactar
 from m2_cad.registro import _sanitizar
@@ -181,6 +181,10 @@ class ResultadoPieza:
     version_modelo: str = "desconocida"
     #: Plano DXF de vistas ortogonales (SPEC-043); None en dobles de prueba.
     dxf: Path | None = None
+    #: Plano PDF con cajetín (SPEC-044); None en dobles de prueba.
+    pdf: Path | None = None
+    #: Partes del ensamble con material y masa, para el cajetín del plano (SPEC-044 RF-2).
+    partes: list[dict] | None = None
 
     def a_respuesta(self) -> dict[str, str]:
         """Serializa el resultado para la API (todos los valores como texto)."""
@@ -196,6 +200,8 @@ class ResultadoPieza:
         }
         if self.dxf is not None:  # SPEC-043: el plano DXF es aditivo
             respuesta["dxf"] = str(self.dxf)
+        if self.pdf is not None:  # SPEC-044: el plano PDF es aditivo
+            respuesta["pdf"] = str(self.pdf)
         return respuesta
 
 
@@ -341,8 +347,11 @@ def construir_pieza(programa: dict, directorio: Path) -> ResultadoPieza:
         familia=familia_de_programa(programa),
         programa_json=Path(directorio) / "programa.json",
         dxf=Path(directorio) / f"{NOMBRE_PIEZA}.dxf",
+        pdf=Path(directorio) / f"{NOMBRE_PIEZA}.pdf",
+        partes=list(partes),
     )
     plano_dxf.escribir(resultado_t, resultado_t.dxf)
+    plano_pdf.escribir(resultado_t, resultado_t.pdf)
     return resultado_t
 
 
