@@ -441,7 +441,13 @@ def procesar_con_pipeline(texto: str, medicion: dict | None = None) -> dict[str,
 
     medido.update(
         familia=resultado.familia,
-        artefactos=[resultado.programa_json, resultado.step, resultado.glb, resultado.bom_csv],
+        artefactos=[
+            resultado.programa_json,
+            resultado.step,
+            resultado.glb,
+            resultado.bom_csv,
+            resultado.dxf,
+        ],
         # HU-35: el programa viaja en `medido` para registrar la versión 1 sin releer disco.
         programa=resultado.programa,
     )
@@ -486,7 +492,13 @@ def procesar_con_progreso(
 
     medido.update(
         familia=resultado.familia,
-        artefactos=[resultado.programa_json, resultado.step, resultado.glb, resultado.bom_csv],
+        artefactos=[
+            resultado.programa_json,
+            resultado.step,
+            resultado.glb,
+            resultado.bom_csv,
+            resultado.dxf,
+        ],
         # HU-35: el programa viaja en `medido` para registrar la versión 1 sin releer disco.
         programa=resultado.programa,
     )
@@ -1372,6 +1384,7 @@ def _editar_json(
                 resultado.step,
                 resultado.glb,
                 resultado.bom_csv,
+                resultado.dxf,
             ],
         )
         diff = versiones.diff_programas(previa["programa"], resultado.programa)
@@ -1583,7 +1596,6 @@ def panorama_metricas(
     return PanoramaMetricas(**metricas.panorama(configuracion, horas=horas))
 
 
-
 @router.get("/generaciones/{solicitud_id}", response_model=EstadoTrabajo)
 def consultar_generacion(
     solicitud_id: str,
@@ -1639,7 +1651,7 @@ def descargar_archivo(
     trabajo = _trabajo(solicitud_id, gestor, cola)
     garantizar_propietario(usuario, trabajo.usuario)
     estado = trabajo.estado()
-    if estado["estado"] != "verificado" or formato not in {"step", "glb", "csv"}:
+    if estado["estado"] != "verificado" or formato not in {"step", "glb", "csv", "dxf"}:
         raise HTTPException(404, "Archivo no disponible.")
     resultado = estado.get("resultado", {})
     nombre = (
@@ -1659,7 +1671,12 @@ def descargar_archivo(
         or not ruta.is_file()
     ):
         raise HTTPException(404, "Archivo no disponible.")
-    tipos = {"step": "application/step", "glb": "model/gltf-binary", "csv": "text/csv"}
+    tipos = {
+        "step": "application/step",
+        "glb": "model/gltf-binary",
+        "csv": "text/csv",
+        "dxf": "image/vnd.dxf",
+    }
     return FileResponse(
         ruta,
         media_type=tipos[formato],
