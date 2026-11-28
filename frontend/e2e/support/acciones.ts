@@ -10,7 +10,7 @@ export const DESCRIPCION = 'Placa de 120 × 120 mm, espesor de 6 mm y 4 agujeros
 export async function enviarSolicitud(page: Page, texto: string = DESCRIPCION): Promise<void> {
   await page.goto('/')
   await expect(page).toHaveURL(/\/nueva-solicitud$/)
-  await expect(page.getByRole('heading', { name: 'Describe tu pieza' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Especifica la pieza que necesitas' })).toBeVisible()
   await page.locator('#descripcion').fill(texto)
   await page.getByRole('button', { name: 'Generar pieza' }).click()
 }

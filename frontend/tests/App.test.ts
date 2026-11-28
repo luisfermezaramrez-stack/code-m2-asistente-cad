@@ -36,12 +36,14 @@ beforeEach(async () => {
       stubs: { GlbViewer: { props: ['url'], template: '<div data-testid="visor-simulado">Visor WebGL simulado: {{ url }}</div>' } },
     },
   })
+  // El shell espera la lectura de sesión: sin esto la vista aún no está montada.
+  await flushPromises()
 })
 afterEach(() => { wrapper.unmount(); document.body.innerHTML = ''; vi.unstubAllGlobals(); vi.useRealTimers() })
 
 describe('SPA conectada a FastAPI simulado', () => {
   it('muestra aviso profesional y estado vacío sin muestras técnicas', () => {
-    expect(wrapper.text()).toContain('Diseño preliminar: requiere revisión profesional')
+    expect(wrapper.find('.notice').exists()).toBe(false)
     expect(wrapper.text()).toContain('Sin solicitud')
     expect(wrapper.findAll('button.download')).toHaveLength(0)
     expect(wrapper.text()).not.toMatch(/MAQUETA|SSE|localhost|simulado/)
@@ -49,13 +51,27 @@ describe('SPA conectada a FastAPI simulado', () => {
 
   it('permite elegir tema desde la cabecera y persiste la preferencia', async () => {
     const toggle = wrapper.get('button.theme-toggle')
-    expect(toggle.text()).toBe('Usar tema oscuro')
+    expect(toggle.attributes('aria-label')).toBe('Usar tema oscuro')
+    expect(toggle.find('svg').exists()).toBe(true)
 
     await toggle.trigger('click')
 
     expect(document.documentElement.dataset.theme).toBe('dark')
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
-    expect(toggle.text()).toBe('Usar tema claro')
+    expect(toggle.attributes('aria-label')).toBe('Usar tema claro')
+    expect(toggle.find('svg').exists()).toBe(true)
+  })
+
+  it('ofrece ir al visor 3D con un clic al generar', async () => {
+    expect(wrapper.find('a[href="#vista-3d"]').exists()).toBe(false)
+
+    await start()
+
+    const enlace = wrapper.get('a[href="#vista-3d"]')
+    expect(enlace.text()).toContain('Ver la pieza en el visor 3D')
+    await enlace.trigger('click')
+
+    expect(document.activeElement).toBe(wrapper.get('#vista-3d').element)
   })
 
   it.each(['', '   ', 'x'.repeat(1001)])('valida entrada y enfoca el campo sin generar', async (text) => {

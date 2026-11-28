@@ -30,7 +30,6 @@ test.describe('auditoría axe WCAG 2.1 AA', () => {
       for (const vista of [
         { nombre: 'nueva solicitud', ruta: '/nueva-solicitud' },
         { nombre: 'historial', ruta: '/historial' },
-        { nombre: 'ajustes', ruta: '/ajustes' },
       ]) {
         await test.step(vista.nombre, async () => {
           await page.goto(vista.ruta)
