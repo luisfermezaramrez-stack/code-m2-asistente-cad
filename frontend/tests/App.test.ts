@@ -36,6 +36,8 @@ beforeEach(async () => {
       stubs: { GlbViewer: { props: ['url'], template: '<div data-testid="visor-simulado">Visor WebGL simulado: {{ url }}</div>' } },
     },
   })
+  // El shell espera la lectura de sesión: sin esto la vista aún no está montada.
+  await flushPromises()
 })
 afterEach(() => { wrapper.unmount(); document.body.innerHTML = ''; vi.unstubAllGlobals(); vi.useRealTimers() })
 
@@ -49,13 +51,15 @@ describe('SPA conectada a FastAPI simulado', () => {
 
   it('permite elegir tema desde la cabecera y persiste la preferencia', async () => {
     const toggle = wrapper.get('button.theme-toggle')
-    expect(toggle.text()).toBe('Usar tema oscuro')
+    expect(toggle.attributes('aria-label')).toBe('Usar tema oscuro')
+    expect(toggle.find('svg').exists()).toBe(true)
 
     await toggle.trigger('click')
 
     expect(document.documentElement.dataset.theme).toBe('dark')
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
-    expect(toggle.text()).toBe('Usar tema claro')
+    expect(toggle.attributes('aria-label')).toBe('Usar tema claro')
+    expect(toggle.find('svg').exists()).toBe(true)
   })
 
   it.each(['', '   ', 'x'.repeat(1001)])('valida entrada y enfoca el campo sin generar', async (text) => {

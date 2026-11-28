@@ -3,8 +3,6 @@ import { computed, defineAsyncComponent, nextTick, ref } from 'vue'
 import type { Stage } from '../api'
 import { useGenerationContext } from '../useGeneration'
 
-const props = defineProps<{ necesitaLogin: boolean }>()
-
 const GlbViewer = defineAsyncComponent(() => import('../GlbViewer.vue'))
 // El estado de generación pertenece al shell: navegar no aborta el trabajo en curso.
 const flow = useGenerationContext()
@@ -28,7 +26,6 @@ const glb = computed(() => artifacts.value.find((item) => item.format === 'glb')
 const hasStep = computed(() => artifacts.value.some((item) => item.format === 'step'))
 
 async function submit() {
-  if (props.necesitaLogin) return
   const run = flow.start()
   await nextTick()
   if (inputError.value) input.value?.focus()
@@ -38,29 +35,29 @@ async function submit() {
 
 <template>
   <div class="workspace">
-    <section class="panel" aria-labelledby="request-title">
-      <h2 id="request-title">Describe tu pieza</h2>
-      <form novalidate @submit.prevent="submit">
-        <label for="descripcion">Descripción técnica</label>
-        <textarea id="descripcion" ref="input" v-model="description" maxlength="1000" :readonly="busy" :aria-invalid="!!inputError" aria-describedby="input-help input-error" placeholder="Ej.: placa de 120 × 120 mm, espesor de 6 mm y 4 agujeros de 12 mm en un círculo de 90 mm." />
-        <p id="input-help" class="help">Entre 1 y 1000 caracteres. Incluye dimensiones, unidades y material si lo conoces.</p>
-        <p id="input-error" class="field-error" role="alert">{{ inputError }}</p>
-        <details class="settings"><summary>Opciones de espera</summary>
-          <label for="timeout">Tiempo máximo de espera (segundos)</label>
-          <input id="timeout" v-model.number="timeoutSeconds" type="number" min="5" max="600" step="1" :disabled="busy" aria-describedby="timeout-help">
-          <p id="timeout-help" class="help">De 5 a 600 segundos. Interrumpir la espera desconecta y solicita cancelación local; consulta el estado para confirmar la detención. No se confirma la detención de servicios remotos.</p>
-        </details>
-        <div class="actions">
-          <button class="primary" type="submit" :disabled="props.necesitaLogin" :aria-disabled="busy || props.necesitaLogin">Generar pieza</button>
-          <button type="button" :disabled="!canCancel" @click="flow.cancel">Cancelar solicitud</button>
-        </div>
-      </form>
-      <div v-if="busy || canCheck" class="actions">
-        <button v-if="busy" type="button" @click="flow.stopWaiting">Interrumpir espera</button>
-        <button v-if="canCheck" type="button" :disabled="checking" @click="flow.refresh">{{ checking ? 'Consultando estado…' : 'Actualizar estado' }}</button>
-      </div>
-    </section>
     <div class="stack">
+      <section class="panel" aria-labelledby="request-title">
+        <h2 id="request-title">Describe tu pieza</h2>
+        <form novalidate @submit.prevent="submit">
+          <label for="descripcion">Descripción técnica</label>
+          <textarea id="descripcion" ref="input" v-model="description" maxlength="1000" :readonly="busy" :aria-invalid="!!inputError" aria-describedby="input-help input-error" placeholder="Ej.: placa de 120 × 120 mm, espesor de 6 mm y 4 agujeros de 12 mm en un círculo de 90 mm." />
+          <p id="input-help" class="help">Entre 1 y 1000 caracteres. Incluye dimensiones, unidades y material si lo conoces.</p>
+          <p id="input-error" class="field-error" role="alert">{{ inputError }}</p>
+          <details class="settings"><summary>Opciones de espera</summary>
+            <label for="timeout">Tiempo máximo de espera (segundos)</label>
+            <input id="timeout" v-model.number="timeoutSeconds" type="number" min="5" max="600" step="1" :disabled="busy" aria-describedby="timeout-help">
+            <p id="timeout-help" class="help">De 5 a 600 segundos. Interrumpir la espera desconecta y solicita cancelación local; consulta el estado para confirmar la detención. No se confirma la detención de servicios remotos.</p>
+          </details>
+          <div class="actions">
+            <button class="primary" type="submit" :aria-disabled="busy">Generar pieza</button>
+            <button type="button" :disabled="!canCancel" @click="flow.cancel">Cancelar solicitud</button>
+          </div>
+        </form>
+        <div v-if="busy || canCheck" class="actions">
+          <button v-if="busy" type="button" @click="flow.stopWaiting">Interrumpir espera</button>
+          <button v-if="canCheck" type="button" :disabled="checking" @click="flow.refresh">{{ checking ? 'Consultando estado…' : 'Actualizar estado' }}</button>
+        </div>
+      </section>
       <section class="panel" aria-labelledby="process-title">
         <h2 id="process-title">Proceso</h2>
         <div class="state" :class="job?.estado ?? 'idle'" aria-live="polite" aria-atomic="true">
@@ -80,6 +77,8 @@ async function submit() {
         <p v-if="!stages.length && (busy || disconnected)" class="help">El servicio aún no informa progreso. No se puede confirmar la etapa actual.</p>
         <p v-if="!stages.length && !busy && !disconnected" class="muted">Escribe una descripción para comenzar.</p>
       </section>
+    </div>
+    <div class="stack">
       <section class="panel" aria-labelledby="preview-title">
         <h2 id="preview-title">Vista 3D</h2>
         <GlbViewer v-if="glb" :key="glb.url" :url="glb.url" :token="downloadToken" :caja-mm="job?.resultado?.caja_mm" />
