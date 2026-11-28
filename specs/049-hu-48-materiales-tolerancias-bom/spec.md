@@ -6,10 +6,29 @@
 - **Responsable**: Luis Fernando Meza
 - **Depende de**: [SPEC-024](../024-hu-23-corpus-dorado-nucleo/spec.md)
 - **Rama**: `feature/hu-48-materiales-tolerancias-bom`
-- **Estado**: Spec-first · propuesta; `plan.md` y `tasks.md` se redactan al tomar la HU
+- **Estado**: Implementada (PR pendiente) · **alcance B** aprobado tras el
+  [spike](./spike.md): RF-1, RF-2, RF-3 y RF-5 cumplidos; **RF-4/AC4 fuera de alcance** por
+  decisión del spike (AC1)
 - **Origen**: [`docs/backlog-v2.md`](../../docs/backlog-v2.md) §6
 - **Auditoría**: corregida según
   [`docs/auditoria-specs-024-056.md`](../../docs/auditoria-specs-024-056.md)
+
+## Decisión del spike (RF-1 / AC1)
+
+El [spike](./spike.md) se cerró sobre el `constraint-kit` vendoreado (revisión `2ed27db`)
+antes de implementar nada, con dos opciones sobre la mesa:
+
+- **(A) Alcance completo con RF-4**: exigía un parche de 130-200 líneas en el repositorio
+  externo (`builder.py`, `dsl.py` y un verificador de cotas que hoy no existe, porque
+  `dsl.signature` solo expone volumen, área, caja y conteos de topología) más el soporte
+  del parche en `scripts/vendor-constraint-kit.sh`, que hoy no verifica que se aplique.
+- **(B) Alcance reducido**: material explícito (RF-2), BOM con costos (RF-3) y declinación
+  de materiales no soportados (RF-5), sin tocar el kit.
+
+**Decisión (2026-11-27): B.** RF-4 queda sin implementar y AC4 no aplica; el motivo técnico
+está en el spike y el alcance aprobado en [`plan.md`](./plan.md). El material canónico son
+los ocho materiales del planificador, con `al` como alias de `aluminum`; `iron`, `petg`,
+`titanium` y cualquier otro declinan con un motivo que los nombra.
 
 ## Problema y contexto
 
@@ -76,7 +95,8 @@ preliminar.
 - **RF-3**: el BOM CSV agrega material, masa y costo estimado por línea y total, con
   precios por material configurables (Supuesto: tabla versionada en el repositorio).
 - **RF-4**: si el spike lo confirma, la descripción admite tolerancias o ajustes ISO 286
-  y la verificación las comprueba de forma determinista.
+  y la verificación las comprueba de forma determinista. **No implementado: el spike no lo
+  confirmó** (ver [decisión del spike](#decisión-del-spike-rf-1--ac1)).
 - **RF-5**: un material o tolerancia no soportado produce declinación con motivo legible.
   Requiere código nuevo: un guard que valide el material del programa contra la lista
   soportada, hoy inexistente.
@@ -114,7 +134,10 @@ preliminar.
 - **Entonces** el sistema declina con un motivo que nombra el material, en lugar de construir
   con la densidad del acero como hoy (`constraint_kit/builder.py:320`).
 
-### AC4 — Tolerancias (condicionado al spike)
+### AC4 — Tolerancias (condicionado al spike) — **no aplica**
+
+El spike descartó la vía sin parchear el kit y el alcance aprobado es B, así que AC4 no se
+implementa. Queda registrado para que la spec no aparente estar completa.
 
 - **Dado** una cota con ajuste ISO 286 soportado
 - **Cuando** se verifica la pieza
