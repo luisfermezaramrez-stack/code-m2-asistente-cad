@@ -5,9 +5,16 @@ a { color: var(--color-accent); text-underline-offset: var(--space-1); }
 .skip { position: absolute; top: var(--space-2); left: var(--space-4); transform: translateY(-200%); padding: var(--space-3); background: var(--color-surface); z-index: 1; }
 .skip:focus { transform: none; }
 .shell { max-width: var(--layout-max); margin-inline: auto; padding: var(--space-6); }
-.masthead { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-5); }
+.masthead { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-5); padding: var(--space-4); border-radius: var(--radius-panel); background: var(--gradiente-app); }
 .masthead > div { min-width: 0; }
-.theme-toggle { min-height: var(--control-min); font-size: var(--text-small); }
+.theme-toggle { display: inline-flex; align-items: center; justify-content: center; min-height: var(--control-min); min-width: var(--control-min); padding: var(--space-2); }
+.theme-icon { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* El acceso ocupa la pantalla: sin cabecera, navegación ni aviso antes de entrar. */
+.acceso { min-height: 100vh; display: grid; align-content: center; gap: var(--space-5); max-width: 26rem; margin-inline: auto; padding: var(--space-6); }
+.acceso-cabecera { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-small); background: var(--gradiente-app); }
+.acceso-form { display: grid; gap: var(--space-2); }
+.masthead-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.sesion-usuario { margin: 0; }
 .brand { color: var(--color-muted); font: var(--text-small)/var(--line-body) var(--font-technical); }
 h1, h2, h3 { line-height: var(--line-heading); margin: 0 0 var(--space-4); font-weight: var(--weight-strong); }
 h1 { font-size: var(--text-title); }
@@ -16,14 +23,13 @@ h3 { font-size: var(--text-body); }
 p { margin: 0 0 var(--space-4); overflow-wrap: anywhere; }
 .muted, .help { color: var(--color-muted); }
 .help { font-size: var(--text-small); }
-.notice { padding: var(--space-4); border-inline-start: var(--focus-width) solid var(--color-warning); background: var(--color-warning-bg); color: var(--color-warning); border-radius: var(--radius-small); margin-bottom: var(--space-5); }
 .nav { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-5); }
 .nav a { display: inline-flex; align-items: center; min-height: var(--control-min); padding: var(--space-2) var(--space-4); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-small); text-decoration: none; }
 .nav a.router-link-active { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-surface); font-weight: var(--weight-strong); }
 .view { min-width: 0; }
-.workspace { display: grid; grid-template-columns: var(--request-column) minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+/* Una sola columna: descripción con su proceso, vista 3D y archivos, todo al 100 %. */
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); align-items: start; }
 .panel { padding: var(--space-5); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); min-width: 0; }
-.stack { display: grid; gap: var(--space-5); min-width: 0; }
 label { display: block; font-weight: var(--weight-strong); margin-bottom: var(--space-2); }
 textarea, input { width: 100%; padding: var(--space-3); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-small); color: var(--color-text); background: var(--color-surface); font: inherit; }
 textarea { min-height: var(--input-height); resize: vertical; }
@@ -39,6 +45,20 @@ summary { cursor: pointer; min-height: var(--control-min); padding-block: var(--
 .steps li { border-bottom: var(--border-width) solid var(--color-border); padding-block: var(--space-2); }
 .state { padding: var(--space-4); border-inline-start: var(--focus-width) solid currentColor; border-radius: var(--radius-small); margin-bottom: var(--space-4); }
 .state p:last-child { margin-bottom: 0; }
+/* El proceso es una card propia, compacta, junto al formulario: 75 % / 25 %. */
+.proceso { min-width: 0; padding: var(--space-3); }
+.proceso h2 { margin-bottom: var(--space-1); color: var(--color-muted); font-size: var(--text-small); }
+.proceso .state { margin-bottom: var(--space-2); padding: var(--space-2) var(--space-3); }
+.proceso p, .proceso .help, .proceso .muted { margin-bottom: var(--space-1); font-size: var(--text-small); }
+.proceso .steps { padding-inline-start: var(--space-4); font-size: var(--text-small); }
+.proceso .steps li { padding-block: var(--space-1); }
+/* Fila de la solicitud: card de descripción 75 %, card de proceso 25 %. */
+.solicitud { display: grid; grid-template-columns: 3fr 1fr; gap: var(--space-4); align-items: stretch; }
+.solicitud-formulario { min-width: 0; }
+/* Salto de un clic al visor 3D desde la acción de generar. */
+.ver-visor { margin: 0 0 var(--space-3); }
+.ver-visor a { display: inline-flex; align-items: center; min-height: var(--control-min); font-weight: var(--weight-strong); }
+#vista-3d { scroll-margin-top: var(--space-4); }
 .estado-vista--vacio { color: var(--color-idle); background: var(--color-idle-bg); }
 .estado-vista--cargando { color: var(--state-validando-fg); background: var(--state-validando-bg); }
 .estado-vista--error { color: var(--color-error); background: var(--color-error-bg); }
@@ -72,7 +92,7 @@ button[aria-pressed='true'] { background: var(--color-accent); color: var(--colo
 .medidas dd { margin: var(--space-1) 0 0; font: var(--weight-strong) var(--text-body)/var(--line-body) var(--font-technical); }
 @media (max-width: 900px) {
   .shell { padding: var(--space-5); }
-  .workspace { grid-template-columns: minmax(0, 1fr); }
+  .solicitud { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 480px) {
   .shell, .panel { padding: var(--space-4); }

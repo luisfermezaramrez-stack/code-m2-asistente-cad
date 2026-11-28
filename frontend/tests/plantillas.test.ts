@@ -91,6 +91,19 @@ describe('HU-49 · RF-5 · lista y formulario de plantillas', () => {
     expect(items[1]!.text()).toContain('Guardada por ti')
   })
 
+  it('marca la plantilla elegida sin ocultar el texto del botón', async () => {
+    servidor(() => Response.json(PIEZA))
+    const vista = await montarVista()
+    await elegirPlaca(vista)
+
+    const boton = vista.get('[data-test="plantilla-placa-con-agujeros"] button')
+    expect(boton.attributes('aria-pressed')).toBe('true')
+    // El estado presionado se marca con el chip, no vaciando la etiqueta del botón.
+    expect(boton.text()).toMatch(/^Usar «.+»$/)
+    expect(vista.get('[data-test="plantilla-placa-con-agujeros"] .elegida').text()).toBe('Elegida')
+    expect(vista.find('form.parametros').exists()).toBe(true)
+  })
+
   it('al elegir una plantilla muestra un campo etiquetado por parámetro, con rango y unidad', async () => {
     servidor(() => Response.json(PIEZA))
     const vista = await montarVista()

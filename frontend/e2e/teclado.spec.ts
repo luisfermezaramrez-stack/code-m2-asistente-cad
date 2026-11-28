@@ -39,7 +39,7 @@ test.describe('flujo sin mouse', () => {
     const tema = await tabHasta(page, 'button.theme-toggle')
     await page.keyboard.press('Enter')
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-    await expect(tema).toHaveText('Usar tema claro')
+    await expect(tema).toHaveAttribute('aria-label', 'Usar tema claro')
 
     const descripcion = await tabHasta(page, '#descripcion')
     expect(await descripcion.evaluate((elemento) => getComputedStyle(elemento).outlineWidth)).toBe('3px')

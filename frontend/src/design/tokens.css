@@ -1,8 +1,8 @@
 :root {
   color-scheme: light;
-  --color-background: #eef2f6;
-  --color-surface: #ffffff;
-  --color-surface-subtle: #f5f7fa;
+  --color-background: #e2e9f1;
+  --color-surface: #f9fbfd;
+  --color-surface-subtle: #e9eff6;
   --color-viewer-background: #2f3e4f;
   --color-text: #172b40;
   --color-muted: #465a70;
@@ -20,6 +20,7 @@
   --color-error-bg: #fff0f1;
   --color-idle: #465a70;
   --color-idle-bg: #f5f7fa;
+  --gradiente-app: linear-gradient(135deg, #eef3f9 0%, #dde8f3 55%, #cddeee 100%);
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-technical: ui-monospace, Consolas, monospace;
   --text-small: 0.875rem;
@@ -44,7 +45,6 @@
   --focus-offset: 3px;
   --control-min: 2.75rem;
   --layout-max: 76rem;
-  --request-column: 24rem;
   --preview-height: 18rem;
   --input-height: 10rem;
   --state-validando-fg: var(--color-info);
@@ -82,6 +82,7 @@
     --color-error-bg: #3f1820;
     --color-idle: #c3cede;
     --color-idle-bg: #203147;
+    --gradiente-app: linear-gradient(135deg, #1b2a42 0%, #142338 55%, #0d1a2e 100%);
     --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-technical: ui-monospace, Consolas, monospace;
     --text-small: 0.875rem;
@@ -106,7 +107,6 @@
     --focus-offset: 3px;
     --control-min: 2.75rem;
     --layout-max: 76rem;
-    --request-column: 24rem;
     --preview-height: 18rem;
     --input-height: 10rem;
     --state-validando-fg: var(--color-info);
@@ -144,6 +144,7 @@
   --color-error-bg: #3f1820;
   --color-idle: #c3cede;
   --color-idle-bg: #203147;
+    --gradiente-app: linear-gradient(135deg, #1b2a42 0%, #142338 55%, #0d1a2e 100%);
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-technical: ui-monospace, Consolas, monospace;
   --text-small: 0.875rem;
@@ -168,7 +169,6 @@
   --focus-offset: 3px;
   --control-min: 2.75rem;
   --layout-max: 76rem;
-  --request-column: 24rem;
   --preview-height: 18rem;
   --input-height: 10rem;
   --state-validando-fg: var(--color-info);

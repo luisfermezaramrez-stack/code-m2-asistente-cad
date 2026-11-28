@@ -2,7 +2,6 @@ import type {
   ConsultarGeneracionV1GeneracionesSolicitudIdGetResponse,
   ListarRegistrosV1RegistrosGetData,
   RegistroResumen,
-  PanoramaMetricas,
   ParametroPlantilla,
   PlantillaPublica,
   RespuestaInstancia,
@@ -216,20 +215,6 @@ export async function glbVivo(id: string, token: string, signal: AbortSignal): P
     if (signal.aborted) throw error
     return null
   }
-}
-
-export type { PanoramaMetricas }
-
-export async function cargarMetricas(horas?: number, signal?: AbortSignal): Promise<PanoramaMetricas> {
-  // `horas` sólo se envía si la vista lo pide: el servidor aplica su ventana por defecto.
-  const consulta = horas === undefined ? '' : `?horas=${encodeURIComponent(String(horas))}`
-  const response = await fetch(`/v1/metricas${consulta}`, {
-    method: 'GET',
-    signal,
-    headers: { Accept: 'application/json' },
-  })
-  if (!response.ok) throw new Error('No se pudieron leer las métricas. Vuelve a intentarlo.')
-  return (await response.json()) as PanoramaMetricas
 }
 
 /* Plantillas parametrizadas (HU-49, SPEC-050): instanciar no llama al modelo (RNF-1). */

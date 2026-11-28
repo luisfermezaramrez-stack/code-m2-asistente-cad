@@ -44,7 +44,8 @@ describe('AC1 y AC2 · URL propia y estado recuperable', () => {
     expect(router.currentRoute.value.path).toBe('/nueva-solicitud')
     expect(enlace('Nueva solicitud').attributes('href')).toBe('/nueva-solicitud')
     expect(wrapper.find('textarea#descripcion').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Describe tu pieza')
+    expect(wrapper.text()).toContain('Especifica la pieza que necesitas')
+    expect(wrapper.findAll('nav a')).toHaveLength(3)
   })
 
   it('cambia la URL y la vista al recorrer las tres entradas de navegación', async () => {
@@ -55,11 +56,10 @@ describe('AC1 y AC2 · URL propia y estado recuperable', () => {
     expect(wrapper.text()).toContain('No hay solicitudes registradas para mostrar')
     expect(wrapper.find('textarea').exists()).toBe(false)
 
-    await enlace('Ajustes').trigger('click')
+    await enlace('Plantillas').trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.path).toBe('/ajustes')
-    expect(wrapper.text()).toContain('El tema se cambia desde la cabecera')
+    expect(router.currentRoute.value.path).toBe('/plantillas')
     expect(wrapper.find('textarea').exists()).toBe(false)
 
     await enlace('Nueva solicitud').trigger('click')
@@ -91,14 +91,13 @@ describe('AC1 y AC2 · URL propia y estado recuperable', () => {
     expect(wrapper.find('textarea').exists()).toBe(false)
   })
 
-  it('recupera la vista de ajustes y el tema guardado desde su URL en otra pestaña', async () => {
+  it('recupera la vista de plantillas y el tema guardado desde su URL en otra pestaña', async () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, 'dark')
 
-    await abrirEnOtraPestana('/ajustes')
+    await abrirEnOtraPestana('/plantillas')
 
-    expect(router.currentRoute.value.path).toBe('/ajustes')
-    expect(wrapper.text()).toContain('El tema se cambia desde la cabecera')
-    expect(wrapper.get('button.theme-toggle').text()).toBe('Usar tema claro')
+    expect(router.currentRoute.value.path).toBe('/plantillas')
+    expect(wrapper.get('button.theme-toggle').attributes('aria-label')).toBe('Usar tema claro')
   })
 })
 
@@ -128,7 +127,7 @@ describe('AC3 · Estados nuevos del shell diferenciados', () => {
     await flushPromises()
   }
 
-  it('distingue vacío, cargando y error en historial y ajustes', async () => {
+  it('distingue vacío, cargando y error en el historial', async () => {
     let liberar: () => void = () => {}
     service.esperaRegistros = new Promise<void>((resolve) => { liberar = resolve })
     await visitar('/historial')
@@ -154,22 +153,14 @@ describe('AC3 · Estados nuevos del shell diferenciados', () => {
     expect(bloque.text()).toContain('No se pudo cargar el historial')
     expect(bloque.attributes('role')).toBe('alert')
     expect(bloque.attributes('aria-busy')).toBe('false')
+  })
 
-    // Ajustes conserva los estados de la consulta hasta que tenga datos propios.
-    const estadosAjustes = [
-      ['vacio', 'No hay ajustes adicionales'],
-      ['cargando', 'Cargando los ajustes'],
-      ['error', 'No se pudieron cargar los ajustes'],
-    ] as const
+  it('retira las rutas de métricas y ajustes', async () => {
+    for (const ruta of ['/metricas', '/ajustes']) {
+      await visitar(ruta)
 
-    for (const [estado, texto] of estadosAjustes) {
-      await visitar(`/ajustes?estado=${estado}`)
-
-      const ajustes = wrapper.get('.estado-vista')
-      expect(ajustes.classes()).toContain(`estado-vista--${estado}`)
-      expect(ajustes.text()).toContain(texto)
-      expect(ajustes.attributes('role')).toBe(estado === 'error' ? 'alert' : 'status')
-      expect(ajustes.attributes('aria-busy')).toBe(estado === 'cargando' ? 'true' : 'false')
+      expect(wrapper.text()).toContain('Vista no encontrada')
+      expect(wrapper.text()).toContain('La ruta solicitada no corresponde')
     }
   })
 
@@ -206,9 +197,8 @@ describe('AC4 · Navegación sólo con teclado', () => {
 
   it('no captura Tab en el nav: el foco queda libre para salir del menú', async () => {
     const enlaces = wrapper.findAll('nav a')
-    // HU-51 añadió «Métricas» y HU-49 «Plantillas»: la navegación por teclado tiene que
-    // seguir cubriéndolas todas.
-    expect(enlaces).toHaveLength(5)
+    // HU-59 retiró «Métricas» y «Ajustes»: la navegación por teclado cubre las tres vigentes.
+    expect(enlaces).toHaveLength(3)
 
     const primero = enlaces[0]!.element as HTMLAnchorElement
     primero.focus()
@@ -228,11 +218,10 @@ describe('AC4 · Navegación sólo con teclado', () => {
     ;(skip.element as HTMLAnchorElement).focus()
     expect(document.activeElement).toBe(skip.element)
 
-    await wrapper.get('nav a[href="/ajustes"]').trigger('click')
+    await wrapper.get('nav a[href="/plantillas"]').trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.path).toBe('/ajustes')
-    expect(wrapper.text()).toContain('Ajustes')
+    expect(router.currentRoute.value.path).toBe('/plantillas')
   })
 })
 

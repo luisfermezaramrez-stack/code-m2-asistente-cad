@@ -84,3 +84,18 @@ tomar la HU. Issue y PR se registran al abrirse.
 | [054](054-hu-53-autenticacion/) | HU-53 · Autenticación y usuarios | 3 | Juan Camilo | #113 | #133 | Spec-first | Fusionada |
 | [055](055-hu-54-sitio-documentacion/) | HU-54 · Sitio de documentación publicado | 3 | Carlos | #114 | #150 | Spec-first | Fusionada |
 | [056](056-hu-55-releases-automaticos/) | HU-55 · Releases automáticos con changelog | 3 | Carlos | #115 | #153 | Spec-first | Fusionada |
+
+## Refactor de la interfaz — acceso, menú y orden de la solicitud
+
+Specs redactadas antes de implementar y revisadas contra `main` tras la fusión de HU-37, HU-49,
+HU-51 y HU-53. Las tres se implementan en la rama `refactor/hu-58-60-interfaz-login` y se
+entregan en un solo PR. Issues y PR se registran al abrirlos.
+
+| Spec | Historia | Issue | PR | Tipo | Estado |
+| --- | --- | --- | --- | --- | --- |
+| [059](059-hu-58-login-primera-pantalla/) | HU-58 · El login como primera pantalla y el tema sol/luna | #164 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
+| [060](060-hu-59-retirar-metricas-ajustes/) | HU-59 · Retirar «Métricas» y «Ajustes» de la interfaz | #165 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
+| [061](061-hu-60-card-proceso-bajo-descripcion/) | HU-60 · Proceso compacto y orden vertical al 100 % | #166 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
+| [062](062-hu-61-sin-aviso-profesional/) | HU-61 · Sin aviso profesional persistente en el shell | #167 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
+| [063](063-hu-62-gradiente-identidad/) | HU-62 · Gradiente de identidad del asistente CAD | #168 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
+| [064](064-hu-63-plantillas-y-atajo-visor/) | HU-63 · Plantillas legibles, sección en cards y atajo al visor 3D | #169 | #171, #172 | Spec-first | En revisión (PR #171 / #172) |
