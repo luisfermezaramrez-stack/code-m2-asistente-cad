@@ -2,7 +2,8 @@
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
-  consultarRegistro, downloadArtifact, glbVivo, publicMessage, stepRegistro, validarEstado,
+  consultarRegistro, downloadArtifact, glbVivo, guardarComoPlantilla, publicMessage, stepRegistro,
+  validarEstado,
   type Artifact, type EstadoRegistro, type FilaRegistro,
 } from '../api'
 
@@ -19,6 +20,11 @@ const error = ref('')
 const aviso = ref('Cargando la solicitud…')
 const descargando = ref(false)
 const glb = ref<Artifact | null>(null)
+// Guardar como plantilla (HU-49, RF-3): sólo para una solicitud entregada.
+const nombrePlantilla = ref('')
+const guardandoPlantilla = ref(false)
+const mensajePlantilla = ref('')
+const errorPlantilla = ref('')
 let control: AbortController | undefined
 
 // `estado` y `motivo` los deriva el backend (RNF-1): la vista no repite la regla.
@@ -36,6 +42,9 @@ async function cargar() {
   aviso.value = 'Cargando la solicitud…'
   fila.value = null
   glb.value = null
+  nombrePlantilla.value = ''
+  mensajePlantilla.value = ''
+  errorPlantilla.value = ''
   try {
     const consultado = await consultarRegistro(identificador.value, actual.signal)
     if (actual.signal.aborted) return
@@ -68,6 +77,27 @@ async function descargar() {
     aviso.value = publicMessage(fallo instanceof Error ? fallo.message : '', 'No se pudo descargar el archivo.')
   } finally {
     descargando.value = false
+  }
+}
+
+async function guardarPlantilla() {
+  if (guardandoPlantilla.value) return
+  mensajePlantilla.value = ''
+  errorPlantilla.value = ''
+  const nombre = nombrePlantilla.value.trim()
+  if (!nombre) {
+    errorPlantilla.value = 'Escribe un nombre para la plantilla.'
+    return
+  }
+  guardandoPlantilla.value = true
+  try {
+    const plantilla = await guardarComoPlantilla(identificador.value, nombre)
+    mensajePlantilla.value = `Plantilla «${plantilla.nombre}» guardada. Ya aparece en Plantillas.`
+    nombrePlantilla.value = ''
+  } catch (fallo) {
+    errorPlantilla.value = publicMessage(fallo instanceof Error ? fallo.message : '', 'No se pudo guardar la plantilla.')
+  } finally {
+    guardandoPlantilla.value = false
   }
 }
 
@@ -104,6 +134,18 @@ onBeforeUnmount(() => control?.abort())
         </button>
         <RouterLink class="volver" to="/historial">Volver al historial</RouterLink>
       </div>
+      <form v-if="step" class="guardar-plantilla" aria-labelledby="guardar-plantilla-title" novalidate @submit.prevent="guardarPlantilla">
+        <h3 id="guardar-plantilla-title">Guardar como plantilla</h3>
+        <label for="nombre-plantilla">Nombre de la plantilla</label>
+        <input id="nombre-plantilla" v-model="nombrePlantilla" maxlength="80" autocomplete="off" required>
+        <button type="submit" :disabled="guardandoPlantilla">
+          {{ guardandoPlantilla ? 'Guardando…' : 'Guardar como plantilla' }}
+        </button>
+        <p v-if="mensajePlantilla" role="status" data-test="plantilla-guardada">
+          {{ mensajePlantilla }} <RouterLink to="/plantillas">Ir a Plantillas</RouterLink>
+        </p>
+        <p v-if="errorPlantilla" class="field-error" role="alert" data-test="error-guardar-plantilla">{{ errorPlantilla }}</p>
+      </form>
       <GlbViewer v-if="glb" :key="glb.url" :url="glb.url" :token="token" />
       <p v-else-if="step" class="muted">
         La vista 3D de una solicitud anterior sólo aparece mientras el trabajo siga vivo en el servidor.
@@ -116,5 +158,7 @@ onBeforeUnmount(() => control?.abort())
 .registro-meta { display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: space-between; color: var(--color-muted); font-size: var(--text-small); }
 .registro-estado { color: var(--color-text); }
 .motivo { color: var(--color-warning); }
+.guardar-plantilla { display: grid; gap: var(--space-2); max-width: 28rem; margin-block: var(--space-4); }
+.guardar-plantilla button { justify-self: start; }
 .volver { display: inline-flex; align-items: center; min-height: var(--control-min); }
 </style>

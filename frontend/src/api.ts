@@ -3,6 +3,12 @@ import type {
   ListarRegistrosV1RegistrosGetData,
   RegistroResumen,
   PanoramaMetricas,
+  ParametroPlantilla,
+  PlantillaPublica,
+  RespuestaInstancia,
+  RespuestaPlantillas,
+  SolicitudGuardarPlantilla,
+  SolicitudInstancia,
 } from './generated/api'
 
 export type Job = ConsultarGeneracionV1GeneracionesSolicitudIdGetResponse
@@ -224,4 +230,62 @@ export async function cargarMetricas(horas?: number, signal?: AbortSignal): Prom
   })
   if (!response.ok) throw new Error('No se pudieron leer las métricas. Vuelve a intentarlo.')
   return (await response.json()) as PanoramaMetricas
+}
+
+/* Plantillas parametrizadas (HU-49, SPEC-050): instanciar no llama al modelo (RNF-1). */
+
+export type { ParametroPlantilla, PlantillaPublica, RespuestaInstancia }
+
+export function plantillaUrl(id: string): string { return `/v1/plantillas/${encodeURIComponent(id)}` }
+
+async function cuerpoJson<T>(response: Response, fallback: string): Promise<T> {
+  try {
+    return (await response.json()) as T
+  } catch {
+    throw new Error(fallback)
+  }
+}
+
+/** Catálogo versionado y plantillas guardadas del usuario, en ese orden (RF-1, RF-5). */
+export async function listarPlantillas(signal?: AbortSignal): Promise<PlantillaPublica[]> {
+  const fallback = 'No se pudieron cargar las plantillas.'
+  const response = await fetch('/v1/plantillas', {
+    signal,
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+  })
+  if (!response.ok) throw new Error(await publicDetail(response, fallback))
+  const cuerpo = await cuerpoJson<RespuestaPlantillas>(response, fallback)
+  if (!Array.isArray(cuerpo?.plantillas)) throw new Error(fallback)
+  return cuerpo.plantillas
+}
+
+/**
+ * Instancia una plantilla con sus valores (RF-2). Un 422 trae el mensaje del servidor
+ * que nombra el parámetro y su rango (RF-4); se muestra tal cual, saneado.
+ */
+export async function instanciarPlantilla(
+  id: string,
+  valores: SolicitudInstancia['valores'],
+): Promise<RespuestaInstancia> {
+  const fallback = 'No se pudo generar la pieza desde la plantilla.'
+  const response = await fetch(`${plantillaUrl(id)}/instanciar`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ valores } satisfies SolicitudInstancia),
+  })
+  if (!response.ok) throw new Error(await publicDetail(response, fallback))
+  return cuerpoJson<RespuestaInstancia>(response, fallback)
+}
+
+/** Guarda la última versión de una solicitud propia como plantilla (RF-3). */
+export async function guardarComoPlantilla(solicitudId: string, nombre: string): Promise<PlantillaPublica> {
+  const fallback = 'No se pudo guardar la plantilla.'
+  const response = await fetch('/v1/plantillas', {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ solicitud_id: solicitudId, nombre } satisfies SolicitudGuardarPlantilla),
+  })
+  if (!response.ok) throw new Error(await publicDetail(response, fallback))
+  return cuerpoJson<PlantillaPublica>(response, fallback)
 }
